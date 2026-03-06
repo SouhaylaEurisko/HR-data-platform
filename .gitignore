@@ -3,4 +3,17 @@ backend/.env
 frontend/.env
 
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+
+node_modules/
+*.log
+.DS_Store
+*.db
+
 data/
