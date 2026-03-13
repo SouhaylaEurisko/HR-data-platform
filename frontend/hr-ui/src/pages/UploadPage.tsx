@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { importXlsx, previewXlsx, type SheetPreview, type XlsxPreviewResponse } from '../api/import';
-import type { ImportXlsxResponse } from '../types/api';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { importXlsx, previewXlsx } from '../api/import';
+import type { ImportXlsxResponse, XlsxPreviewResponse } from '../types/api';
 import './UploadPage.css';
 
 export default function UploadPage() {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -116,10 +118,20 @@ export default function UploadPage() {
 
   return (
     <div className="upload-page">
-      <h1>Upload XLSX File</h1>
-      <p className="upload-description">
-        Upload an Excel file (.xlsx) to import candidate data into the system.
-      </p>
+      <div className="page-top-bar">
+        <div>
+          <h1>Upload XLSX File</h1>
+          <p className="upload-description">
+            Upload an Excel file (.xlsx) to import candidate data into the system.
+          </p>
+        </div>
+        <button onClick={() => navigate('/candidates')} className="cross-nav-btn">
+          <svg viewBox="0 0 20 20" fill="currentColor">
+            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+          </svg>
+          View Candidates
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="upload-form">
         <div className="file-input-wrapper">

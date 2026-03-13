@@ -1,19 +1,22 @@
+"""
+Router: Candidate listing and detail endpoints.
+"""
+
 from typing import Literal, Optional
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..db import get_db
-from ..models import Candidate
-from ..schemas import CandidateListResponse, CandidateRead
-from datetime import date, datetime
+from ..config import get_db
+from ..models import CandidateListResponse, CandidateRead
+from ..services.candidate_service import list_candidates, get_candidate_by_id
 
 router = APIRouter(prefix="/api/candidates", tags=["candidates"])
 
 
-@router.get("/", response_model=CandidateListResponse)
-def list_candidates(
+@router.get("", response_model=CandidateListResponse)
+def list_candidates_endpoint(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     nationality: Optional[str] = None,
@@ -28,64 +31,29 @@ def list_candidates(
     sort_order: Literal["asc", "desc"] = "desc",
     db: Session = Depends(get_db),
 ) -> CandidateListResponse:
-    query = select(Candidate)
-
-
-    if nationality:
-        query = query.where(Candidate.nationality.ilike(f"%{nationality}%"))
-    if date_of_birth:
-        query = query.where(Candidate.date_of_birth == date_of_birth)
-    if position:
-        query = query.where(Candidate.position.ilike(f"%{position}%"))
-    if expected_salary:
-        query = query.where(Candidate.expected_salary == expected_salary)
-    if current_address:
-        query = query.where(Candidate.current_address.ilike(f"%{current_address}%"))
-    if min_years_experience is not None:
-        query = query.where(Candidate.years_experience >= min_years_experience)
-    if max_years_experience is not None:
-        query = query.where(Candidate.years_experience <= max_years_experience)
-    if search:
-        pattern = f"%{search}%"
-        query = query.where(Candidate.full_name.ilike(pattern))
-
-    total = db.scalar(
-        select(func.count()).select_from(query.subquery())
-    ) or 0  # type: ignore[arg-type]
-
-    sort_col = {
-        "created_at": Candidate.created_at,
-        "expected_salary": Candidate.expected_salary,
-        "years_experience": Candidate.years_experience,
-    }[sort_by]
-
-    if sort_order == "asc":
-        query = query.order_by(sort_col.asc())
-    else:
-        query = query.order_by(sort_col.desc())
-    query = query.offset((page - 1) * page_size).limit(page_size)
-
-    results = db.execute(query).scalars().all()
-
-    return CandidateListResponse(
-        items=[CandidateRead.model_validate(candidate) for candidate in results],
-        total=total,
+    return list_candidates(
+        db,
         page=page,
         page_size=page_size,
+        nationality=nationality,
+        date_of_birth=date_of_birth,
+        position=position,
+        expected_salary=expected_salary,
+        current_address=current_address,
+        min_years_experience=min_years_experience,
+        max_years_experience=max_years_experience,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
 
 @router.get("/{candidate_id}", response_model=CandidateRead)
-def get_candidate(
+def get_candidate_endpoint(
     candidate_id: int,
     db: Session = Depends(get_db),
 ) -> CandidateRead:
-    candidate = db.get(Candidate, candidate_id)
-    if not candidate:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Candidate not found.",
-        )
-    return CandidateRead.model_validate(candidate)
-
-
+    result = get_candidate_by_id(db, candidate_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
+    return result

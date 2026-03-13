@@ -1,18 +1,327 @@
+/* Layout — Eurisko Theme (Purple / Dark) */
+
 .layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background-color: var(--eurisko-bg-primary);
 }
 
+/* ——— Navbar ——— */
 .navbar {
-  background-color: #2563eb;
-  color: white;
-  padding: 1rem 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: rgba(15, 21, 36, 0.92);
+  border-bottom: 1px solid var(--eurisko-border);
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .nav-container {
-  max-width: 1200px;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  gap: 1rem;
+}
+
+/* Nav actions container - pushes content to the right */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+/* Home button in navbar — right side */
+.nav-home-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--eurisko-bg-card);
+  border: 1px solid var(--eurisko-border);
+  border-radius: 50%;
+  color: var(--eurisko-text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.nav-home-btn svg {
+  width: 17px;
+  height: 17px;
+  transition: transform 0.25s ease;
+}
+
+.nav-home-btn:hover {
+  background: var(--eurisko-accent-muted);
+  border-color: var(--eurisko-accent);
+  color: var(--eurisko-accent-light);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+}
+
+.nav-home-btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* Login button - styled similar to other action buttons */
+.nav-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  background: var(--eurisko-accent);
+  border: 1px solid var(--eurisko-accent);
+  border-radius: var(--eurisko-radius-md);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.nav-login-btn:hover {
+  background: var(--eurisko-accent-light);
+  border-color: var(--eurisko-accent-light);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+}
+
+/* Brand */
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.nav-brand:hover {
+  opacity: 0.85;
+}
+
+.eurisko-logo-img {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+.nav-brand-divider {
+  width: 1px;
+  height: 24px;
+  background-color: var(--eurisko-border-light);
+}
+
+.nav-brand-product {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--eurisko-text-secondary);
+  letter-spacing: 0.02em;
+}
+
+/* User menu */
+.user-menu {
+  position: relative;
+}
+
+.user-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--eurisko-border);
+  background-color: var(--eurisko-bg-card);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.user-menu-btn:hover {
+  border-color: var(--eurisko-accent);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+
+.user-avatar-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--eurisko-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.user-menu-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  background-color: var(--eurisko-bg-elevated);
+  border-radius: var(--eurisko-radius-md);
+  border: 1px solid var(--eurisko-border-light);
+  box-shadow: var(--eurisko-shadow-md);
+  padding: 0.5rem 0.75rem;
+  z-index: 120;
+}
+
+.user-menu-email {
+  font-size: 0.78rem;
+  color: var(--eurisko-text-secondary);
+  margin-bottom: 0.5rem;
+  word-break: break-all;
+}
+
+.user-menu-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--eurisko-text-primary);
+  text-align: left;
+  padding: 0.3rem 0;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: var(--eurisko-radius-sm);
+}
+
+.user-menu-item:hover {
+  background-color: var(--eurisko-bg-card);
+}
+
+/* ——— Main Content ——— */
+.main-content {
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* ——— Floating Chat Button ——— */
+.floating-chat-btn {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid var(--eurisko-accent);
+  background: var(--eurisko-bg-card);
+  cursor: pointer;
+  z-index: 90;
+  padding: 0;
+  overflow: visible;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(168, 85, 247, 0.15);
+  animation: chatBobble 3s ease-in-out infinite;
+}
+
+@keyframes chatBobble {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.floating-chat-btn:hover {
+  animation-play-state: paused;
+  transform: scale(1.12);
+  border-color: var(--eurisko-accent-light);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(168, 85, 247, 0.3);
+}
+
+.floating-chat-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Pulse ring */
+.floating-chat-pulse {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--eurisko-accent);
+  opacity: 0;
+  animation: chatPulse 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes chatPulse {
+  0%   { opacity: 0.6; transform: scale(0.95); }
+  50%  { opacity: 0; transform: scale(1.15); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+
+/* Tooltip */
+.floating-chat-tooltip {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(6px);
+  background: var(--eurisko-bg-elevated);
+  color: var(--eurisko-accent-light);
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--eurisko-radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid var(--eurisko-border-light);
+  box-shadow: var(--eurisko-shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.25s ease;
+  pointer-events: none;
+}
+
+.floating-chat-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--eurisko-border-light);
+}
+
+.floating-chat-btn:hover .floating-chat-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* ——— Footer ——— */
+.footer {
+  background-color: var(--eurisko-bg-secondary);
+  border-top: 1px solid var(--eurisko-border);
+  padding: 1.25rem 0;
+  margin-top: auto;
+}
+
+.footer-container {
+  max-width: 1400px;
   margin: 0 auto;
   padding: 0 2rem;
   display: flex;
@@ -20,56 +329,69 @@
   align-items: center;
 }
 
-.nav-title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.nav-links {
+.footer-brand {
   display: flex;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  gap: 2rem;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.nav-links a {
-  color: white;
+.footer-logo-img {
+  height: 20px;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.7;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+}
+
+.footer-links a {
+  color: var(--eurisko-accent-light);
   text-decoration: none;
   font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  transition: background-color 0.2s;
+  transition: opacity 0.2s;
 }
 
-.nav-links a:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+.footer-links a:hover {
+  opacity: 0.8;
 }
 
-.nav-links a.active {
-  background-color: rgba(255, 255, 255, 0.2);
+.footer-separator {
+  color: var(--eurisko-text-muted);
 }
 
-.main-content {
-  flex: 1;
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 2rem;
+.footer-copyright {
+  color: var(--eurisko-text-muted);
 }
 
+/* ——— Responsive ——— */
 @media (max-width: 768px) {
   .nav-container {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .nav-links {
-    gap: 1rem;
+    padding: 0 1rem;
   }
 
   .main-content {
     padding: 1rem;
+  }
+
+  .footer-container {
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: center;
+  }
+
+  .floating-chat-btn {
+    width: 56px;
+    height: 56px;
+    bottom: 1.25rem;
+    right: 1.25rem;
+  }
+
+  .floating-chat-tooltip {
+    display: none;
   }
 }

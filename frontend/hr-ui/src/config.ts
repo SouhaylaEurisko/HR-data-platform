@@ -10,6 +10,13 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 
 export const API_ENDPOINTS = {
+  // Authentication endpoints
+  auth: {
+    login: `${API_BASE_URL}/api/auth/login`,
+    signup: `${API_BASE_URL}/api/auth/signup`,
+    me: `${API_BASE_URL}/api/auth/me`,
+  },
+  
   // Import endpoints
   importXlsx: `${API_BASE_URL}/api/import/xlsx`,
   previewXlsx: `${API_BASE_URL}/api/import/xlsx/preview`,
@@ -20,6 +27,14 @@ export const API_ENDPOINTS = {
   
   // Chat endpoint
   chat: `${API_BASE_URL}/api/chat`,
+  
+  // Conversations endpoints
+  conversations: {
+    list: `${API_BASE_URL}/api/conversations`,
+    getById: (id: number) => `${API_BASE_URL}/api/conversations/${id}`,
+    send: `${API_BASE_URL}/api/conversations/send`,
+    delete: (id: number) => `${API_BASE_URL}/api/conversations/${id}`,
+  },
   
   // Health check
   health: `${API_BASE_URL}/health`,

@@ -1,5 +1,7 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import UserMenu from './UserMenu';
 import './Layout.css';
 
 interface LayoutProps {
@@ -8,43 +10,98 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const isHome = location.pathname === '/';
+  const isChat = location.pathname === '/chat';
+  const isAuthPage = location.pathname.startsWith('/auth/');
 
-  const isActive = (path: string) => location.pathname === path;
+  // Don't show layout on auth pages
+  if (isAuthPage) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="layout">
       <nav className="navbar">
         <div className="nav-container">
-          <h1 className="nav-title">HR Data Platform</h1>
-          <ul className="nav-links">
-            <li>
-              <Link
-                to="/upload"
-                className={isActive('/upload') ? 'active' : ''}
+          <Link to="/" className="nav-brand">
+            <img
+              src="/eurisko-logo.webp"
+              alt="Eurisko"
+              className="eurisko-logo-img"
+            />
+            <div className="nav-brand-divider" />
+            <span className="nav-brand-product">HR Platform</span>
+          </Link>
+
+          <div className="nav-actions">
+            {/* Home button — visible on all sub-pages */}
+            {!isHome && (
+              <button
+                onClick={() => navigate('/')}
+                className="nav-home-btn"
+                aria-label="Go to Home"
               >
-                Upload
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/candidates"
-                className={isActive('/candidates') ? 'active' : ''}
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+              </button>
+            )}
+            
+            {/* User menu for authenticated users */}
+            {isAuthenticated && <UserMenu />}
+            
+            {/* Login button for unauthenticated users */}
+            {!isAuthenticated && (
+              <button
+                onClick={() => navigate('/auth/login')}
+                className="nav-login-btn"
               >
-                Candidates
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/chat"
-                className={isActive('/chat') ? 'active' : ''}
-              >
-                Chat
-              </Link>
-            </li>
-          </ul>
+                Sign In
+              </button>
+            )}
+          </div>
         </div>
       </nav>
+
       <main className="main-content">{children}</main>
+
+      {/* Floating chat bubble — visible on all pages except Chat & Home */}
+      {!isChat && !isHome && isAuthenticated && (
+        <button
+          className="floating-chat-btn"
+          onClick={() => navigate('/chat')}
+          aria-label="Open AI Chat"
+        >
+          <img
+            src="/chatbot-avatar.webp"
+            alt="AI Chat"
+            className="floating-chat-img"
+          />
+          <span className="floating-chat-pulse" />
+          <span className="floating-chat-tooltip">AI Assistant</span>
+        </button>
+      )}
+
+      <footer className="footer">
+        <div className="footer-container">
+          <div className="footer-brand">
+            <img
+              src="/eurisko-logo.webp"
+              alt="Eurisko"
+              className="footer-logo-img"
+            />
+          </div>
+          <div className="footer-links">
+            <a href="https://eurisko.net" target="_blank" rel="noopener noreferrer">
+              eurisko.net
+            </a>
+            <span className="footer-separator">·</span>
+            <span className="footer-copyright">© {new Date().getFullYear()} Eurisko™ — All rights reserved.</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

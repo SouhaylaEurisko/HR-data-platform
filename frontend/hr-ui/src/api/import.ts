@@ -1,18 +1,6 @@
 import apiClient from './client';
 import { API_ENDPOINTS } from '../config';
-import type { ImportXlsxResponse } from '../types/api';
-
-export interface SheetPreview {
-  name: string;
-  max_row: number;
-  data_rows: number;
-}
-
-export interface XlsxPreviewResponse {
-  file_name: string;
-  sheets: SheetPreview[];
-  total_sheets: number;
-}
+import type { ImportXlsxResponse, XlsxPreviewResponse} from '../types/api';
 
 /**
  * Preview an XLSX file structure without importing

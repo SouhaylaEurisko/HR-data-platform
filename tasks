@@ -1,0 +1,24 @@
+1 - remove data using rm -rf 
+1.1 - /storage/souhayla/project1/backend/image rm -rf no need for this dir
+2 - chatbot-service --> chatbot (keep note that maybee a system can include more than 1 chatbot system and may be seperate service)
+3 - adjust backend to become only a proxy server
+
+
+
+4 - rate limiter research
+5 - size limiter research
+6 - caching research
+7 - logging 
+8 - monitoring
+9 - testing
+10 - documentation
+11 - security (jwt, oauth, etc.)
+12 - performance (caching, etc.)
+13 - scalability (horizontal scaling, etc.)
+14 - reliability (monitoring, logging, etc.)
+15 - maintainability (refactor, etc.)
+16 - portability (docker, etc.)
+17 - refactor (refactor, etc.)
+18 - refactor (refactor, etc.)
+19 - deploy.sh (deploy the project to the server)
+20 - CI/CD (github actions, BITBUCKET PIPELINES, Jenkins, etc.)

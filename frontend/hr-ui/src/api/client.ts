@@ -13,14 +13,14 @@ const apiClient: AxiosInstance = axios.create({
   timeout: 30000, // 30 seconds timeout
 });
 
-// Request interceptor (optional - for adding auth tokens later)
+// Request interceptor - adds auth token to all requests
 apiClient.interceptors.request.use(
   (config) => {
-    // You can add auth tokens here if needed
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Get token from localStorage (same key used in AuthContext)
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -37,6 +37,27 @@ apiClient.interceptors.response.use(
       // Server responded with error status
       const status = error.response.status;
       const data = error.response.data as any;
+      
+      // Handle 401 Unauthorized - token expired or invalid
+      if (status === 401) {
+        const errorDetail = data?.detail || 'Authentication failed';
+        console.error('Authentication Error:', errorDetail);
+        
+        // Clear invalid token from localStorage
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          console.warn('Clearing invalid token from storage');
+          localStorage.removeItem('auth_token');
+          
+          // If we're not already on the login page, redirect to login
+          if (window.location.pathname !== '/login') {
+            // Only redirect if we have a valid token that failed (not a missing token)
+            if (errorDetail.includes('expired') || errorDetail.includes('validate')) {
+              window.location.href = '/login?expired=true';
+            }
+          }
+        }
+      }
       
       switch (status) {
         case 400:
