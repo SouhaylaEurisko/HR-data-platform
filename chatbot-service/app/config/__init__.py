@@ -10,6 +10,7 @@ from .database import (
     get_db,
     init_db,
 )
+from .logger import ChatBotLogger
 
 __all__ = [
     "config",
@@ -19,4 +20,5 @@ __all__ = [
     "SessionLocal",
     "get_db",
     "init_db",
+    "ChatBotLogger",
 ]

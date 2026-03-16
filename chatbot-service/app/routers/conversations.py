@@ -2,7 +2,7 @@
 Conversations router — handles conversation management endpoints.
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from ..config import get_db
@@ -28,24 +28,57 @@ router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 @router.get("", response_model=List[ConversationRead])
 async def list_conversations_endpoint(
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
     List all conversations.
     """
-    conversations = list_conversations(db)
+
+    user_id_header = request.headers.get("x-user-id")
+    if not user_id_header:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-User-Id header",
+        )
+
+    try:
+        user_id = int(user_id_header)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid X-User-Id header",
+        )
+
+    conversations = list_conversations(db, user_id=user_id)
     return [ConversationRead.model_validate(c) for c in conversations]
 
 
 @router.get("/{conversation_id}", response_model=ConversationWithMessages)
 async def get_conversation_endpoint(
     conversation_id: int,
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
     Get a conversation by ID with all its messages.
     """
-    conversation = get_conversation_by_id(db, conversation_id)
+    user_id_header = request.headers.get("x-user-id")
+    if not user_id_header:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-User-Id header",
+        )
+
+    try:
+        user_id = int(user_id_header)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid X-User-Id header",
+        )
+
+    conversation = get_conversation_by_id(db, conversation_id, user_id=user_id)
     if conversation is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -77,15 +110,33 @@ async def get_conversation_endpoint(
 @router.post("/send", response_model=SendMessageResponse)
 async def send_message_endpoint(
     request: SendMessageRequest,
+    http_request: Request,
     db: Session = Depends(get_db),
 ):
     """
     Send a message to a conversation (creates conversation if needed).
     """
+    # Get user id from gateway header
+    user_id_header = http_request.headers.get("x-user-id")
+    if not user_id_header:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing X-User-Id header",
+        )
+
+    try:
+        user_id = int(user_id_header)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid X-User-Id header",
+        )
+
+
     # Get or create conversation
     is_new_conversation = False
     if request.conversation_id:
-        conversation = get_conversation_by_id(db, request.conversation_id)
+        conversation = get_conversation_by_id(db, request.conversation_id, user_id=user_id)
         if conversation is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -96,7 +147,7 @@ async def send_message_endpoint(
         is_new_conversation = (conversation.title is None or conversation.title == "New chat")
     else:
         # Create new conversation with default title
-        conversation = create_conversation(db, title="New chat")
+        conversation = create_conversation(db, title="New chat", user_id=user_id)
         conversation_id = conversation.id
         is_new_conversation = True
     
@@ -118,6 +169,7 @@ async def send_message_endpoint(
         message=request.content,
         conversation_id=conversation_id,
         db=db,
+        user_id=user_id,
     )
     
     # Add assistant response

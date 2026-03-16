@@ -9,6 +9,16 @@ export default function CandidateDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const fromChat = (location.state as any)?.fromChat || false;
+
+  /** Navigate back preserving the page the user came from. */
+  const goBack = () => {
+    if (fromChat) {
+      navigate('/chat');
+    } else {
+      // Use browser history so the CandidatesPage URL (with ?page=…) is restored
+      navigate(-1);
+    }
+  };
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +82,7 @@ export default function CandidateDetailPage() {
           {error || 'Candidate not found'}
         </div>
         <button
-          onClick={() => navigate(fromChat ? '/chat' : '/candidates')}
+          onClick={goBack}
           className="back-button"
         >
           ← {fromChat ? 'Back to Chat' : 'Back to Candidates'}
@@ -85,7 +95,7 @@ export default function CandidateDetailPage() {
     <div className="candidate-detail-page">
       <div className="detail-header">
         <button
-          onClick={() => navigate(fromChat ? '/chat' : '/candidates')}
+          onClick={goBack}
           className="back-button"
         >
           ← {fromChat ? 'Back to Chat' : 'Back to Candidates'}

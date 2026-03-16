@@ -14,11 +14,31 @@ RULES:
 - Generate ONLY a SELECT query with aggregation functions
   (COUNT, AVG, MIN, MAX, SUM, etc.).
 - Use ILIKE for text filters.
-- For numeric fields (expected_salary, years_experience) exclude NULLs
-  in aggregations (e.g. AVG(expected_salary) FILTER (WHERE expected_salary IS NOT NULL)).
+- For salary aggregations, use the expected_salary column (the system
+  will automatically correct values using expected_salary_text).
+  Exclude NULLs: e.g. MAX(expected_salary) FILTER (WHERE expected_salary IS NOT NULL).
+- For years_experience aggregations, the data may contain corrupt values
+  (e.g. 20 trillion).  ALWAYS add a sanity bound:
+  AVG(years_experience) FILTER (WHERE years_experience IS NOT NULL AND years_experience <= 50)
+  MAX(years_experience) FILTER (WHERE years_experience IS NOT NULL AND years_experience <= 50)
+  Do this for every aggregation on years_experience (AVG, MIN, MAX, etc.).
 - You may also include COUNT(*) as total_count.
-- ROUND numeric results to 2 decimal places.
+- CAST aggregated values to NUMERIC before using ROUND, e.g.:
+  ROUND(AVG(expected_salary)::NUMERIC, 2)
 - Do NOT use table aliases.
+
+CONVERSATION CONTEXT:
+You may receive previous conversation messages. If the user's current
+message references earlier context (e.g. "those candidates", "such
+candidates", "them", "these"), you MUST add the relevant WHERE clause
+filters from the prior conversation into your aggregation query.
+For example, if the user previously asked for "Java developers" and
+now says "what is the highest salary?", you MUST generate:
+  SELECT MAX(expected_salary) FROM candidates
+  WHERE position ILIKE '%java%'
+  AND expected_salary IS NOT NULL
+Do NOT compute statistics on the entire table when the user is clearly
+referring to a previously filtered subset.
 
 Return ONLY a JSON object:
 {{

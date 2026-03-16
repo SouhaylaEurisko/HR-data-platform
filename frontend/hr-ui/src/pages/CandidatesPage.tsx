@@ -1,29 +1,63 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getCandidates } from '../api/candidates';
 import type { Candidate, CandidateListParams } from '../types/api';
 import './CandidatesPage.css';
 
+/** Read the initial filter / page state from the URL query string. */
+function parseSearchParams(sp: URLSearchParams) {
+  return {
+    page: Math.max(1, parseInt(sp.get('page') || '1', 10) || 1),
+    filters: {
+      position: sp.get('position') || '',
+      nationality: sp.get('nationality') || '',
+      expected_salary: sp.get('expected_salary') ? parseFloat(sp.get('expected_salary')!) : undefined,
+      min_years_experience: sp.get('min_years_experience') ? parseFloat(sp.get('min_years_experience')!) : undefined,
+      max_years_experience: sp.get('max_years_experience') ? parseFloat(sp.get('max_years_experience')!) : undefined,
+      search: sp.get('search') || '',
+      sort_by: (sp.get('sort_by') as CandidateListParams['sort_by']) || 'created_at',
+      sort_order: (sp.get('sort_order') as CandidateListParams['sort_order']) || 'desc',
+    } as CandidateListParams,
+  };
+}
+
 export default function CandidatesPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+
+  // Initialise page & filters from the URL so we restore state on back-navigation
+  const initial = parseSearchParams(searchParams);
+  const [page, setPage] = useState(initial.page);
   const [pageSize] = useState(20);
 
   // Filter states
-  const [filters, setFilters] = useState<CandidateListParams>({
-    position: '',
-    nationality: '',
-    expected_salary: undefined,
-    min_years_experience: undefined,
-    max_years_experience: undefined,
-    search: '',
-    sort_by: 'created_at',
-    sort_order: 'desc',
-  });
+  const [filters, setFilters] = useState<CandidateListParams>(initial.filters);
+
+  // Keep URL in sync whenever page or filters change
+  const syncSearchParams = useCallback(
+    (p: number, f: CandidateListParams) => {
+      const params: Record<string, string> = {};
+      if (p > 1) params.page = String(p);
+      if (f.search) params.search = f.search;
+      if (f.position) params.position = f.position;
+      if (f.nationality) params.nationality = f.nationality;
+      if (f.expected_salary !== undefined) params.expected_salary = String(f.expected_salary);
+      if (f.min_years_experience !== undefined) params.min_years_experience = String(f.min_years_experience);
+      if (f.max_years_experience !== undefined) params.max_years_experience = String(f.max_years_experience);
+      if (f.sort_by && f.sort_by !== 'created_at') params.sort_by = f.sort_by;
+      if (f.sort_order && f.sort_order !== 'desc') params.sort_order = f.sort_order;
+      setSearchParams(params, { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  useEffect(() => {
+    syncSearchParams(page, filters);
+  }, [page, filters, syncSearchParams]);
 
   // Fetch candidates
   const fetchCandidates = async () => {

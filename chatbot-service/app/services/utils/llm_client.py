@@ -4,6 +4,7 @@ All calls return parsed JSON dicts.
 """
 import json
 import logging
+from typing import Dict, List, Optional
 import httpx
 
 from ...config import config
@@ -24,15 +25,26 @@ class LLMClient:
         user_message: str,
         context: str = "LLM call",
         temperature: float = 0.2,
+        conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> dict:
         """
         Send a system+user prompt to the LLM and return parsed JSON.
 
+        When *conversation_history* is provided the messages list becomes::
+
+            system  →  history[0]  →  history[1]  →  …  →  user_message
+
+        This gives the LLM full conversational context so follow-up
+        questions like "what about *those* candidates?" resolve correctly.
+
         Args:
-            system_prompt: Instructions for the LLM.
-            user_message:  The user's text / query.
-            context:       Label used in error messages.
-            temperature:   Sampling temperature (low = deterministic).
+            system_prompt:        Instructions for the LLM.
+            user_message:         The user's text / query.
+            context:              Label used in error messages.
+            temperature:          Sampling temperature (low = deterministic).
+            conversation_history: Optional list of previous messages, each a
+                                  dict with ``role`` ("user" | "assistant")
+                                  and ``content``.
 
         Returns:
             Parsed JSON dict from the LLM response.
@@ -40,6 +52,16 @@ class LLMClient:
         Raises:
             RuntimeError on network / parse errors.
         """
+        # Build the messages list: system → history → current user message
+        messages: List[Dict[str, str]] = [
+            {"role": "system", "content": system_prompt},
+        ]
+
+        if conversation_history:
+            messages.extend(conversation_history)
+
+        messages.append({"role": "user", "content": user_message})
+
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
@@ -50,10 +72,7 @@ class LLMClient:
                     },
                     json={
                         "model": self.model,
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_message},
-                        ],
+                        "messages": messages,
                         "response_format": {"type": "json_object"},
                         "temperature": temperature,
                     },

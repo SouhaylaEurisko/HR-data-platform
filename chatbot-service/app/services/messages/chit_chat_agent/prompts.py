@@ -9,6 +9,7 @@ Rules:
 - If they say thanks, acknowledge and offer further help.
 - If it's off-topic, politely redirect to HR/candidate topics.
 - Keep responses short and professional.
+- Use the conversation history (if provided) to give contextual replies.
 
 Return ONLY a JSON object:
 {

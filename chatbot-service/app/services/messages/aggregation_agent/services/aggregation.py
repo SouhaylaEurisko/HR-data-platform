@@ -2,7 +2,7 @@
 Aggregation service — LLM generates SQL with aggregation, we execute, LLM summarises.
 """
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -14,12 +14,17 @@ from ..utils import stats_to_display, sanitize_stats
 logger = logging.getLogger(__name__)
 
 
-async def generate_aggregation_sql(llm: LLMClient, user_message: str) -> Dict[str, str]:
+async def generate_aggregation_sql(
+    llm: LLMClient,
+    user_message: str,
+    conversation_history: Optional[List[Dict[str, str]]] = None,
+) -> Dict[str, str]:
     """Ask LLM to produce a SELECT query with aggregation functions."""
     return await llm.call(
         AGGREGATION_SQL_PROMPT,
         user_message,
         context="Aggregation SQL generation",
+        conversation_history=conversation_history,
     )
 
 

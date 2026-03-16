@@ -2,7 +2,7 @@
 Filter service — LLM generates SQL, we execute, LLM summarises.
 """
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -14,12 +14,17 @@ from ..utils import rows_to_display, sanitize_rows
 logger = logging.getLogger(__name__)
 
 
-async def generate_filter_sql(llm: LLMClient, user_message: str) -> Dict[str, str]:
+async def generate_filter_sql(
+    llm: LLMClient,
+    user_message: str,
+    conversation_history: Optional[List[Dict[str, str]]] = None,
+) -> Dict[str, str]:
     """Ask LLM to produce a SELECT query for the user's filter request."""
     return await llm.call(
         FILTER_SQL_PROMPT,
         user_message,
         context="Filter SQL generation",
+        conversation_history=conversation_history,
     )
 
 
