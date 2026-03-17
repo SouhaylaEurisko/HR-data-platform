@@ -48,8 +48,6 @@ async def handle_chat_message(
                     position=extract_data.get("position"),
                     min_years_experience=extract_data.get("min_years_experience"),
                     max_years_experience=extract_data.get("max_years_experience"),
-                    min_expected_salary=extract_data.get("min_expected_salary"),
-                    max_expected_salary=extract_data.get("max_expected_salary"),
                     nationality=extract_data.get("nationality"),
                     current_address=extract_data.get("current_address"),
                 )
@@ -73,15 +71,13 @@ async def handle_chat_message(
                         position=filters.position,
                         min_years_experience=filters.min_years_experience,
                         max_years_experience=filters.max_years_experience,
-                        min_expected_salary=filters.min_expected_salary,
-                        max_expected_salary=filters.max_expected_salary,
                         current_address=filters.current_address,
                     )
                     
-                    # Calculate aggregations
+                    # Calculate aggregations (use current_salary for salary stats)
                     candidates = candidate_list.items
                     if candidates:
-                        salaries = [c.expected_salary for c in candidates if c.expected_salary]
+                        salaries = [float(c.current_salary) for c in candidates if c.current_salary is not None]
                         experiences = [c.years_experience for c in candidates if c.years_experience]
                         
                         aggregation = AggregationResult(
@@ -103,8 +99,6 @@ async def handle_chat_message(
                 position=filters.position,
                 min_years_experience=filters.min_years_experience,
                 max_years_experience=filters.max_years_experience,
-                min_expected_salary=filters.min_expected_salary,
-                max_expected_salary=filters.max_expected_salary,
                 current_address=filters.current_address,
             )
             

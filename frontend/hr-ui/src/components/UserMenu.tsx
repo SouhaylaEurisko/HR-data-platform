@@ -11,8 +11,9 @@ export default function UserMenu() {
     return null;
   }
 
-  const initials = user.full_name
-    ? user.full_name
+  const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ');
+  const initials = fullName
+    ? fullName
         .split(' ')
         .filter(Boolean)
         .slice(0, 2)

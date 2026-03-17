@@ -24,22 +24,20 @@ def _apply_salary_correction(
     Replace unreliable salary aggregation values in *stats* with the
     correctly parsed numbers from *salary_stats*.
 
-    The LLM-generated SQL uses ``expected_salary`` (FLOAT) which contains
-    garbage values.  ``salary_stats`` was computed from
-    ``expected_salary_text`` by the Python salary parser.
+    The LLM-generated SQL may produce aggregation values that need
+    correction.  ``salary_stats`` provides verified salary numbers.
     """
     if not stats or not salary_stats:
         return stats
 
     # Map of SQL-column-name patterns → corrected value
     corrections = {
-        "max_expected_salary": salary_stats.get("max_salary"),
-        "min_expected_salary": salary_stats.get("min_salary"),
-        "avg_expected_salary": salary_stats.get("avg_max_salary"),
-        # catch generic names the LLM might use
+        "max_current_salary": salary_stats.get("max_salary"),
+        "min_current_salary": salary_stats.get("min_salary"),
+        "avg_current_salary": salary_stats.get("avg_salary"),
         "max_salary": salary_stats.get("max_salary"),
         "min_salary": salary_stats.get("min_salary"),
-        "avg_salary": salary_stats.get("avg_max_salary"),
+        "avg_salary": salary_stats.get("avg_salary"),
     }
 
     corrected = []
@@ -60,17 +58,16 @@ def _apply_experience_correction(
     exp_stats: Dict,
 ) -> List[Dict]:
     """
-    Replace unreliable years_experience aggregation values in *stats*
+    Replace unreliable years_of_experience aggregation values in *stats*
     with correctly bounded numbers from *exp_stats*.
     """
     if not stats or not exp_stats:
         return stats
 
     corrections = {
-        "max_years_experience": exp_stats.get("max_experience"),
-        "min_years_experience": exp_stats.get("min_experience"),
-        "avg_years_experience": exp_stats.get("avg_experience"),
-        # catch generic names the LLM might use
+        "max_years_of_experience": exp_stats.get("max_experience"),
+        "min_years_of_experience": exp_stats.get("min_experience"),
+        "avg_years_of_experience": exp_stats.get("avg_experience"),
         "max_experience": exp_stats.get("max_experience"),
         "min_experience": exp_stats.get("min_experience"),
         "avg_experience": exp_stats.get("avg_experience"),
@@ -139,7 +136,7 @@ class AggregationAgent:
         if chatbot_logger:
             chatbot_logger.log_db_stats("AGGREGATION - RAW DB STATS", safe_stats)
 
-        # 2b. Correct salary statistics using expected_salary_text
+        # 2b. Correct salary statistics
         salary_stats = fetch_salary_stats_for_query(db, sql)
         if salary_stats:
             safe_stats = _apply_salary_correction(safe_stats, salary_stats)

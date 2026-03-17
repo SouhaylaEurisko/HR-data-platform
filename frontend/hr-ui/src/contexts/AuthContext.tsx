@@ -55,7 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const handleSignup = async (email: string, password: string, fullName?: string) => {
-    const response = await apiSignup({ email, password, full_name: fullName });
+    const [firstName, ...lastParts] = (fullName || '').split(' ');
+    const response = await apiSignup({
+      email,
+      password,
+      first_name: firstName || undefined,
+      last_name: lastParts.join(' ') || undefined,
+      organization_id: 1,
+    });
     handleAuthSuccess(response);
   };
 

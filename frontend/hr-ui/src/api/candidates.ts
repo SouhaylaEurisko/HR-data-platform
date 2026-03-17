@@ -14,7 +14,7 @@ export const getCandidates = async (
 ): Promise<CandidateListResponse> => {
   const response = await apiClient.get<CandidateListResponse>(
     API_ENDPOINTS.candidates,
-    { params }
+    { params: params ?? {} }
   );
   return response.data;
 };

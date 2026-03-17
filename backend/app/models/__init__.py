@@ -2,14 +2,17 @@
 Models package — SQLAlchemy ORM models and Pydantic schemas.
 """
 
+from .organization import Organization
+from .lookup import LookupCategory, LookupOption
+from .custom_field import CustomFieldDefinition
+from .import_session import ImportSession
 from .candidate import (
-    DataSource,
-    DataSourceRead,
     Candidate,
     CandidateBase,
     CandidateCreate,
     CandidateRead,
     CandidateListResponse,
+    LookupOptionLabel,
 )
 from .chat import (
     QuestionClassification,
@@ -20,23 +23,39 @@ from .chat import (
     ChatResponse,
 )
 from .user import (
-    User,
+    UserAccount,
     UserBase,
     UserCreate,
     UserRead,
     UserLogin,
 )
+from .conversation import (
+    Conversation,
+    Message,
+    ConversationRead,
+    ConversationCreate,
+    ConversationWithMessages,
+    MessageRead,
+    MessageCreate,
+)
 
 __all__ = [
-    # DataSource models
-    "DataSource",
-    "DataSourceRead",
+    # Organization
+    "Organization",
+    # Lookup
+    "LookupCategory",
+    "LookupOption",
+    # Custom fields
+    "CustomFieldDefinition",
+    # Import session
+    "ImportSession",
     # Candidate models
     "Candidate",
     "CandidateBase",
     "CandidateCreate",
     "CandidateRead",
     "CandidateListResponse",
+    "LookupOptionLabel",
     # Chat models
     "QuestionClassification",
     "ChatSearchFilters",
@@ -45,9 +64,17 @@ __all__ = [
     "ChatRequest",
     "ChatResponse",
     # User models
-    "User",
+    "UserAccount",
     "UserBase",
     "UserCreate",
     "UserRead",
     "UserLogin",
+    # Conversation and Message
+    "Conversation",
+    "Message",
+    "ConversationRead",
+    "ConversationCreate",
+    "ConversationWithMessages",
+    "MessageRead",
+    "MessageCreate",
 ]

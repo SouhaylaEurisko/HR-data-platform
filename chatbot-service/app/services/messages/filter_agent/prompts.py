@@ -12,41 +12,44 @@ DATABASE SCHEMA:
 
 RULES:
 - Generate ONLY a SELECT query. Never INSERT, UPDATE, DELETE, DROP, etc.
+- The main table is "candidate" (singular, not "candidates").
 - Use ILIKE for case-insensitive text matching (e.g. nationality ILIKE '%lebanese%').
 - For numeric comparisons use >=, <=, =, BETWEEN.
 - ORDER BY the column most relevant to the user's question:
-    * "highest salary" / "top earners" → ORDER BY expected_salary DESC
-    * "most experienced" / "highest experience" → ORDER BY years_experience DESC
-    * "lowest salary" / "cheapest" → ORDER BY expected_salary ASC
-    * "least experienced" → ORDER BY years_experience ASC
+    * "highest salary" / "top earners" → ORDER BY current_salary DESC (or expected_salary for expected)
+    * "most experienced" / "highest experience" → ORDER BY years_of_experience DESC
+    * "lowest salary" / "cheapest" → ORDER BY current_salary ASC (or expected_salary for expected)
+    * "least experienced" → ORDER BY years_of_experience ASC
     * General listing → ORDER BY created_at DESC
   Always add LIMIT 20 unless the user asks for more.
-- Select ALL columns (SELECT *).
-- Do NOT use table aliases.
+- Select ALL columns from candidate: SELECT candidate.* (or list them).
+- For lookup fields (workplace_type_id, employment_type_id, etc.), JOIN
+  lookup_option to get human-readable labels. Example:
+    SELECT c.*, wt.label AS workplace_type_label
+    FROM candidate c
+    LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id
+- When filtering by lookup values (e.g. "remote workers"), JOIN lookup_option
+  and filter on its code or label:
+    JOIN lookup_option wt ON c.workplace_type_id = wt.id
+    WHERE wt.code = 'remote'
+- For name searches, use full_name:
+    WHERE full_name ILIKE '%john%'
+- For tech stack searches, use JSONB containment:
+    WHERE tech_stack @> '["Python"]'::jsonb
 
 DATA QUALITY:
-The years_experience and expected_salary columns may contain corrupt
-values (NULLs and impossibly large numbers from bad parsing).
-When the query sorts or filters by years_experience, ALWAYS add:
-  AND years_experience IS NOT NULL AND years_experience <= 50
-When the query sorts or filters by expected_salary, ALWAYS add:
+When sorting or filtering by years_of_experience, ALWAYS add:
+  AND years_of_experience IS NOT NULL AND years_of_experience <= 50
+When sorting or filtering by current_salary, ALWAYS add:
+  AND current_salary IS NOT NULL
+When sorting or filtering by expected_salary, ALWAYS add:
   AND expected_salary IS NOT NULL
-Combine these with any other WHERE conditions.
-
-SALARY FILTERING:
-The expected_salary column stores raw numbers, but salary data may
-contain ranges like "1500-2500". The system will automatically
-post-process salary filters using the text column, so just use
-expected_salary with normal numeric operators (=, >=, <=, BETWEEN)
-and the system will handle range matching correctly.
 
 CONVERSATION CONTEXT:
 You may receive previous conversation messages. If the user's current
 message references earlier context (e.g. "those candidates", "the same
 ones", "such developers"), you MUST incorporate the relevant filters
-from the prior conversation into your query. For example, if the user
-previously asked for "Java developers" and now says "show me only the
-senior ones", generate a query filtering by BOTH Java AND senior.
+from the prior conversation into your query.
 
 Return ONLY a JSON object:
 {{

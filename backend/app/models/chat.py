@@ -21,8 +21,6 @@ class QuestionClassification(BaseModel):
 class ChatSearchFilters(BaseModel):
     """Structured filters extracted from a natural-language query."""
     position: Optional[str] = None
-    min_expected_salary: Optional[float] = Field(default=None, ge=0)
-    max_expected_salary: Optional[float] = Field(default=None, ge=0)
     min_years_experience: Optional[float] = Field(default=None, ge=0)
     max_years_experience: Optional[float] = Field(default=None, ge=0)
     nationality: Optional[str] = None

@@ -20,7 +20,16 @@ export const API_ENDPOINTS = {
   // Import endpoints
   importXlsx: `${API_BASE_URL}/api/import/xlsx`,
   previewXlsx: `${API_BASE_URL}/api/import/xlsx/preview`,
-  
+  analyzeXlsx: `${API_BASE_URL}/api/import/xlsx/analyze`,
+  confirmImport: `${API_BASE_URL}/api/import/xlsx/confirm`,
+
+  // Lookup endpoints
+  lookups: `${API_BASE_URL}/api/lookups`,
+  lookupsByCategory: (code: string) => `${API_BASE_URL}/api/lookups/${code}`,
+
+  // Custom field definitions (for filter UI)
+  customFields: `${API_BASE_URL}/api/custom-fields`,
+
   // Candidate endpoints
   candidates: `${API_BASE_URL}/api/candidates`,
   candidateById: (id: number) => `${API_BASE_URL}/api/candidates/${id}`,

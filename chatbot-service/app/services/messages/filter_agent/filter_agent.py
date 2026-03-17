@@ -65,12 +65,11 @@ class FilterAgent:
 
         # Detect the sort column, filter out corrupt rows, and re-sort correctly
         sql_upper = sql.upper()
-        if "ORDER BY YEARS_EXPERIENCE" in sql_upper:
-            safe_rows = filter_empty_rows(safe_rows, required_field="years_experience")
-        elif "ORDER BY EXPECTED_SALARY" in sql_upper:
-            safe_rows = filter_empty_rows(safe_rows, required_field="expected_salary")
-            # The SQL sorted by the corrupt FLOAT column — re-sort by parsed salary text
-            descending = "DESC" in sql_upper.split("ORDER BY EXPECTED_SALARY")[1].split("LIMIT")[0]
+        if "ORDER BY YEARS_OF_EXPERIENCE" in sql_upper:
+            safe_rows = filter_empty_rows(safe_rows, required_field="years_of_experience")
+        elif "ORDER BY CURRENT_SALARY" in sql_upper:
+            safe_rows = filter_empty_rows(safe_rows, required_field="current_salary")
+            descending = "DESC" in sql_upper.split("ORDER BY CURRENT_SALARY")[1].split("LIMIT")[0]
             safe_rows = resort_by_salary(safe_rows, descending=descending)
 
         total = len(safe_rows)

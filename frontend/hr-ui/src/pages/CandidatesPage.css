@@ -99,6 +99,36 @@
   box-shadow: 0 0 0 3px var(--eurisko-accent-muted);
 }
 
+.filter-toggles {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-toggle-btn {
+  padding: 0.5rem 1rem;
+  background: var(--eurisko-bg-surface);
+  border: 1px solid var(--eurisko-border);
+  border-radius: var(--eurisko-radius-md);
+  color: var(--eurisko-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-toggle-btn:hover {
+  border-color: var(--eurisko-accent);
+  color: var(--eurisko-accent-light);
+}
+
+.filters-fixed {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--eurisko-border);
+}
+
 /* Error Message */
 .error-message {
   background-color: var(--eurisko-error-bg);

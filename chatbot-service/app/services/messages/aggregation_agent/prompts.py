@@ -13,32 +13,28 @@ DATABASE SCHEMA:
 RULES:
 - Generate ONLY a SELECT query with aggregation functions
   (COUNT, AVG, MIN, MAX, SUM, etc.).
+- The main table is "candidate" (singular, not "candidates").
 - Use ILIKE for text filters.
-- For salary aggregations, use the expected_salary column (the system
-  will automatically correct values using expected_salary_text).
-  Exclude NULLs: e.g. MAX(expected_salary) FILTER (WHERE expected_salary IS NOT NULL).
-- For years_experience aggregations, the data may contain corrupt values
-  (e.g. 20 trillion).  ALWAYS add a sanity bound:
-  AVG(years_experience) FILTER (WHERE years_experience IS NOT NULL AND years_experience <= 50)
-  MAX(years_experience) FILTER (WHERE years_experience IS NOT NULL AND years_experience <= 50)
-  Do this for every aggregation on years_experience (AVG, MIN, MAX, etc.).
+- For salary aggregations, use current_salary or expected_salary (NUMERIC):
+  Exclude NULLs: e.g. MAX(current_salary) FILTER (WHERE current_salary IS NOT NULL);
+  for expected salary use expected_salary the same way.
+- For years_of_experience aggregations, ALWAYS add a sanity bound:
+  AVG(years_of_experience) FILTER (WHERE years_of_experience IS NOT NULL AND years_of_experience <= 50)
+  Do this for every aggregation on years_of_experience.
 - You may also include COUNT(*) as total_count.
 - CAST aggregated values to NUMERIC before using ROUND, e.g.:
-  ROUND(AVG(expected_salary)::NUMERIC, 2)
-- Do NOT use table aliases.
+  ROUND(AVG(current_salary)::NUMERIC, 2)
+- For lookup-based grouping (e.g. "count per employment type"), JOIN
+  lookup_option and GROUP BY lookup_option.label:
+    SELECT lo.label AS employment_type, COUNT(*)
+    FROM candidate c
+    JOIN lookup_option lo ON c.employment_type_id = lo.id
+    GROUP BY lo.label
 
 CONVERSATION CONTEXT:
 You may receive previous conversation messages. If the user's current
-message references earlier context (e.g. "those candidates", "such
-candidates", "them", "these"), you MUST add the relevant WHERE clause
-filters from the prior conversation into your aggregation query.
-For example, if the user previously asked for "Java developers" and
-now says "what is the highest salary?", you MUST generate:
-  SELECT MAX(expected_salary) FROM candidates
-  WHERE position ILIKE '%java%'
-  AND expected_salary IS NOT NULL
-Do NOT compute statistics on the entire table when the user is clearly
-referring to a previously filtered subset.
+message references earlier context, incorporate the relevant WHERE
+clause filters from the prior conversation.
 
 Return ONLY a JSON object:
 {{

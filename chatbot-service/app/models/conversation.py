@@ -22,10 +22,9 @@ class Conversation(Base):
     __tablename__ = "conversation"
 
     id = Column(Integer, primary_key=True, index=True)
-    # NOTE: we intentionally store just the numeric user id coming from the gateway
-    # via the X-User-Id header. The users table lives in the main backend service,
-    # so we don't declare an explicit ForeignKey here.
-    user_id = Column(Integer, nullable=False, index=True)
+    # User ID from the main backend (user_account.id), passed via X-User-Id header.
+    # Explicit name so INSERT uses user_account_id (DB column), not user_id.
+    user_account_id = Column("user_account_id", Integer, nullable=False, index=True)
     title = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
@@ -61,14 +60,13 @@ class ConversationBase(BaseModel):
 class ConversationCreate(ConversationBase):
     """Schema for creating a new conversation."""
     # Optional: allow creating with explicit user_id via API if ever needed
-    user_id: Optional[int] = None
+    user_account_id: Optional[int] = None
 
 
 class ConversationRead(ConversationBase):
     """Schema for reading conversation data."""
     id: int
-    # We generally don't need to expose this to the UI, but it's useful for debugging
-    user_id: int
+    user_account_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
 

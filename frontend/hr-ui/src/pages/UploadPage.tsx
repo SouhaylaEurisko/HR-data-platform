@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { importXlsx, previewXlsx } from '../api/import';
-import type { ImportXlsxResponse, XlsxPreviewResponse } from '../types/api';
+import { analyzeXlsx, previewXlsx } from '../api/import';
+import type { AnalyzeResponse, ImportResult, XlsxPreviewResponse } from '../types/api';
+import ColumnMappingReview from '../components/ColumnMappingReview';
 import './UploadPage.css';
+
+type Phase = 'select' | 'analyzing' | 'review' | 'done';
 
 export default function UploadPage() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+  const [phase, setPhase] = useState<Phase>('select');
   const [isPreviewing, setIsPreviewing] = useState(false);
-  const [result, setResult] = useState<ImportXlsxResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<XlsxPreviewResponse | null>(null);
   const [selectedSheets, setSelectedSheets] = useState<Set<string>>(new Set());
   const [importAll, setImportAll] = useState(false);
+  const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -25,17 +29,17 @@ export default function UploadPage() {
       }
       setFile(selectedFile);
       setError(null);
-      setResult(null);
+      setImportResult(null);
+      setAnalysis(null);
       setPreview(null);
       setSelectedSheets(new Set());
       setImportAll(false);
+      setPhase('select');
 
-      // Preview the file to get sheet information
       setIsPreviewing(true);
       try {
         const previewData = await previewXlsx(selectedFile);
         setPreview(previewData);
-        // If only one sheet, select it by default
         if (previewData.sheets.length === 1) {
           setSelectedSheets(new Set([previewData.sheets[0].name]));
         }
@@ -74,15 +78,14 @@ export default function UploadPage() {
     setImportAll(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!file) {
       setError('Please select a file to upload');
       return;
     }
 
-    // If we have preview and sheets, validate selection
     if (preview && preview.sheets.length > 1) {
       if (!importAll && selectedSheets.size === 0) {
         setError('Please select at least one sheet to import, or choose "Import All Sheets"');
@@ -90,30 +93,50 @@ export default function UploadPage() {
       }
     }
 
-    setIsUploading(true);
+    setPhase('analyzing');
     setError(null);
-    setResult(null);
+    setAnalysis(null);
 
     try {
       const sheetNames = importAll ? undefined : Array.from(selectedSheets);
-      const response = await importXlsx(file, sheetNames, importAll);
-      setResult(response);
-      setFile(null);
-      setPreview(null);
-      setSelectedSheets(new Set());
-      setImportAll(false);
-      // Reset file input
-      const fileInput = document.getElementById('file-input') as HTMLInputElement;
-      if (fileInput) fileInput.value = '';
+      const result = await analyzeXlsx(file, sheetNames, importAll);
+      setAnalysis(result);
+      setPhase('review');
     } catch (err: any) {
       setError(
-        err.response?.data?.detail || 
-        err.message || 
-        'Failed to upload file. Please try again.'
+        err.response?.data?.detail ||
+        err.message ||
+        'Failed to analyze file. Please try again.'
       );
-    } finally {
-      setIsUploading(false);
+      setPhase('select');
     }
+  };
+
+  const handleImportComplete = (result: ImportResult) => {
+    setImportResult(result);
+    setPhase('done');
+    setFile(null);
+    setPreview(null);
+    setSelectedSheets(new Set());
+    setImportAll(false);
+    const fileInput = document.getElementById('file-input') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  };
+
+  const handleImportError = (message: string) => {
+    setError(message);
+  };
+
+  const handleCancelReview = () => {
+    setAnalysis(null);
+    setPhase('select');
+  };
+
+  const handleNewUpload = () => {
+    setPhase('select');
+    setImportResult(null);
+    setAnalysis(null);
+    setError(null);
   };
 
   return (
@@ -122,7 +145,8 @@ export default function UploadPage() {
         <div>
           <h1>Upload XLSX File</h1>
           <p className="upload-description">
-            Upload an Excel file (.xlsx) to import candidate data into the system.
+            Upload an Excel file (.xlsx) to import candidate data. The system will
+            analyze column headers and suggest mappings before importing.
           </p>
         </div>
         <button onClick={() => navigate('/candidates')} className="cross-nav-btn">
@@ -133,190 +157,185 @@ export default function UploadPage() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="upload-form">
-        <div className="file-input-wrapper">
-          <label htmlFor="file-input" className="file-label">
-            {file ? file.name : 'Choose XLSX file...'}
-          </label>
-          <input
-            id="file-input"
-            type="file"
-            accept=".xlsx"
-            onChange={handleFileChange}
-            className="file-input"
-            disabled={isUploading}
-          />
+      {error && (
+        <div className="error-message" role="alert">
+          {error}
         </div>
+      )}
 
-        {error && (
-          <div className="error-message" role="alert">
-            {error}
+      {/* Phase: Select file and sheets */}
+      {(phase === 'select' || phase === 'analyzing') && (
+        <form onSubmit={handleAnalyze} className="upload-form">
+          <div className="file-input-wrapper">
+            <label htmlFor="file-input" className="file-label">
+              {file ? file.name : 'Choose XLSX file...'}
+            </label>
+            <input
+              id="file-input"
+              type="file"
+              accept=".xlsx"
+              onChange={handleFileChange}
+              className="file-input"
+              disabled={phase === 'analyzing'}
+            />
           </div>
-        )}
 
-        {/* Sheet Selection */}
-        {preview && preview.sheets.length > 1 && (
-          <div className="sheet-selection">
-            <div className="sheet-selection-header">
-              <h3>Select Sheets to Import</h3>
-              <div className="sheet-selection-actions">
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  className="sheet-action-button"
-                  disabled={isUploading}
-                >
-                  Select All
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeselectAll}
-                  className="sheet-action-button"
-                  disabled={isUploading}
-                >
-                  Deselect All
-                </button>
+          {preview && preview.sheets.length > 1 && (
+            <div className="sheet-selection">
+              <div className="sheet-selection-header">
+                <h3>Select Sheets to Import</h3>
+                <div className="sheet-selection-actions">
+                  <button
+                    type="button"
+                    onClick={handleSelectAll}
+                    className="sheet-action-button"
+                    disabled={phase === 'analyzing'}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAll}
+                    className="sheet-action-button"
+                    disabled={phase === 'analyzing'}
+                  >
+                    Deselect All
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="sheets-list">
-              {preview.sheets.map((sheet) => (
-                <label key={sheet.name} className="sheet-checkbox">
+              <div className="sheets-list">
+                {preview.sheets.map((sheet) => (
+                  <label key={sheet.name} className="sheet-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedSheets.has(sheet.name) || importAll}
+                      onChange={() => handleSheetToggle(sheet.name)}
+                      disabled={phase === 'analyzing' || importAll}
+                    />
+                    <div className="sheet-info">
+                      <span className="sheet-name">{sheet.name}</span>
+                      <span className="sheet-details">
+                        {sheet.data_rows} data row{sheet.data_rows !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="import-all-option">
+                <label className="import-all-checkbox">
                   <input
                     type="checkbox"
-                    checked={selectedSheets.has(sheet.name) || importAll}
-                    onChange={() => handleSheetToggle(sheet.name)}
-                    disabled={isUploading || importAll}
+                    checked={importAll}
+                    onChange={(e) => {
+                      setImportAll(e.target.checked);
+                      if (e.target.checked) handleSelectAll();
+                    }}
+                    disabled={phase === 'analyzing'}
                   />
-                  <div className="sheet-info">
-                    <span className="sheet-name">
-                      {sheet.name}
-                    </span>
-                    <span className="sheet-details">
-                      {sheet.data_rows} data row{sheet.data_rows !== 1 ? 's' : ''}
-                    </span>
-                  </div>
+                  <span>Import All Sheets ({preview.total_sheets} sheets)</span>
                 </label>
-              ))}
+              </div>
             </div>
-            <div className="import-all-option">
-              <label className="import-all-checkbox">
-                <input
-                  type="checkbox"
-                  checked={importAll}
-                  onChange={(e) => {
-                    setImportAll(e.target.checked);
-                    if (e.target.checked) {
-                      handleSelectAll();
-                    }
-                  }}
-                  disabled={isUploading}
-                />
-                <span>Import All Sheets ({preview.total_sheets} sheets)</span>
-              </label>
+          )}
+
+          {isPreviewing && (
+            <div className="preview-loading">Analyzing file structure...</div>
+          )}
+
+          {preview && preview.sheets.length === 1 && (
+            <div className="single-sheet-notice">
+              This file contains 1 sheet: <strong>{preview.sheets[0].name}</strong>
             </div>
-          </div>
-        )}
+          )}
 
-        {isPreviewing && (
-          <div className="preview-loading">
-            Analyzing file structure...
-          </div>
-        )}
+          <button
+            type="submit"
+            disabled={!file || phase === 'analyzing' || isPreviewing}
+            className="upload-button"
+          >
+            {phase === 'analyzing' ? 'Analyzing Columns...' : 'Analyze and Map Columns'}
+          </button>
+        </form>
+      )}
 
-        {preview && preview.sheets.length === 1 && (
-          <div className="single-sheet-notice">
-            This file contains 1 sheet: <strong>{preview.sheets[0].name}</strong>
-          </div>
-        )}
+      {/* Phase: Review column mappings */}
+      {phase === 'review' && analysis && (
+        <ColumnMappingReview
+          analysis={analysis}
+          orgId={1}
+          onComplete={handleImportComplete}
+          onError={handleImportError}
+          onCancel={handleCancelReview}
+        />
+      )}
 
-        <button
-          type="submit"
-          disabled={!file || isUploading || isPreviewing}
-          className="upload-button"
-        >
-          {isUploading ? 'Uploading...' : 'Upload File'}
-        </button>
-      </form>
-
-      {result && (
+      {/* Phase: Done - show results */}
+      {phase === 'done' && importResult && (
         <div className="upload-result">
-          <h2>Upload Summary</h2>
+          <h2>Import Summary</h2>
           <div className="result-stats">
             <div className="stat-item">
-              <span className="stat-label">File Name:</span>
-              <span className="stat-value">{result.file_name}</span>
+              <span className="stat-label">Session:</span>
+              <span className="stat-value">#{importResult.session_id}</span>
             </div>
-            
-            {/* Multi-sheet results */}
-            {result.sheets_processed && result.sheets_processed.length > 0 && (
-              <>
-                <div className="stat-item">
-                  <span className="stat-label">Sheets Processed:</span>
-                  <span className="stat-value">{result.sheets_processed.join(', ')}</span>
-                </div>
-                <div className="stat-item success">
-                  <span className="stat-label">Total Candidates Created:</span>
-                  <span className="stat-value">{result.total_created ?? 0}</span>
-                </div>
-                {result.total_skipped_duplicates && result.total_skipped_duplicates > 0 && (
-                  <div className="stat-item">
-                    <span className="stat-label">Total Duplicates Skipped:</span>
-                    <span className="stat-value">{result.total_skipped_duplicates}</span>
-                  </div>
-                )}
-              </>
+            <div className="stat-item">
+              <span className="stat-label">Status:</span>
+              <span className="stat-value">{importResult.status}</span>
+            </div>
+            <div className="stat-item success">
+              <span className="stat-label">Candidates Created:</span>
+              <span className="stat-value">{importResult.total_created}</span>
+            </div>
+            {importResult.total_skipped_duplicates > 0 && (
+              <div className="stat-item">
+                <span className="stat-label">Duplicates Skipped:</span>
+                <span className="stat-value">{importResult.total_skipped_duplicates}</span>
+              </div>
             )}
-            
-            {/* Legacy single-sheet results (backward compatibility) */}
-            {!result.sheets_processed && (
-              <>
-                <div className="stat-item success">
-                  <span className="stat-label">Candidates Created:</span>
-                  <span className="stat-value">{result.created ?? 0}</span>
-                </div>
-                {result.skipped_duplicates && result.skipped_duplicates > 0 && (
-                  <div className="stat-item">
-                    <span className="stat-label">Duplicates Skipped:</span>
-                    <span className="stat-value">{result.skipped_duplicates}</span>
-                  </div>
-                )}
-              </>
+            {importResult.total_skipped_empty_rows > 0 && (
+              <div className="stat-item">
+                <span className="stat-label">Empty Rows Skipped:</span>
+                <span className="stat-value">{importResult.total_skipped_empty_rows}</span>
+              </div>
+            )}
+            {importResult.total_errors > 0 && (
+              <div className="stat-item">
+                <span className="stat-label">Errors:</span>
+                <span className="stat-value">{importResult.total_errors}</span>
+              </div>
             )}
           </div>
 
-          {/* Per-sheet breakdown */}
-          {result.sheet_results && result.sheet_results.length > 0 && (
+          {importResult.sheet_results && importResult.sheet_results.length > 0 && (
             <div className="sheet-results">
               <h3>Per-Sheet Results:</h3>
-              {result.sheet_results.map((sheetResult, idx) => (
+              {importResult.sheet_results.map((sr, idx) => (
                 <div key={idx} className="sheet-result-card">
-                  <h4>{sheetResult.sheet_name}</h4>
+                  <h4>{sr.sheet_name}</h4>
                   <div className="sheet-stats">
                     <span className="sheet-stat">
-                      Created: <strong>{sheetResult.created}</strong>
+                      Created: <strong>{sr.created}</strong>
                     </span>
-                    {sheetResult.skipped_duplicates > 0 && (
+                    {sr.skipped_duplicates > 0 && (
                       <span className="sheet-stat">
-                        Duplicates: <strong>{sheetResult.skipped_duplicates}</strong>
+                        Duplicates: <strong>{sr.skipped_duplicates}</strong>
                       </span>
                     )}
-                    {sheetResult.skipped_empty_rows > 0 && (
+                    {sr.skipped_empty > 0 && (
                       <span className="sheet-stat">
-                        Empty Rows: <strong>{sheetResult.skipped_empty_rows}</strong>
+                        Empty Rows: <strong>{sr.skipped_empty}</strong>
                       </span>
                     )}
                   </div>
-                  {sheetResult.row_errors.length > 0 && (
+                  {sr.row_errors.length > 0 && (
                     <div className="sheet-errors">
-                      <strong>Errors ({sheetResult.row_errors.length}):</strong>
+                      <strong>Errors ({sr.row_errors.length}):</strong>
                       <ul>
-                        {sheetResult.row_errors.slice(0, 5).map((err, errIdx) => (
-                          <li key={errIdx}>
-                            Row {err.row_index}: {err.error}
-                          </li>
+                        {sr.row_errors.slice(0, 5).map((err, errIdx) => (
+                          <li key={errIdx}>Row {err.row_index}: {err.error}</li>
                         ))}
-                        {sheetResult.row_errors.length > 5 && (
-                          <li>... and {sheetResult.row_errors.length - 5} more errors</li>
+                        {sr.row_errors.length > 5 && (
+                          <li>... and {sr.row_errors.length - 5} more errors</li>
                         )}
                       </ul>
                     </div>
@@ -326,28 +345,31 @@ export default function UploadPage() {
             </div>
           )}
 
-          {/* Legacy row errors (backward compatibility) */}
-          {result.row_errors && result.row_errors.length > 0 && (
+          {importResult.row_errors && importResult.row_errors.length > 0 && (
             <div className="error-details">
               <h3>Row Errors:</h3>
               <ul>
-                {result.row_errors.slice(0, 10).map((err, idx) => (
+                {importResult.row_errors.slice(0, 10).map((err, idx) => (
                   <li key={idx}>
                     {err.sheet ? `${err.sheet} - ` : ''}Row {err.row_index}: {err.error}
                   </li>
                 ))}
-                {result.row_errors.length > 10 && (
-                  <li>... and {result.row_errors.length - 10} more errors</li>
+                {importResult.row_errors.length > 10 && (
+                  <li>... and {importResult.row_errors.length - 10} more errors</li>
                 )}
               </ul>
             </div>
           )}
 
-          {(result.total_created ?? result.created ?? 0) > 0 && (
+          {importResult.total_created > 0 && (
             <div className="success-message">
-              ✓ Successfully imported {result.total_created ?? result.created ?? 0} candidate(s)!
+              Successfully imported {importResult.total_created} candidate(s)!
             </div>
           )}
+
+          <button className="upload-button" onClick={handleNewUpload}>
+            Upload Another File
+          </button>
         </div>
       )}
     </div>

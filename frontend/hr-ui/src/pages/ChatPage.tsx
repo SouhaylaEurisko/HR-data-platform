@@ -299,7 +299,7 @@ export default function ChatPage() {
                         {conv.title || `Conversation ${conv.id}`}
                       </span>
                       <span className="conversation-timestamp">
-                        {new Date(conv.updated_at).toLocaleString([], {
+                        {new Date(conv.updated_at || conv.created_at).toLocaleString([], {
                           hour: '2-digit',
                           minute: '2-digit',
                           month: 'short',
@@ -416,22 +416,31 @@ export default function ChatPage() {
                                       : undefined
                                   }
                                 >
-                                  <div className="candidate-name">{candidate.full_name || 'N/A'}</div>
+                                  <div className="candidate-name">
+                                    {candidate.full_name || 'N/A'}
+                                  </div>
                                   <div className="candidate-details">
-                                    {candidate.position && (
-                                      <span className="candidate-detail">{candidate.position}</span>
+                                    {candidate.applied_position && (
+                                      <span className="candidate-detail">{candidate.applied_position}</span>
                                     )}
                                     {candidate.nationality && (
                                       <span className="candidate-detail">{candidate.nationality}</span>
                                     )}
-                                    {candidate.years_experience != null && (
+                                    {candidate.years_of_experience != null && (
                                       <span className="candidate-detail">
-                                        {candidate.years_experience} years exp.
+                                        {candidate.years_of_experience} years exp.
                                       </span>
                                     )}
-                                    {candidate.expected_salary != null && (
+                                    {candidate.current_salary != null && (
                                       <span className="candidate-detail">
-                                        ${Number(candidate.expected_salary).toLocaleString()}
+                                        Current: ${Number(candidate.current_salary).toLocaleString()}
+                                      </span>
+                                    )}
+                                    {(candidate.expected_salary_remote != null || candidate.expected_salary_onsite != null) && (
+                                      <span className="candidate-detail">
+                                        Expected: Remote {candidate.expected_salary_remote != null ? `$${Number(candidate.expected_salary_remote).toLocaleString()}` : '—'}
+                                        {' / '}
+                                        Onsite {candidate.expected_salary_onsite != null ? `$${Number(candidate.expected_salary_onsite).toLocaleString()}` : '—'}
                                       </span>
                                     )}
                                     {candidate.current_address && (

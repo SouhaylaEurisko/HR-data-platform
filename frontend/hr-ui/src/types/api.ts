@@ -4,24 +4,61 @@
 
 export interface Candidate {
   id: number;
-  source_file: string | null;
-  source_sheet: string | null;
-  source_table_index: number | null;
-  row_index: number | null;
+  organization_id: number;
+  import_session_id: number | null;
+  applied_at: string | null;
+
+  // Personal
   full_name: string | null;
   email: string | null;
+  date_of_birth: string | null;
   nationality: string | null;
-  date_of_birth: string | null; // ISO date string
-  position: string | null;
-  expected_salary: number | null;
-  // Text representation of expected salary (e.g., ranges like "1800-2000")
-  expected_salary_text?: string | null;
-  years_experience: number | null;
-  notice_period: string | null;
   current_address: string | null;
-  raw_data: Record<string, any> | null;
-  created_at: string; // ISO datetime string
-  updated_at: string; // ISO datetime string
+  residency_type_id: number | null;
+  marital_status_id: number | null;
+  number_of_dependents: number | null;
+  religion_sect: string | null;
+  passport_validity_status_id: number | null;
+  has_transportation: boolean | null;
+
+  // Professional
+  applied_position: string | null;
+  applied_position_location: string | null;
+  is_open_for_relocation: boolean | null;
+  years_of_experience: number | null;
+  is_employed: boolean | null;
+  current_salary: number | null;
+  expected_salary_remote: number | null;
+  expected_salary_onsite: number | null;
+  notice_period: string | null;
+  is_overtime_flexible: boolean | null;
+  is_contract_flexible: boolean | null;
+  workplace_type_id: number | null;
+  employment_type_id: number | null;
+  tech_stack: string[];
+  education_level_id: number | null;
+  education_completion_status_id: number | null;
+
+  // Dynamic & Raw
+  custom_fields: Record<string, any>;
+  raw_import_data: Record<string, any> | null;
+
+  // Audit
+  created_at: string;
+  updated_at: string;
+
+  // Import source (from import_session when loaded)
+  import_filename?: string | null;
+  import_sheet?: string | null;
+
+  // Resolved lookup labels (populated by service layer)
+  residency_type_label?: string | null;
+  marital_status_label?: string | null;
+  passport_validity_status_label?: string | null;
+  workplace_type_label?: string | null;
+  employment_type_label?: string | null;
+  education_level_label?: string | null;
+  education_completion_status_label?: string | null;
 }
 
 export interface CandidateListResponse {
@@ -31,135 +68,86 @@ export interface CandidateListResponse {
   page_size: number;
 }
 
-export interface ChatRequest {
-  message: string;
+export interface CandidateListParams {
+  page?: number;
+  page_size?: number;
+  org_id?: number;
+  nationality?: string;
+  date_of_birth?: string;
+  applied_position?: string;
+  current_address?: string;
+  min_years_experience?: number;
+  max_years_experience?: number;
+  workplace_type_id?: number;
+  employment_type_id?: number;
+  is_employed?: boolean;
+  education_level_id?: number;
+  search?: string;
+  sort_by?: 'created_at' | 'current_salary' | 'expected_salary_remote' | 'expected_salary_onsite' | 'years_of_experience' | 'full_name' | 'applied_position';
+  sort_order?: 'asc' | 'desc';
 }
 
-/**
- * New agent pipeline response shape.
- * Returned inside SendMessageResponse.response and ConversationMessage.response
- */
-export interface AgentResponseData {
-  intent: string;                        // "chitchat" | "filter" | "aggregation" | "filter_and_aggregation"
-  summary: string | null;                // explanatory paragraph about results
-  total_found: number | null;            // number of candidate rows returned
-  sql: string | null;                    // generated SQL (debug)
-  explanation: string | null;            // SQL explanation (debug)
-  candidates?: Record<string, any>[];    // candidate rows (filter / filter_and_aggregation)
-  stats?: Record<string, any>[];         // aggregation stats rows
+export interface CustomFieldDefinition {
+  id: number;
+  field_key: string;
+  label: string;
+  field_type: string;
 }
 
-// Keep ChatResponse for backward compat; alias to the new shape
-export type ChatResponse = AgentResponseData;
+// Column mapping types for two-phase import
+export interface ColumnMapping {
+  excel_header: string;
+  db_column: string | null;
+  db_column_label: string | null;
+  confidence: number;
+  source: 'programmatic' | 'llm' | 'unmatched';
+}
 
-export interface TableResult {
-  table_index: number;
-  start_row: number;
-  end_row: number | null;
-  created: number;
-  skipped_empty_rows: number;
-  skipped_duplicates: number;
-  row_errors: Array<{
-    row_index: number;
-    error: string;
-  }>;
+export interface AvailableColumn {
+  value: string;
+  label: string;
+}
+
+export interface AnalyzeResponse {
+  session_id: number;
+  filename: string;
+  sheets: string[];
+  matched_columns: ColumnMapping[];
+  suggested_columns: ColumnMapping[];
+  unmatched_columns: ColumnMapping[];
+  available_columns: AvailableColumn[];
+  already_mapped: string[];
+}
+
+export interface ConfirmImportRequest {
+  session_id: number;
+  confirmed_mappings: Record<string, string>;
+  new_custom_fields: Array<{ header: string; label: string }>;
+  skip_columns: string[];
+  sheet_names: string[];
+  org_id: number;
+}
+
+export interface ImportResult {
+  session_id: number;
+  status: string;
+  total_created: number;
+  total_skipped_empty_rows: number;
+  total_skipped_duplicates: number;
+  total_errors: number;
+  sheet_results: SheetResult[];
+  row_errors: Array<{ row_index: number; error: string; sheet?: string }>;
 }
 
 export interface SheetResult {
   sheet_name: string;
-  tables_found?: number;
   created: number;
-  skipped_empty_rows: number;
+  skipped_empty: number;
   skipped_duplicates: number;
-  row_errors: Array<{
-    row_index: number;
-    error: string;
-    sheet?: string;
-  }>;
-  table_results?: TableResult[];
+  row_errors: Array<{ row_index: number; error: string }>;
 }
 
-export interface ImportXlsxResponse {
-  file_name: string;
-  sheets_processed?: string[]; // New: list of processed sheets
-  total_created?: number; // New: total across all sheets
-  total_skipped_empty_rows?: number; // New: total across all sheets
-  total_skipped_duplicates?: number; // New: total across all sheets
-  sheet_results?: SheetResult[]; // New: per-sheet results
-  // Legacy fields (for backward compatibility)
-  created?: number;
-  skipped_empty_rows?: number;
-  skipped_duplicates?: number;
-  row_errors?: Array<{
-    row_index: number;
-    error: string;
-    sheet?: string;
-  }>;
-}
-
-export interface CandidateListParams {
-  page?: number;
-  page_size?: number;
-  nationality?: string;
-  date_of_birth?: string;
-  position?: string;
-  expected_salary?: number;
-  current_address?: string;
-  min_years_experience?: number;
-  max_years_experience?: number;
-  search?: string;
-  sort_by?: 'created_at' | 'expected_salary' | 'years_experience';
-  sort_order?: 'asc' | 'desc';
-}
-
-// Authentication types
-export interface User {
-  id: number;
-  email: string;
-  full_name?: string | null;
-  is_active?: boolean;
-  created_at?: string; // ISO datetime string
-  updated_at?: string; // ISO datetime string
-}
-
-export interface AuthResponse {
-  access_token: string;
-  token_type: string; // Usually "bearer"
-  user?: User; // Optional user info in response
-}
-
-// Conversation types
-export interface ConversationMessage {
-  id: number;
-  conversation_id: number;
-  content: string;
-  sender: 'user' | 'assistant';
-  created_at: string; // ISO datetime string
-  response?: AgentResponseData | null; // Agent pipeline response data
-}
-
-export interface Conversation {
-  id: number;
-  title?: string | null;
-  created_at: string; // ISO datetime string
-  updated_at?: string; // ISO datetime string
-}
-
-export interface ConversationWithMessages extends Conversation {
-  messages: ConversationMessage[];
-}
-
-export interface SendMessageRequest {
-  content: string;
-  sender: 'user' | 'assistant';
-  conversation_id?: number; // Optional: if provided, adds to existing conversation
-}
-
-export interface SendMessageResponse {
-  reply: string;
-  conversation_id: number;
-  response?: AgentResponseData | null; // Agent pipeline response data
-}
+export interface ImportXlsxResponse extends ImportResult {}
 
 export interface SheetPreview {
   name: string;
@@ -171,4 +159,90 @@ export interface XlsxPreviewResponse {
   file_name: string;
   sheets: SheetPreview[];
   total_sheets: number;
+}
+
+// Lookup types
+export interface LookupOption {
+  id: number;
+  code: string;
+  label: string;
+  display_order: number;
+  is_active: boolean;
+}
+
+export interface LookupCategory {
+  id: number;
+  code: string;
+  label: string;
+  description: string | null;
+  is_system: boolean;
+}
+
+// Chat types
+export interface ChatRequest {
+  message: string;
+}
+
+export interface AgentResponseData {
+  intent: string;
+  summary: string | null;
+  total_found: number | null;
+  sql: string | null;
+  explanation: string | null;
+  candidates?: Record<string, any>[];
+  stats?: Record<string, any>[];
+}
+
+export type ChatResponse = AgentResponseData;
+
+// Authentication types
+export interface User {
+  id: number;
+  email: string;
+  first_name?: string | null;
+  last_name?: string | null;
+  organization_id: number;
+  role: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user?: User;
+}
+
+// Conversation types
+export interface ConversationMessage {
+  id: number;
+  conversation_id: number;
+  content: string;
+  sender: 'user' | 'assistant';
+  created_at: string;
+  response?: AgentResponseData | null;
+}
+
+export interface Conversation {
+  id: number;
+  title?: string | null;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ConversationWithMessages extends Conversation {
+  messages: ConversationMessage[];
+}
+
+export interface SendMessageRequest {
+  content: string;
+  sender: 'user' | 'assistant';
+  conversation_id?: number;
+}
+
+export interface SendMessageResponse {
+  reply: string;
+  conversation_id: number;
+  response?: AgentResponseData | null;
 }

@@ -10,19 +10,18 @@ export default function CandidateDetailPage() {
   const location = useLocation();
   const fromChat = (location.state as any)?.fromChat || false;
 
-  /** Navigate back preserving the page the user came from. */
   const goBack = () => {
     if (fromChat) {
       navigate('/chat');
     } else {
-      // Use browser history so the CandidatesPage URL (with ?page=…) is restored
       navigate(-1);
     }
   };
+
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showRawData, setShowRawData] = useState(false);
+  const [showCustomFields, setShowCustomFields] = useState(false);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -39,7 +38,6 @@ export default function CandidateDetailPage() {
           setLoading(false);
           return;
         }
-
         const data = await getCandidateById(candidateId);
         setCandidate(data);
       } catch (err: any) {
@@ -50,7 +48,6 @@ export default function CandidateDetailPage() {
         setLoading(false);
       }
     };
-
     fetchCandidate();
   }, [id]);
 
@@ -67,6 +64,8 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const displayName = (c: Candidate) => c.full_name || 'N/A';
+
   if (loading) {
     return (
       <div className="candidate-detail-page">
@@ -81,45 +80,39 @@ export default function CandidateDetailPage() {
         <div className="error-message" role="alert">
           {error || 'Candidate not found'}
         </div>
-        <button
-          onClick={goBack}
-          className="back-button"
-        >
-          ← {fromChat ? 'Back to Chat' : 'Back to Candidates'}
+        <button onClick={goBack} className="back-button">
+          &larr; {fromChat ? 'Back to Chat' : 'Back to Candidates'}
         </button>
       </div>
     );
   }
 
+  const hasCustomFields = candidate.custom_fields && Object.keys(candidate.custom_fields).length > 0;
+
   return (
     <div className="candidate-detail-page">
       <div className="detail-header">
-        <button
-          onClick={goBack}
-          className="back-button"
-        >
-          ← {fromChat ? 'Back to Chat' : 'Back to Candidates'}
+        <button onClick={goBack} className="back-button">
+          &larr; {fromChat ? 'Back to Chat' : 'Back to Candidates'}
         </button>
-        <h1>Candidate Details</h1>
+        <h1>{displayName(candidate)}</h1>
       </div>
 
       <div className="detail-content">
-        {/* Main Information Card */}
+        {/* Personal Information */}
         <div className="detail-card">
           <h2>Personal Information</h2>
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">Full Name:</span>
-              <span className="detail-value">{candidate.full_name || 'N/A'}</span>
+              <span className="detail-value">{displayName(candidate)}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">Email:</span>
               <span className="detail-value">
                 {candidate.email ? (
                   <a href={`mailto:${candidate.email}`}>{candidate.email}</a>
-                ) : (
-                  'N/A'
-                )}
+                ) : 'N/A'}
               </span>
             </div>
             <div className="detail-item">
@@ -134,84 +127,158 @@ export default function CandidateDetailPage() {
               <span className="detail-label">Current Address:</span>
               <span className="detail-value">{candidate.current_address || 'N/A'}</span>
             </div>
+            <div className="detail-item">
+              <span className="detail-label">Residency Type:</span>
+              <span className="detail-value">{candidate.residency_type_label || 'N/A'}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Marital Status:</span>
+              <span className="detail-value">{candidate.marital_status_label || 'N/A'}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Dependents:</span>
+              <span className="detail-value">
+                {candidate.number_of_dependents !== null ? candidate.number_of_dependents : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Transportation:</span>
+              <span className="detail-value">
+                {candidate.has_transportation === true ? 'Yes' : candidate.has_transportation === false ? 'No' : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Passport Status:</span>
+              <span className="detail-value">{candidate.passport_validity_status_label || 'N/A'}</span>
+            </div>
           </div>
         </div>
 
-        {/* Professional Information Card */}
+        {/* Professional Information */}
         <div className="detail-card">
           <h2>Professional Information</h2>
           <div className="detail-grid">
             <div className="detail-item">
-              <span className="detail-label">Position:</span>
-              <span className="detail-value">{candidate.position || 'N/A'}</span>
+              <span className="detail-label">Applied Position:</span>
+              <span className="detail-value">{candidate.applied_position || 'N/A'}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Location:</span>
+              <span className="detail-value">{candidate.applied_position_location || 'N/A'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">Years of Experience:</span>
               <span className="detail-value">
-                {candidate.years_experience !== null && candidate.years_experience !== undefined
-                  ? `${candidate.years_experience} years`
+                {candidate.years_of_experience !== null && candidate.years_of_experience !== undefined
+                  ? `${candidate.years_of_experience} years`
                   : 'N/A'}
               </span>
             </div>
             <div className="detail-item">
-              <span className="detail-label">Expected Salary:</span>
+              <span className="detail-label">Current Salary:</span>
               <span className="detail-value">
-                {candidate.expected_salary_text && candidate.expected_salary_text.trim() !== ''
-                  ? candidate.expected_salary_text
-                  : candidate.expected_salary !== null && candidate.expected_salary !== undefined
-                  ? `$${candidate.expected_salary.toLocaleString()} USD`
+                {candidate.current_salary !== null && candidate.current_salary !== undefined
+                  ? `$${Number(candidate.current_salary).toLocaleString()}`
                   : 'N/A'}
               </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Expected Salary (Remote):</span>
+              <span className="detail-value">
+                {candidate.expected_salary_remote !== null && candidate.expected_salary_remote !== undefined
+                  ? `$${Number(candidate.expected_salary_remote).toLocaleString()}`
+                  : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Expected Salary (Onsite):</span>
+              <span className="detail-value">
+                {candidate.expected_salary_onsite !== null && candidate.expected_salary_onsite !== undefined
+                  ? `$${Number(candidate.expected_salary_onsite).toLocaleString()}`
+                  : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Is Employed:</span>
+              <span className="detail-value">
+                {candidate.is_employed === true ? 'Yes' : candidate.is_employed === false ? 'No' : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Employment Type:</span>
+              <span className="detail-value">{candidate.employment_type_label || 'N/A'}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Workplace Type:</span>
+              <span className="detail-value">{candidate.workplace_type_label || 'N/A'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">Notice Period:</span>
               <span className="detail-value">{candidate.notice_period || 'N/A'}</span>
             </div>
+            <div className="detail-item">
+              <span className="detail-label">Open for Relocation:</span>
+              <span className="detail-value">
+                {candidate.is_open_for_relocation === true ? 'Yes' : candidate.is_open_for_relocation === false ? 'No' : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Education Level:</span>
+              <span className="detail-value">{candidate.education_level_label || 'N/A'}</span>
+            </div>
+            <div className="detail-item">
+              <span className="detail-label">Education Status:</span>
+              <span className="detail-value">{candidate.education_completion_status_label || 'N/A'}</span>
+            </div>
+            {candidate.tech_stack && candidate.tech_stack.length > 0 && (
+              <div className="detail-item detail-item-wide">
+                <span className="detail-label">Tech Stack:</span>
+                <span className="detail-value">{candidate.tech_stack.join(', ')}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Supplementary Information Card */}
-        {candidate.raw_data && (
-          <div className="detail-card">
-            <div className="raw-data-header">
-              <h2>Supplementary Information</h2>
+        {/* Custom Fields */}
+        {hasCustomFields && (
+          <div className="detail-card detail-card-custom-fields">
+            <div className="custom-fields-header">
+              <h2>Custom Fields</h2>
               <button
-                onClick={() => setShowRawData(!showRawData)}
+                onClick={() => setShowCustomFields(!showCustomFields)}
                 className="toggle-raw-data-btn"
               >
-                {showRawData ? 'Hide' : 'Show'} Details
+                {showCustomFields ? 'Hide' : 'Show'} Details
               </button>
             </div>
-            {showRawData && (
-              <div className="raw-data-content">
-                <dl>
-                  {Object.entries(candidate.raw_data).map(([key, value]) => (
-                    <div className="raw-data-row" key={key}>
-                      <dt className="raw-data-key">{key}</dt>
-                      <dd className="raw-data-value">
-                        {value === null || value === undefined || value === ''
-                          ? 'N/A'
-                          : String(value)}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
+            {showCustomFields && (
+              <div className="custom-fields-list">
+                {Object.entries(candidate.custom_fields).map(([key, value]) => (
+                  <div className="custom-field-row" key={key}>
+                    <span className="custom-field-label">
+                      {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                    </span>
+                    <span className="custom-field-value">
+                      {value === null || value === undefined || value === '' ? 'N/A' : String(value)}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         )}
 
-        {/* Metadata Card */}
+        {/* Metadata */}
         <div className="detail-card">
           <h2>Metadata</h2>
           <div className="detail-grid">
             <div className="detail-item">
-              <span className="detail-label">Source File:</span>
-              <span className="detail-value">{candidate.source_file || 'N/A'}</span>
+              <span className="detail-label">Source file:</span>
+              <span className="detail-value">{candidate.import_filename ?? '—'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">Sheet:</span>
-              <span className="detail-value">{candidate.source_sheet || 'N/A'}</span>
+              <span className="detail-value">{candidate.import_sheet ?? '—'}</span>
             </div>
             <div className="detail-item">
               <span className="detail-label">Created At:</span>

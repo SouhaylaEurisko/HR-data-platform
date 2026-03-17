@@ -37,7 +37,7 @@ def create_conversation(
 
     if user_id is None:
         raise ValueError("user_id is required to create a conversation")
-    conversation = Conversation(title=title, user_id=user_id)
+    conversation = Conversation(title=title, user_account_id=user_id)
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
@@ -82,7 +82,7 @@ def get_conversation_by_id(
     """
     query = db.query(Conversation).filter(Conversation.id == conversation_id)
     if user_id is not None:
-        query = query.filter(Conversation.user_id == user_id)
+        query = query.filter(Conversation.user_account_id == user_id)
     return query.first()
 
 
@@ -103,7 +103,7 @@ def list_conversations(
     """
     return (
         db.query(Conversation)
-        .filter(Conversation.user_id == user_id)
+        .filter(Conversation.user_account_id == user_id)
         .order_by(desc(Conversation.updated_at))
         .limit(limit)
         .all()

@@ -5,7 +5,10 @@ import type { AuthResponse, User } from '../types/api';
 export interface SignupRequest {
   email: string;
   password: string;
-  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  organization_id?: number;
+  role?: string;
 }
 
 export const login = async (email: string, password: string): Promise<AuthResponse> => {

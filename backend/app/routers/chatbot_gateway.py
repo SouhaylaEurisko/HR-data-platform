@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..config import config, get_db
-from ..models.user import User
+from ..models.user import UserAccount as User
 from ..routers.auth import get_current_user
 
 router = APIRouter(prefix="/api", tags=["chatbot"])

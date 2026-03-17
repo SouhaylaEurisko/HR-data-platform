@@ -84,12 +84,11 @@ class FilterAggregationAgent:
 
         # Filter out empty/corrupt rows and re-sort correctly
         filter_upper = filter_sql.upper()
-        if "ORDER BY YEARS_EXPERIENCE" in filter_upper:
-            safe_rows = filter_empty_rows(safe_rows, required_field="years_experience")
-        elif "ORDER BY EXPECTED_SALARY" in filter_upper:
-            safe_rows = filter_empty_rows(safe_rows, required_field="expected_salary")
-            # The SQL sorted by the corrupt FLOAT column — re-sort by parsed salary text
-            descending = "DESC" in filter_upper.split("ORDER BY EXPECTED_SALARY")[1].split("LIMIT")[0]
+        if "ORDER BY YEARS_OF_EXPERIENCE" in filter_upper:
+            safe_rows = filter_empty_rows(safe_rows, required_field="years_of_experience")
+        elif "ORDER BY CURRENT_SALARY" in filter_upper:
+            safe_rows = filter_empty_rows(safe_rows, required_field="current_salary")
+            descending = "DESC" in filter_upper.split("ORDER BY CURRENT_SALARY")[1].split("LIMIT")[0]
             safe_rows = resort_by_salary(safe_rows, descending=descending)
 
         total = len(safe_rows)
@@ -99,7 +98,7 @@ class FilterAggregationAgent:
             chatbot_logger.log_db_rows("FILTER + AGGREGATION - DB ROWS RETRIEVED", safe_rows)
             chatbot_logger.log_db_stats("FILTER + AGGREGATION - RAW DB STATS", safe_stats)
 
-        # 3b. Correct salary statistics using expected_salary_text
+        # 3b. Correct salary statistics
         salary_stats = fetch_salary_stats_for_query(db, agg_sql)
         if salary_stats:
             safe_stats = _apply_salary_correction(safe_stats, salary_stats)

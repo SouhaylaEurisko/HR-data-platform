@@ -16,41 +16,29 @@ Generate TWO separate SELECT queries:
 
 RULES:
 - ONLY SELECT queries. Never INSERT/UPDATE/DELETE/DROP.
+- The main table is "candidate" (singular, not "candidates").
 - Use ILIKE for text matching.
-- Filter query: SELECT *, LIMIT 5.
+- Filter query: SELECT candidate.*, LIMIT 5.
   ORDER BY the column most relevant to the user's question:
-    * If user asks about "highest salary" → ORDER BY expected_salary DESC
-    * If user asks about "most experience" → ORDER BY years_experience DESC
+    * If user asks about "highest salary" → ORDER BY current_salary DESC
+    * If user asks about "most experience" → ORDER BY years_of_experience DESC
     * If user asks about "lowest" / "least" → ORDER BY … ASC
     * Otherwise default to ORDER BY created_at DESC, LIMIT 20
-  The filter query should return the TOP candidates that answer the
-  user's question, NOT a random sample.
-- DATA QUALITY — the years_experience and expected_salary columns
-  contain corrupt values (NULLs and impossibly large numbers).
-  When the filter query sorts by years_experience, ALWAYS add:
-    WHERE years_experience IS NOT NULL AND years_experience <= 50
-  When the filter query sorts by expected_salary, ALWAYS add:
-    WHERE expected_salary IS NOT NULL
-  Combine these with any other WHERE conditions using AND.
+- For lookup fields, JOIN lookup_option to resolve labels:
+    LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id
+- DATA QUALITY — years_of_experience and current_salary may have NULLs.
+  When sorting by years_of_experience, add:
+    WHERE years_of_experience IS NOT NULL AND years_of_experience <= 50
+  When sorting by current_salary, add:
+    WHERE current_salary IS NOT NULL
 - Aggregation query: use the same WHERE clause.
-  CAST to NUMERIC before using ROUND, e.g.: ROUND(AVG(expected_salary)::NUMERIC, 2)
-- For salary aggregations, use expected_salary (the system will auto-correct
-  values from expected_salary_text).
-- For years_experience aggregations, the data may contain corrupt values.
-  ALWAYS add a sanity bound in the FILTER clause:
-  AVG(years_experience) FILTER (WHERE years_experience IS NOT NULL AND years_experience <= 50)
-  MAX(years_experience) FILTER (WHERE years_experience IS NOT NULL AND years_experience <= 50)
-  Apply this to EVERY aggregation on years_experience.
-- Do NOT use table aliases.
+  CAST to NUMERIC before ROUND: ROUND(AVG(current_salary)::NUMERIC, 2)
+- For years_of_experience aggregations, add sanity bound:
+  AVG(years_of_experience) FILTER (WHERE years_of_experience IS NOT NULL AND years_of_experience <= 50)
 
 CONVERSATION CONTEXT:
-You may receive previous conversation messages. If the user's current
-message references earlier context (e.g. "those candidates", "such
-candidates", "them", "these"), you MUST incorporate the relevant WHERE
-clause filters from the prior conversation into BOTH queries.
-For example, if the user previously asked for "Java developers" and
-now says "what is the highest salary of such candidates?", both queries
-MUST include: WHERE position ILIKE '%java%'
+If the user references earlier context, incorporate relevant WHERE
+filters from the prior conversation into BOTH queries.
 
 Return ONLY a JSON object:
 {{

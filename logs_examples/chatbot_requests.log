@@ -1,0 +1,736 @@
+====================================================================================================
+
+REQUEST_ID:       f203277d-d23a-457c-b22c-004de781114d
+ACCOUNT_ID:       DB18B006D00366A9C083B6C08DD7513B
+CONVERSATION_ID:  6996d45126d3365861cbbd49
+TIMESTAMP:        2026-02-19T09:15:28.372377Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    Could you tell me how to view my recent transaction history online?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: Could you tell me how to view my recent transaction history online?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: Could you tell me how to view my recent transaction history online?
+
+  Classification Result:
+    Route:                Route.RAG
+    Confidence:           0.9
+    Reasoning:            The user is requesting general information about how to view their transaction history online, which relates to bank resources or processes rather than their specific data. This falls under the RAG intent as the user is not asking for their actual transaction data but for guidance on using a banking service feature.
+    Rephrased Query:      How can I view my recent transaction history online from ADCB?
+
+====================================================================================================
+  RAG - RETRIEVAL AUGMENTED GENERATION
+====================================================================================================
+
+  Query Used:           How can I view my recent transaction history online from ADCB?
+
+  Documents Retrieved:  5
+
+  Top Documents:
+    1. 7bef2038fe63afc09441c931ccf0251c (score: 0.831)
+    2. 8c929b2b62e67d626060556834087d53 (score: 0.824)
+    3. 4daf06381ba1feb6799b6c4c5271562e (score: 0.823)
+    4. 33deec24f36840021445ad673361867b (score: 0.822)
+    5. d2e14b250140700fc63520979600ece4 (score: 0.821)
+
+  LLM Response:
+    To view your recent transaction history online with ADCB, you can use ADCB Personal Internet Banking. It lets you view your account and card transactions, access your banking services anytime, and view statements for the last 6 months or the current period. Simply log in to the ADCB Internet Banking...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    Could you tell me how to view my recent transaction history online?
+
+  OUTPUT:
+    route: Route.RAG
+    intent: rag
+
+REQUEST f203277d-d23a-457c-b22c-004de781114d COMPLETED AT 2026-02-19T09:15:34.797541Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       ccdaf11a-e83f-4faa-b613-1ea6543593fa
+ACCOUNT_ID:       DB18B006D00366A9C083B6C08DD7513B
+CONVERSATION_ID:  6996d45126d3365861cbbd49
+TIMESTAMP:        2026-02-19T09:15:58.434085Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    How much did i spend the past 3 months
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: How much did i spend the past 3 months
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: How much did i spend the past 3 months
+
+  Classification Result:
+    Route:                Route.NLQ
+    Confidence:           0.9
+    Reasoning:            The user is clearly requesting new data about their own transaction history for a specific time period (the past 3 months). This type of query fits the NLQ category as they want information about their spending.
+    Rephrased Query:      Show me my total spending for the past 3 months
+
+====================================================================================================
+  MONGODB QUERY EXECUTION
+====================================================================================================
+
+  Account ID:           DB18B006D00366A9C083B6C08DD7513B
+  Queries Count:        1
+
+  Query 1 Pipeline:
+
+====================================================================================================
+  MONGODB QUERY EXECUTION
+====================================================================================================
+
+  Account ID:           DB18B006D00366A9C083B6C08DD7513B
+  Queries Count:        1
+
+  Query 1 Pipeline:
+
+====================================================================================================
+  NLQ - TRANSACTIONS
+====================================================================================================
+
+  User Query:           How much did i spend the past 3 months
+  Rephrased Query:      Show me my total spending for the past 3 months
+  Query Used:           Show me my total spending for the past 3 months
+  Chart Type:           chart_line
+  Total Hits:           0
+  Date Range:           2025-11-19 to 2026-02-19
+
+  Payload Title:        No Results Found
+
+  === PAYLOAD SENT TO FRONTEND ===
+    Line Chart Data:
+      Time Points: 0
+      Datasets: 0
+
+    Payload Keys: ['title', 'subtitle', 'data']
+    Nested Data Keys: ['labels', 'values']
+
+  Analysis:
+    No results found
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    How much did i spend the past 3 months
+
+  OUTPUT:
+    route: Route.NLQ
+    intent: nlq
+
+REQUEST ccdaf11a-e83f-4faa-b613-1ea6543593fa COMPLETED AT 2026-02-19T09:16:10.881514Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       5917628d-efd4-4f2d-9d84-aa8c35567b92
+ACCOUNT_ID:       ACE5A91DEE1BE705988A1B798A2D186A
+CONVERSATION_ID:  6996d51b26d3365861cbbd5b
+TIMESTAMP:        2026-02-19T09:17:48.553001Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    I'm interested in learning about your credit card offerings. What are the benefits and requirements?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: I'm interested in learning about your credit card offerings. What are the benefits and requirements?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: I'm interested in learning about your credit card offerings. What are the benefits and requirements?
+
+  Classification Result:
+    Route:                Route.RAG
+    Confidence:           0.95
+    Reasoning:            The user is asking for information regarding credit card offerings, including their benefits and requirements. This falls under the RAG intent as the user is seeking information that is not related to personal account data or transactions.
+    Rephrased Query:      What are the benefits and requirements for your credit card offerings?
+
+====================================================================================================
+  RAG - RETRIEVAL AUGMENTED GENERATION
+====================================================================================================
+
+  Query Used:           What are the benefits and requirements for your credit card offerings?
+
+  Documents Retrieved:  5
+
+  Top Documents:
+    1. eeefb2ff5564c18b2b6aa168702cfa7b (score: 0.781)
+    2. c73eb22f9a7dc7cf7208ee8a81b25c7b (score: 0.780)
+    3. 979f50f32e9751a312df8e8c1c8a8d0d (score: 0.778)
+    4. d6a3639f30303abfbb64dd4a4b39e4f7 (score: 0.776)
+    5. fb8a5a215dd26d385bb75888d95e0628 (score: 0.776)
+
+  LLM Response:
+    Here's a brief overview of some ADCB credit cards, highlighting their benefits and requirements:
+    **ADCB TouchPoints Gold or Titanium Credit Card:**
+    **Rewards:**
+    - Earn up to 0.5 TouchPoints per AED 1 spent.
+    - Bonus 5,000 TouchPoints when spending AED 5,000 each month.
+    **Lifestyle Benefits:**
+    - Bu...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    I'm interested in learning about your credit card offerings. What are the benefits and requirements?
+
+  OUTPUT:
+    route: Route.RAG
+    intent: rag
+
+REQUEST 5917628d-efd4-4f2d-9d84-aa8c35567b92 COMPLETED AT 2026-02-19T09:17:58.453084Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       a1c7eb66-2734-440f-905c-c4a88a93189f
+ACCOUNT_ID:       ACE5A91DEE1BE705988A1B798A2D186A
+CONVERSATION_ID:  6996d51b26d3365861cbbd5b
+TIMESTAMP:        2026-02-19T09:18:33.274556Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    What was my spending the past 6 months
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: What was my spending the past 6 months
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: What was my spending the past 6 months
+
+  Classification Result:
+    Route:                Route.NLQ
+    Confidence:           0.95
+    Reasoning:            The user is requesting new data about 'spending the past 6 months', which is a request for their own transaction data and not related to the recent conversation context about credit card offerings.
+    Rephrased Query:      Show me my total spending for the past 6 months
+
+====================================================================================================
+  MONGODB QUERY EXECUTION
+====================================================================================================
+
+  Account ID:           ACE5A91DEE1BE705988A1B798A2D186A
+  Queries Count:        1
+
+  Query 1 Pipeline:
+
+====================================================================================================
+  MONGODB QUERY EXECUTION
+====================================================================================================
+
+  Account ID:           ACE5A91DEE1BE705988A1B798A2D186A
+  Queries Count:        1
+
+  Query 1 Pipeline:
+
+====================================================================================================
+  NLQ - TRANSACTIONS
+====================================================================================================
+
+  User Query:           What was my spending the past 6 months
+  Rephrased Query:      Show me my total spending for the past 6 months
+  Query Used:           Show me my total spending for the past 6 months
+  Chart Type:           chart_line
+  Total Hits:           175
+  Date Range:           2025-08-19 to 2026-02-19
+
+  Payload Title:        Monthly Spending Trend
+
+  === PAYLOAD SENT TO FRONTEND ===
+    Line Chart Data:
+      Time Points: 64
+      Datasets: 0
+
+    Payload Keys: ['title', 'subtitle', 'data']
+    Nested Data Keys: ['labels', 'values']
+
+  Analysis:
+    Query Results Summary: Found 175 transaction(s) matching the query.
+    Total transaction amount: 12,354.64 AED, AUD, CAD, EUR, GBP, USD.
+    Date range: 2025-08-20 to 2025-10-31.
+    Top categories: Professional...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    What was my spending the past 6 months
+
+  OUTPUT:
+    route: Route.NLQ
+    intent: nlq
+
+REQUEST a1c7eb66-2734-440f-905c-c4a88a93189f COMPLETED AT 2026-02-19T09:18:46.608905Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       73d5a8cb-6ca0-4d2a-b7fe-73939484a675
+ACCOUNT_ID:       ACE5A91DEE1BE705988A1B798A2D186A
+CONVERSATION_ID:  6996d51b26d3365861cbbd5b
+TIMESTAMP:        2026-02-19T09:19:15.326796Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    What merchants do i spend the most with
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: What merchants do i spend the most with
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: What merchants do i spend the most with
+
+  Classification Result:
+    Route:                Route.NLQ
+    Confidence:           0.85
+    Reasoning:            The user is requesting specific aggregated data about their own spending with merchants, which is a new data query. Previous context did not provide this specific merchant-spending aggregation.
+    Rephrased Query:      Show me which merchants I spend the most with.
+
+====================================================================================================
+  MONGODB QUERY EXECUTION
+====================================================================================================
+
+  Account ID:           ACE5A91DEE1BE705988A1B798A2D186A
+  Queries Count:        1
+
+  Query 1 Pipeline:
+    [
+      {
+        "$group": {
+          "_id": {
+            "merchant_name": "$merchant_name"
+          },
+          "sum_transaction_amount": {
+            "$sum": "$transaction_amount"
+          },
+          "documents": {
+            "$push": "$$ROOT"
+          }
+        }
+      },
+      {
+        "$sort": {
+          "transaction_amount": -1
+        }
+      },
+      {
+        "$limit": null
+      }
+    ]
+
+  Execution Status:     PENDING
+
+====================================================================================================
+  MONGODB QUERY EXECUTION
+====================================================================================================
+
+  Account ID:           ACE5A91DEE1BE705988A1B798A2D186A
+  Queries Count:        1
+
+  Query 1 Pipeline:
+    [
+      {
+        "$group": {
+          "_id": {
+            "merchant_name": "$merchant_name"
+          },
+          "sum_transaction_amount": {
+            "$sum": "$transaction_amount"
+          },
+          "documents": {
+            "$push": "$$ROOT"
+          }
+        }
+      },
+      {
+        "$sort": {
+          "transaction_amount": -1
+        }
+      },
+      {
+        "$limit": null
+      }
+    ]
+
+  Execution Status:     SUCCESS
+  Results Count:        1
+
+  Query 1 Result:
+    Status:             SUCCESS
+    Documents Found:    224
+
+  Summary:
+    Successful Queries: 1/1
+    Failed Queries:     0/1
+    Total Documents:    224
+
+====================================================================================================
+  NLQ - TRANSACTIONS
+====================================================================================================
+
+  User Query:           What merchants do i spend the most with
+  Rephrased Query:      Show me which merchants I spend the most with.
+  Query Used:           Show me which merchants I spend the most with.
+  Chart Type:           chart_pie
+  Total Hits:           224
+  Date Range:           None to None
+
+  Payload Title:        Spending by Merchant
+
+  === PAYLOAD SENT TO FRONTEND ===
+    Pie Chart Data:
+      Categories: 6
+        1. www.my.smartcrowd.ae: 9936.52
+        2. ONLY IMMIGRATION: 7229.31
+        3. MAI CHUFFE* HELP MAI A: 3623.56
+        4. ARTHUR MURRAY FOLKLORE: 2904.0
+        5. EMIRATES62391010728-2: 2527.1
+        ... and 1 more
+
+    Payload Keys: ['title', 'total', 'data']
+    Nested Data Keys: ['labels', 'values']
+
+  Analysis:
+    Query Results Summary: Found 224 group(s) matching the query.
+    Data is grouped by: merchant_name.
+    Metrics present: sum_transaction_amount.
+    Top Groups:
+    1. merchant_name: www.my.smartcrowd.ae — sum_tran...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    What merchants do i spend the most with
+
+  OUTPUT:
+    route: Route.NLQ
+    intent: nlq
+
+REQUEST 73d5a8cb-6ca0-4d2a-b7fe-73939484a675 COMPLETED AT 2026-02-19T09:19:31.383013Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       33382971-569c-43bc-8a72-253c8d59a537
+ACCOUNT_ID:       ACE5A91DEE1BE705988A1B798A2D186A
+CONVERSATION_ID:  6996d51b26d3365861cbbd5b
+TIMESTAMP:        2026-02-19T09:22:29.190508Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    What are interest rates on your accounts
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: What are interest rates on your accounts
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: What are interest rates on your accounts
+
+  Classification Result:
+    Route:                Route.RAG
+    Confidence:           0.9
+    Reasoning:            The user is requesting information about interest rates on bank accounts, which pertains to general product information from bank resources, not specific to the user's own account or transactions.
+    Rephrased Query:      What are the interest rates on ADCB's bank accounts?
+
+====================================================================================================
+  RAG - RETRIEVAL AUGMENTED GENERATION
+====================================================================================================
+
+  Query Used:           What are the interest rates on ADCB's bank accounts?
+
+  Documents Retrieved:  5
+
+  Top Documents:
+    1. 8bb5a93554359307967b8cc5f6f218ea (score: 0.902)
+    2. 20185cccdb7e82e210dd77eb0fcf679c (score: 0.885)
+    3. de9726de045a0f45fd94df7676bc8c22 (score: 0.878)
+    4. d59c99418104134f343949e0e212b9c7 (score: 0.875)
+    5. d8b8b713f6a2916b11f8e39bd72295d3 (score: 0.875)
+
+  LLM Response:
+    ADCB offers various interest rates on its bank accounts depending on the account type and currency:
+    **Savings Accounts (effective from 16th Aug 2024):**
+    - AED and USD: 0.10%
+    - Other currencies like GBP, AUD, CAD, CHF, EUR, JPY, SAR, SGD: 0.05%
+    **Call Accounts:**
+    - AED: 0.10%
+    - USD: 0.05%
+    - GBP (ef...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    What are interest rates on your accounts
+
+  OUTPUT:
+    route: Route.RAG
+    intent: rag
+
+REQUEST 33382971-569c-43bc-8a72-253c8d59a537 COMPLETED AT 2026-02-19T09:22:37.757082Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       6f939486-1cda-4c29-a5c5-9fc2d548871f
+ACCOUNT_ID:       ACE5A91DEE1BE705988A1B798A2D186A
+CONVERSATION_ID:  6996d51b26d3365861cbbd5b
+TIMESTAMP:        2026-02-19T09:23:32.058753Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    How do these interest rates compare to other banks?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: How do these interest rates compare to other banks?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: How do these interest rates compare to other banks?
+
+  Classification Result:
+    Route:                Route.CHAT
+    Confidence:           0.85
+    Reasoning:            The user is asking for a comparison or analysis of the recently provided interest rates against those of other banks. Since the ADCB's interest rates have already been shown, this query does not require fetching new data but is seeking a comparative analysis or explanation.
+
+====================================================================================================
+  CHAT
+====================================================================================================
+
+  User:      How do these interest rates compare to other banks?
+  Assistant: I'm unable to provide comparisons or specific details about interest rates offered by other banks. However, ADCB's interest rates are competitive within the market, and they can vary by account type, currency, and prevailing economic conditions. To get a clear comparison, I recommend checking each bank's official website or consulting with their customer service for the most current rates. This will help ensure that you find the best option for your needs. If you have any more questions about ADCB's offerings, feel free to ask!
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    How do these interest rates compare to other banks?
+
+  OUTPUT:
+    route: Route.CHAT
+    intent: chat
+
+REQUEST 6f939486-1cda-4c29-a5c5-9fc2d548871f COMPLETED AT 2026-02-19T09:23:38.741386Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       afaf8867-6331-4247-b721-33979caabff6
+ACCOUNT_ID:       ACE5A91DEE1BE705988A1B798A2D186A
+CONVERSATION_ID:  6996d51b26d3365861cbbd5b
+TIMESTAMP:        2026-02-19T09:24:08.728281Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    Are there any promotions on savings accounts right now?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: Are there any promotions on savings accounts right now?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: Are there any promotions on savings accounts right now?
+
+  Classification Result:
+    Route:                Route.RAG
+    Confidence:           0.85
+    Reasoning:            The user is asking about current promotions on savings accounts, which requires information from bank resources or policies, not specific to their own account details.
+    Rephrased Query:      Are there any current promotions or offers on ADCB savings accounts?
+
+====================================================================================================
+  RAG - RETRIEVAL AUGMENTED GENERATION
+====================================================================================================
+
+  Query Used:           Are there any current promotions or offers on ADCB savings accounts?
+
+  Documents Retrieved:  5
+
+  Top Documents:
+    1. d4506ab9fb3e52070ee68be26ffa0d52 (score: 0.881)
+    2. 533d8d15f184a1cc024e723a62768ecd (score: 0.863)
+    3. d59c99418104134f343949e0e212b9c7 (score: 0.860)
+    4. 67c0b876d6d562c6815dc8aba58223c5 (score: 0.858)
+    5. 6a088345c96aa3f342e44960efac0781 (score: 0.857)
+
+  LLM Response:
+    ADCB currently offers attractive promotions on several savings accounts:
+    **Super Saver Account:**
+    - Earn up to 4.50% interest per annum, with bonus rates applicable on new funds, subject to maintaining a specific monthly average balance.
+    **Goal Savings Account:**
+    - Offers up to 4.5% interest with ...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    Are there any promotions on savings accounts right now?
+
+  OUTPUT:
+    route: Route.RAG
+    intent: rag
+
+REQUEST afaf8867-6331-4247-b721-33979caabff6 COMPLETED AT 2026-02-19T09:24:14.700638Z
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       9b4dc7e2-da95-4774-bbe2-008d41de8162
+ACCOUNT_ID:       4231752A1ED8A20E990C4A10E89B974F
+CONVERSATION_ID:  6997300126d3365861cbc1cc
+TIMESTAMP:        2026-02-19T15:45:26.673725Z
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    Can you tell me more about the different savings account options available?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: Can you tell me more about the different savings account options available?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message: Can you tell me more about the different savings account options available?
+
+  Classification Result:
+    Route:                Route.RAG
+    Confidence:           0.95
+    Reasoning:            The user is requesting information about bank product options (savings accounts), which falls under the RAG category as it involves details from bank resources, documents, or general banking knowledge.
+    Rephrased Query:      Tell me more about the different savings account options available at the bank
+
+====================================================================================================
+  RAG - RETRIEVAL AUGMENTED GENERATION
+====================================================================================================
+
+  Query Used:           Tell me more about the different savings account options available at the bank
+
+  Documents Retrieved:  5
+
+  Top Documents:
+    1. d4506ab9fb3e52070ee68be26ffa0d52 (score: 0.792)
+    2. 481234682f29f8077a66575e6331ebb5 (score: 0.783)
+    3. a1ee9466f3961d02ad9643e0696bad45 (score: 0.780)
+    4. 3c91ba13737693a5d37abea62aa58c0a (score: 0.775)
+    5. 68554a34432b82283a3b763aeae29119 (score: 0.774)
+
+  LLM Response:
+    ADCB offers a variety of savings account options, each with unique features to suit different needs:
+    **Super Saver Account:** Earn up to 4.50% interest per annum.
+    **Goal Savings Account:** Offers up to 4.5% interest with the benefit of automated scheduled contributions to help you save efficiently...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  INPUT:
+    Can you tell me more about the different savings account options available?
+
+  OUTPUT:
+    route: Route.RAG
+    intent: rag
+
+REQUEST 9b4dc7e2-da95-4774-bbe2-008d41de8162 COMPLETED AT 2026-02-19T15:45:37.826405Z
+====================================================================================================
+
+
