@@ -16,12 +16,15 @@ CANDIDATES_SCHEMA = """
 TABLE candidate (
   id                              INTEGER PRIMARY KEY,
   organization_id                 INTEGER NOT NULL,
+  import_session_id               INTEGER,
+  import_sheet                    VARCHAR(255),
   full_name                       VARCHAR(255),
   email                           VARCHAR(320),
   date_of_birth                   DATE,
   nationality                     VARCHAR(100),
   current_address                 TEXT,
   number_of_dependents            SMALLINT,
+  religion_sect                   VARCHAR(100),
   has_transportation              BOOLEAN,
   applied_position                VARCHAR(255),
   applied_position_location       VARCHAR(255),
@@ -29,15 +32,14 @@ TABLE candidate (
   years_of_experience             NUMERIC(4,1),
   is_employed                     BOOLEAN,
   current_salary                  NUMERIC(12,2),
-  current_salary_currency         VARCHAR(10),
-  expected_salary                 NUMERIC(12,2),
-  expected_salary_currency        VARCHAR(10),
+  expected_salary_remote          NUMERIC(12,2),
+  expected_salary_onsite          NUMERIC(12,2),
   notice_period                   VARCHAR(100),
   is_overtime_flexible            BOOLEAN,
   is_contract_flexible            BOOLEAN,
-  preferred_contract_period_months SMALLINT,
   tech_stack                      JSONB,   -- array of strings e.g. ["Python","React"]
   custom_fields                   JSONB,   -- org-specific extra fields
+  raw_import_data                 JSONB,
   applied_at                      TIMESTAMPTZ,
   created_at                      TIMESTAMPTZ,
   updated_at                      TIMESTAMPTZ,
@@ -53,15 +55,17 @@ TABLE candidate (
 )
 
 TABLE lookup_option (
-  id            INTEGER PRIMARY KEY,
-  category_id   INTEGER,
-  code          VARCHAR(100),   -- e.g. 'remote', 'full_time', 'bachelor'
-  label         VARCHAR(255)    -- e.g. 'Remote', 'Full-Time', 'Bachelor'
+  id              INTEGER PRIMARY KEY,
+  category_id     INTEGER,
+  organization_id INTEGER,
+  code            VARCHAR(100),   -- e.g. 'remote', 'full_time', 'bachelor'
+  label           VARCHAR(255)    -- e.g. 'Remote', 'Full-Time', 'Bachelor'
 )
 
 TABLE lookup_category (
   id    INTEGER PRIMARY KEY,
-  code  VARCHAR(100)   -- e.g. 'workplace_type', 'employment_type', 'education_level'
+  code  VARCHAR(100),   -- e.g. 'workplace_type', 'employment_type', 'education_level'
+  label VARCHAR(255)
 )
 """.strip()
 

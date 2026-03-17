@@ -1,12 +1,8 @@
 """
 Salary text parser — extracts numeric salary values from free-text strings.
 
-The ``expected_salary`` FLOAT column in the database is unreliable because
-raw salary strings like "1500$- 1800/2500" are naively parsed into a single
-number by stripping all non-digit characters (giving 150018002500).
-
-This module reads the **expected_salary_text** VARCHAR column instead and
-extracts meaningful min / max values from common formats:
+Useful when salary data comes as raw text (e.g. from custom_fields or user input).
+Extracts meaningful min / max values from common formats:
 
   "2000"             →  (2000, 2000)
   "1500-2000"        →  (1500, 2000)

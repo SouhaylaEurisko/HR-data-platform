@@ -41,7 +41,7 @@ class FilterAgent:
                 explanation=explanation,
             )
 
-        # 2. Execute query (salary-aware: post-filters on expected_salary_text)
+        # 2. Execute query (salary-aware: post-filters on current_salary when needed)
         try:
             rows, salary_corrected = execute_salary_aware_query(db, sql)
         except (ValueError, RuntimeError) as exc:

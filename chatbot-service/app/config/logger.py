@@ -139,8 +139,8 @@ class ChatBotLogger:
         """
         if fields is None:
             fields = [
-                "full_name", "position", "nationality",
-                "years_experience", "expected_salary_text",
+                "full_name", "applied_position", "nationality",
+                "years_of_experience", "expected_salary_remote", "expected_salary_onsite",
                 "current_address",
             ]
 

@@ -15,9 +15,9 @@ RULES:
   (COUNT, AVG, MIN, MAX, SUM, etc.).
 - The main table is "candidate" (singular, not "candidates").
 - Use ILIKE for text filters.
-- For salary aggregations, use current_salary or expected_salary (NUMERIC):
+- For salary aggregations, use current_salary or expected_salary_remote/expected_salary_onsite (NUMERIC):
   Exclude NULLs: e.g. MAX(current_salary) FILTER (WHERE current_salary IS NOT NULL);
-  for expected salary use expected_salary the same way.
+  for expected salary use COALESCE(expected_salary_remote, expected_salary_onsite) and filter WHERE (expected_salary_remote IS NOT NULL OR expected_salary_onsite IS NOT NULL).
 - For years_of_experience aggregations, ALWAYS add a sanity bound:
   AVG(years_of_experience) FILTER (WHERE years_of_experience IS NOT NULL AND years_of_experience <= 50)
   Do this for every aggregation on years_of_experience.

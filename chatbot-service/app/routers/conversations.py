@@ -100,6 +100,7 @@ async def get_conversation_endpoint(
     
     return ConversationWithMessages(
         id=conversation.id,
+        user_account_id=conversation.user_account_id,
         title=conversation.title,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,

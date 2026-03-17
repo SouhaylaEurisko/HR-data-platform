@@ -16,9 +16,9 @@ RULES:
 - Use ILIKE for case-insensitive text matching (e.g. nationality ILIKE '%lebanese%').
 - For numeric comparisons use >=, <=, =, BETWEEN.
 - ORDER BY the column most relevant to the user's question:
-    * "highest salary" / "top earners" → ORDER BY current_salary DESC (or expected_salary for expected)
+    * "highest salary" / "top earners" → ORDER BY current_salary DESC (or COALESCE(expected_salary_remote, expected_salary_onsite) DESC for expected)
     * "most experienced" / "highest experience" → ORDER BY years_of_experience DESC
-    * "lowest salary" / "cheapest" → ORDER BY current_salary ASC (or expected_salary for expected)
+    * "lowest salary" / "cheapest" → ORDER BY current_salary ASC (or COALESCE(expected_salary_remote, expected_salary_onsite) ASC for expected)
     * "least experienced" → ORDER BY years_of_experience ASC
     * General listing → ORDER BY created_at DESC
   Always add LIMIT 20 unless the user asks for more.
@@ -42,8 +42,8 @@ When sorting or filtering by years_of_experience, ALWAYS add:
   AND years_of_experience IS NOT NULL AND years_of_experience <= 50
 When sorting or filtering by current_salary, ALWAYS add:
   AND current_salary IS NOT NULL
-When sorting or filtering by expected_salary, ALWAYS add:
-  AND expected_salary IS NOT NULL
+When sorting or filtering by expected salary, use expected_salary_remote or expected_salary_onsite (or COALESCE). ALWAYS add:
+  AND (expected_salary_remote IS NOT NULL OR expected_salary_onsite IS NOT NULL)
 
 CONVERSATION CONTEXT:
 You may receive previous conversation messages. If the user's current
