@@ -1,6 +1,7 @@
 .env
 backend/.env
 frontend/.env
+chatbot-service/.env
 
 __pycache__/
 *.pyc
