@@ -292,12 +292,6 @@ export default function UploadPage() {
                 <span className="stat-value">{importResult.total_skipped_duplicates}</span>
               </div>
             )}
-            {importResult.total_skipped_empty_rows > 0 && (
-              <div className="stat-item">
-                <span className="stat-label">Empty Rows Skipped:</span>
-                <span className="stat-value">{importResult.total_skipped_empty_rows}</span>
-              </div>
-            )}
             {importResult.total_errors > 0 && (
               <div className="stat-item">
                 <span className="stat-label">Errors:</span>
@@ -319,11 +313,6 @@ export default function UploadPage() {
                     {sr.skipped_duplicates > 0 && (
                       <span className="sheet-stat">
                         Duplicates: <strong>{sr.skipped_duplicates}</strong>
-                      </span>
-                    )}
-                    {sr.skipped_empty > 0 && (
-                      <span className="sheet-stat">
-                        Empty Rows: <strong>{sr.skipped_empty}</strong>
                       </span>
                     )}
                   </div>
