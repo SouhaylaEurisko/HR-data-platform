@@ -14,6 +14,10 @@ import type {
 } from '../types/api';
 import chatbotLogo from '../../logo/OIP.webp';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import {
+  CHAT_MESSAGES_KEY,
+  CHAT_ACTIVE_CONVERSATION_KEY,
+} from '../constants/chatStorage';
 import './ChatPage.css';
 
 interface ChatMessage {
@@ -23,9 +27,6 @@ interface ChatMessage {
   response?: AgentResponseData | null;
 }
 
-const CHAT_STORAGE_KEY = 'hr_chat_messages';
-const CHAT_CONVERSATION_ID_KEY = 'hr_chat_active_conversation_id';
-
 // Helper functions for localStorage persistence
 const saveMessagesToStorage = (messages: ChatMessage[]) => {
   try {
@@ -33,7 +34,7 @@ const saveMessagesToStorage = (messages: ChatMessage[]) => {
       ...msg,
       timestamp: msg.timestamp.toISOString(),
     }));
-    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(serialized));
+    localStorage.setItem(CHAT_MESSAGES_KEY, JSON.stringify(serialized));
   } catch (error) {
     console.error('Failed to save messages to localStorage:', error);
   }
@@ -41,7 +42,7 @@ const saveMessagesToStorage = (messages: ChatMessage[]) => {
 
 const loadMessagesFromStorage = (): ChatMessage[] => {
   try {
-    const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+    const stored = localStorage.getItem(CHAT_MESSAGES_KEY);
     if (!stored) return [];
     
     const parsed = JSON.parse(stored);
@@ -63,7 +64,7 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<number | null>(() => {
-    const stored = localStorage.getItem(CHAT_CONVERSATION_ID_KEY);
+    const stored = localStorage.getItem(CHAT_ACTIVE_CONVERSATION_KEY);
     return stored ? Number(stored) : null;
   });
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -101,9 +102,9 @@ export default function ChatPage() {
   // Persist active conversation id
   useEffect(() => {
     if (activeConversationId != null) {
-      localStorage.setItem(CHAT_CONVERSATION_ID_KEY, String(activeConversationId));
+      localStorage.setItem(CHAT_ACTIVE_CONVERSATION_KEY, String(activeConversationId));
     } else {
-      localStorage.removeItem(CHAT_CONVERSATION_ID_KEY);
+      localStorage.removeItem(CHAT_ACTIVE_CONVERSATION_KEY);
     }
   }, [activeConversationId]);
 
@@ -138,7 +139,7 @@ export default function ChatPage() {
   const handleNewChat = () => {
     setActiveConversationId(null);
     setMessages([]);
-    localStorage.removeItem(CHAT_STORAGE_KEY);
+    localStorage.removeItem(CHAT_MESSAGES_KEY);
   };
 
   const handleClearChat = () => {
@@ -147,7 +148,7 @@ export default function ChatPage() {
 
   const confirmClearChat = () => {
     setMessages([]);
-    localStorage.removeItem(CHAT_STORAGE_KEY);
+    localStorage.removeItem(CHAT_MESSAGES_KEY);
     setConfirmDialog({ isOpen: false, type: null });
   };
 
@@ -166,7 +167,7 @@ export default function ChatPage() {
       if (confirmDialog.conversationId === activeConversationId) {
         setActiveConversationId(null);
         setMessages([]);
-        localStorage.removeItem(CHAT_STORAGE_KEY);
+        localStorage.removeItem(CHAT_MESSAGES_KEY);
       }
       
       // Refresh conversations list

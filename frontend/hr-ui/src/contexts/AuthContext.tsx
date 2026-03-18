@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
 import { login as apiLogin, signup as apiSignup, getCurrentUser } from '../api/auth';
+import { clearChatLocalStorage } from '../constants/chatStorage';
 import type { AuthResponse, User } from '../types/api';
 
 interface AuthContextType {
@@ -44,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleAuthSuccess = (response: AuthResponse) => {
+    clearChatLocalStorage();
     setToken(response.access_token);
     setUser(response.user || null);
     localStorage.setItem(AUTH_TOKEN_KEY, response.access_token);
@@ -67,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const handleLogout = () => {
+    clearChatLocalStorage();
     setUser(null);
     setToken(null);
     localStorage.removeItem(AUTH_TOKEN_KEY);

@@ -13,7 +13,7 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from ..models.custom_field import CustomFieldDefinition
-from .column_normalizer_prompts import COLUMN_MAPPING_SYSTEM_PROMPT
+from ..prompts.column_normalizer_prompts import COLUMN_MAPPING_SYSTEM_PROMPT
 from .llm_client import call_llm
 
 logger = logging.getLogger(__name__)

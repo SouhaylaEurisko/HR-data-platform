@@ -1,7 +1,7 @@
 # Tasks
 
 ## Cleanup & rename
-- [ ] Rename `chatbot-service` → `chatbot` (note: system may have multiple chatbots / separate services)
+- [x] Rename `chatbot-service` → `chatbot` (note: system may have multiple chatbots / separate services)
 
 ## Backend
 - [X] Adjust backend to act only as a proxy server
