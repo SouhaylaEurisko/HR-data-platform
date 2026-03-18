@@ -34,8 +34,10 @@ RULES:
     WHERE wt.code = 'remote'
 - For name searches, use full_name:
     WHERE full_name ILIKE '%john%'
-- For tech stack searches, use JSONB containment:
-    WHERE tech_stack @> '["Python"]'::jsonb
+- For job title / role searches, use applied_position only, case-insensitive:
+    WHERE c.applied_position ILIKE '%keyword%'
+  Combine keywords with OR if multiple. Do not filter on tech_stack unless the user
+  explicitly asks about skills stored in tech stack.
 
 DATA QUALITY:
 When sorting or filtering by years_of_experience, ALWAYS add:

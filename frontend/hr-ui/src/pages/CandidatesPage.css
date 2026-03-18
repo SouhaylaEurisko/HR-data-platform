@@ -65,6 +65,11 @@
   gap: 1rem;
 }
 
+.filters-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 48rem;
+}
+
 .filter-group {
   display: flex;
   flex-direction: column;
@@ -97,36 +102,6 @@
   outline: none;
   border-color: var(--eurisko-accent);
   box-shadow: 0 0 0 3px var(--eurisko-accent-muted);
-}
-
-.filter-toggles {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-  flex-wrap: wrap;
-}
-
-.filter-toggle-btn {
-  padding: 0.5rem 1rem;
-  background: var(--eurisko-bg-surface);
-  border: 1px solid var(--eurisko-border);
-  border-radius: var(--eurisko-radius-md);
-  color: var(--eurisko-text-secondary);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.filter-toggle-btn:hover {
-  border-color: var(--eurisko-accent);
-  color: var(--eurisko-accent-light);
-}
-
-.filters-fixed {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--eurisko-border);
 }
 
 /* Error Message */
@@ -200,6 +175,15 @@
   font-size: 0.9rem;
 }
 
+.candidates-table td.td-hr-comment {
+  max-width: 14rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--eurisko-text-secondary);
+  font-size: 0.85rem;
+}
+
 .candidates-table tbody tr {
   transition: background-color 0.2s;
 }
@@ -259,7 +243,8 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .filters-grid {
+  .filters-grid,
+  .filters-grid-two {
     grid-template-columns: 1fr;
   }
 

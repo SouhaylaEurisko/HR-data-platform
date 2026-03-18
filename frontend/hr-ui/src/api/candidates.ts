@@ -26,3 +26,13 @@ export const getCandidateById = async (id: number): Promise<Candidate> => {
   const response = await apiClient.get<Candidate>(API_ENDPOINTS.candidateById(id));
   return response.data;
 };
+
+export const patchCandidateHrComment = async (
+  id: number,
+  hr_comment: string
+): Promise<Candidate> => {
+  const response = await apiClient.patch<Candidate>(API_ENDPOINTS.candidateHrComment(id), {
+    hr_comment,
+  });
+  return response.data;
+};

@@ -85,6 +85,19 @@
     flex-direction: column;
     gap: 0.4rem;
   }
+
+  .auth-form-row-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .auth-form-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+  }
   
   .auth-label {
     font-size: 0.8rem;
@@ -194,4 +207,10 @@
   .auth-meta a:hover {
     text-decoration: underline;
   }
-  
+
+  @media (max-width: 480px) {
+    .auth-form-row-split {
+      grid-template-columns: 1fr;
+    }
+  }
+

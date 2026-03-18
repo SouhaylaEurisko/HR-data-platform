@@ -4,7 +4,7 @@ UserAccount model — multi-tenant user with organization scope and role-based a
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -48,22 +48,21 @@ class UserBase(BaseModel):
     last_name: Optional[str] = None
 
 
-class UserCreate(UserBase):
-    password: str
+class UserCreate(BaseModel):
+    """Signup body: distinct first and last name."""
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
     organization_id: int = 1
     role: Optional[str] = "hr_viewer"
-    full_name: Optional[str] = None
 
-    @model_validator(mode="before")
+    @field_validator("first_name", "last_name", mode="before")
     @classmethod
-    def split_full_name(cls, data):
-        """Backward compat: accept 'full_name' from old frontends."""
-        if isinstance(data, dict) and data.get("full_name") and not data.get("first_name"):
-            parts = data["full_name"].strip().split(" ", 1)
-            data["first_name"] = parts[0]
-            if len(parts) > 1:
-                data["last_name"] = parts[1]
-        return data
+    def strip_names(cls, v: object) -> str:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            raise ValueError("First and last name are required")
+        return str(v).strip()
 
 
 class UserRead(UserBase):

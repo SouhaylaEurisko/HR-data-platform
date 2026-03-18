@@ -5,8 +5,8 @@ import type { AuthResponse, User } from '../types/api';
 export interface SignupRequest {
   email: string;
   password: string;
-  first_name?: string;
-  last_name?: string;
+  first_name: string;
+  last_name: string;
   organization_id?: number;
   role?: string;
 }

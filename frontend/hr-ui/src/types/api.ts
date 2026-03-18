@@ -43,6 +43,9 @@ export interface Candidate {
   custom_fields: Record<string, any>;
   raw_import_data: Record<string, any> | null;
 
+  /** HR notes (UI only; never from file import) */
+  hr_comment: string | null;
+
   // Audit
   created_at: string;
   updated_at: string;
@@ -68,22 +71,14 @@ export interface CandidateListResponse {
   page_size: number;
 }
 
+/** Matches GET /api/candidates query params (name search, position, sort). */
 export interface CandidateListParams {
   page?: number;
   page_size?: number;
   org_id?: number;
-  nationality?: string;
-  date_of_birth?: string;
-  applied_position?: string;
-  current_address?: string;
-  min_years_experience?: number;
-  max_years_experience?: number;
-  workplace_type_id?: number;
-  employment_type_id?: number;
-  is_employed?: boolean;
-  education_level_id?: number;
   search?: string;
-  sort_by?: 'created_at' | 'current_salary' | 'expected_salary_remote' | 'expected_salary_onsite' | 'years_of_experience' | 'full_name' | 'applied_position';
+  applied_position?: string;
+  sort_by?: 'created_at' | 'expected_salary_remote' | 'expected_salary_onsite' | 'years_of_experience' | 'full_name' | 'applied_position';
   sort_order?: 'asc' | 'desc';
 }
 
@@ -146,8 +141,6 @@ export interface SheetResult {
   skipped_duplicates: number;
   row_errors: Array<{ row_index: number; error: string }>;
 }
-
-export interface ImportXlsxResponse extends ImportResult {}
 
 export interface SheetPreview {
   name: string;

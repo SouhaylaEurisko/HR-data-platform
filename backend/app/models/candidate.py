@@ -69,6 +69,9 @@ class Candidate(Base):
     custom_fields = Column(JSONB, server_default="{}")
     raw_import_data = Column(JSONB, nullable=True)
 
+    # -- HR (UI only; not set by import) --
+    hr_comment = Column(Text, nullable=True)
+
     # -- Audit --
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
@@ -142,6 +145,11 @@ class LookupOptionLabel(BaseModel):
         from_attributes = True
 
 
+class CandidateHrCommentUpdate(BaseModel):
+    """PATCH body for HR comment only."""
+    hr_comment: str = Field(default="", max_length=10000)
+
+
 class CandidateRead(CandidateBase):
     id: int
     organization_id: int
@@ -150,6 +158,7 @@ class CandidateRead(CandidateBase):
     raw_import_data: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
+    hr_comment: Optional[str] = None
 
     # Import source (from import_session when loaded)
     import_filename: Optional[str] = None
@@ -215,6 +224,7 @@ class CandidateRead(CandidateBase):
             education_completion_status_id=candidate.education_completion_status_id,
             custom_fields=candidate.custom_fields or {},
             raw_import_data=candidate.raw_import_data,
+            hr_comment=candidate.hr_comment,
             created_at=candidate.created_at,
             updated_at=candidate.updated_at,
             import_filename=import_filename,

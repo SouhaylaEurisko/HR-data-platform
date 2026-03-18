@@ -9,6 +9,11 @@ Rules:
 - Only suggest a mapping if you are reasonably sure (>= 0.50)
 - If no good match exists, set column to null and confidence to 0.0
 - Columns starting with "custom:" are custom fields stored in JSONB
+- Expected/desired/asking salary (e.g. "salary expectation", survey questions): map to
+  expected_salary_remote only if the header clearly says "remote"; to expected_salary_onsite
+  if it says "onsite"/"on-site"/"on site"; otherwise expected_salary_onsite (default).
+  Avoid custom: for generic pay-expectation columns.
+- current_salary: present/past pay only (e.g. "current salary"), not future/expected pay.
 
 Return format:
 {

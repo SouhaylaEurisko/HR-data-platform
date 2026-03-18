@@ -19,12 +19,20 @@ class QuestionClassification(BaseModel):
 
 
 class ChatSearchFilters(BaseModel):
-    """Structured filters extracted from a natural-language query."""
+    """
+    Filters extracted from chat; richer than the Candidates page API.
+    Used only by the chat pipeline when calling list_candidates internally.
+    """
     position: Optional[str] = None
+    name: Optional[str] = Field(default=None, description="Candidate full name substring")
+    email: Optional[str] = Field(default=None, description="Email substring")
+    nationality: Optional[str] = None
     min_years_experience: Optional[float] = Field(default=None, ge=0)
     max_years_experience: Optional[float] = Field(default=None, ge=0)
-    nationality: Optional[str] = None
-    current_address: Optional[str] = None
+    min_expected_salary_remote: Optional[float] = Field(default=None, ge=0)
+    max_expected_salary_remote: Optional[float] = Field(default=None, ge=0)
+    min_expected_salary_onsite: Optional[float] = Field(default=None, ge=0)
+    max_expected_salary_onsite: Optional[float] = Field(default=None, ge=0)
 
 
 class AggregationRequest(BaseModel):

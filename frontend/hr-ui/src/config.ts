@@ -17,8 +17,7 @@ export const API_ENDPOINTS = {
     me: `${API_BASE_URL}/api/auth/me`,
   },
   
-  // Import endpoints
-  importXlsx: `${API_BASE_URL}/api/import/xlsx`,
+  // Import endpoints (two-phase: preview → analyze → confirm)
   previewXlsx: `${API_BASE_URL}/api/import/xlsx/preview`,
   analyzeXlsx: `${API_BASE_URL}/api/import/xlsx/analyze`,
   confirmImport: `${API_BASE_URL}/api/import/xlsx/confirm`,
@@ -33,6 +32,7 @@ export const API_ENDPOINTS = {
   // Candidate endpoints
   candidates: `${API_BASE_URL}/api/candidates`,
   candidateById: (id: number) => `${API_BASE_URL}/api/candidates/${id}`,
+  candidateHrComment: (id: number) => `${API_BASE_URL}/api/candidates/${id}/hr-comment`,
   
   // Chat endpoint
   chat: `${API_BASE_URL}/api/chat`,

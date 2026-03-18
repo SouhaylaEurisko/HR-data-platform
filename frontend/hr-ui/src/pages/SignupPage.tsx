@@ -8,7 +8,8 @@ export default function SignupPage() {
   const { signup } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export default function SignupPage() {
     setError(null);
     setIsSubmitting(true);
     try {
-      await signup(email, password, fullName || undefined);
+      await signup(email, password, firstName.trim(), lastName.trim());
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(getErrorMessage(err));
@@ -53,18 +54,39 @@ export default function SignupPage() {
           {error && <div className="auth-error">{error}</div>}
 
           <form onSubmit={handleSubmit} className="auth-form">
-            <div className="auth-form-row">
-              <label htmlFor="fullName" className="auth-label">
-                Full name (optional)
-              </label>
-              <input
-                id="fullName"
-                type="text"
-                className="auth-input"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="John Doe"
-              />
+            <div className="auth-form-row auth-form-row-split">
+              <div className="auth-form-col">
+                <label htmlFor="firstName" className="auth-label">
+                  First name
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  className="auth-input"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="John"
+                  required
+                  autoComplete="given-name"
+                  maxLength={100}
+                />
+              </div>
+              <div className="auth-form-col">
+                <label htmlFor="lastName" className="auth-label">
+                  Last name
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  className="auth-input"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Doe"
+                  required
+                  autoComplete="family-name"
+                  maxLength={100}
+                />
+              </div>
             </div>
 
             <div className="auth-form-row">
