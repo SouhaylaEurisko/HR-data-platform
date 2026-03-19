@@ -1,9 +1,11 @@
 import apiClient from './client';
 import { API_ENDPOINTS } from '../config';
 import type {
+  ApplicationStatus,
   Candidate,
   CandidateListResponse,
   CandidateListParams,
+  HrStageComments,
 } from '../types/api';
 
 /**
@@ -29,10 +31,24 @@ export const getCandidateById = async (id: number): Promise<Candidate> => {
 
 export const patchCandidateHrComment = async (
   id: number,
-  hr_comment: string
+  hr_stage_comments: HrStageComments
 ): Promise<Candidate> => {
   const response = await apiClient.patch<Candidate>(API_ENDPOINTS.candidateHrComment(id), {
-    hr_comment,
+    pre_screening: hr_stage_comments.pre_screening,
+    technical_interview: hr_stage_comments.technical_interview,
+    hr_interview: hr_stage_comments.hr_interview,
+    offer_stage: hr_stage_comments.offer_stage,
   });
+  return response.data;
+};
+
+export const patchCandidateApplicationStatus = async (
+  id: number,
+  application_status: ApplicationStatus
+): Promise<Candidate> => {
+  const response = await apiClient.patch<Candidate>(
+    API_ENDPOINTS.candidateApplicationStatus(id),
+    { application_status }
+  );
   return response.data;
 };

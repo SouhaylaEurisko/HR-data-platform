@@ -1,6 +1,7 @@
 from .candidate_service import (
     list_candidates,
     get_candidate_by_id,
+    update_candidate_application_status,
     update_candidate_hr_comment,
 )
 from .import_service import (
@@ -16,6 +17,7 @@ from .type_detector import detect_field_type, create_custom_field
 __all__ = [
     "list_candidates",
     "get_candidate_by_id",
+    "update_candidate_application_status",
     "update_candidate_hr_comment",
     "load_workbook_from_file",
     "preview_workbook",

@@ -7,16 +7,33 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import (
-    Boolean, Column, Date, DateTime, ForeignKey, Integer,
-    Numeric, SmallInteger, String, Text, UniqueConstraint,
+    Boolean, Column, Date, DateTime, Enum as SAEnum, ForeignKey, Integer,
+    Numeric, SmallInteger, String, Text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..config.database import Base
+from ..data.hr_stage_comments import normalize_hr_stage_comments_for_read
+from .enums import ApplicationStatus, RelocationOpenness
+
+_MAX_HR_STAGE_COMMENT_LEN = 10000
+
+
+def _application_status_from_orm(candidate: Any) -> Optional[ApplicationStatus]:
+    raw = getattr(candidate, "application_status", None)
+    if raw is None or (isinstance(raw, str) and not str(raw).strip()):
+        return None
+    if isinstance(raw, ApplicationStatus):
+        return raw
+    s = str(raw).strip().lower()
+    for member in ApplicationStatus:
+        if member.value == s:
+            return member
+    return None
 
 
 # ──────────────────────────────────────────────
@@ -50,7 +67,15 @@ class Candidate(Base):
     # -- Professional --
     applied_position = Column(String(255), nullable=True, index=True)
     applied_position_location = Column(String(255), nullable=True)
-    is_open_for_relocation = Column(Boolean, nullable=True)
+    is_open_for_relocation = Column(
+        SAEnum(
+            RelocationOpenness,
+            name="relocation_openness",
+            native_enum=True,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        nullable=True,
+    )
     years_of_experience = Column(Numeric(4, 1), nullable=True, index=True)
     is_employed = Column(Boolean, nullable=True)
     current_salary = Column(Numeric(12, 2), nullable=True, index=True)
@@ -70,15 +95,13 @@ class Candidate(Base):
     raw_import_data = Column(JSONB, nullable=True)
 
     # -- HR (UI only; not set by import) --
-    hr_comment = Column(Text, nullable=True)
+    hr_comment = Column(Text, nullable=True)  # legacy; merged into hr_stage_comments in API
+    hr_stage_comments = Column(JSONB, nullable=False, server_default="{}")
+    application_status = Column(String(32), nullable=True, index=True)
 
     # -- Audit --
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint("organization_id", "email", name="uq_candidate_org_email"),
-    )
 
     # -- Relationships --
     organization = relationship("Organization", back_populates="candidates")
@@ -111,7 +134,7 @@ class CandidateBase(BaseModel):
 
     applied_position: Optional[str] = None
     applied_position_location: Optional[str] = None
-    is_open_for_relocation: Optional[bool] = None
+    is_open_for_relocation: Optional[RelocationOpenness] = None
     years_of_experience: Optional[Decimal] = Field(default=None, ge=0)
     is_employed: Optional[bool] = None
     current_salary: Optional[Decimal] = Field(default=None, ge=0)
@@ -145,9 +168,49 @@ class LookupOptionLabel(BaseModel):
         from_attributes = True
 
 
+class RelatedApplicationSummary(BaseModel):
+    """Another application (row) for the same email within the org."""
+
+    id: int
+    applied_position: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class HrStageCommentsRead(BaseModel):
+    pre_screening: str = ""
+    technical_interview: str = ""
+    hr_interview: str = ""
+    offer_stage: str = ""
+
+
+class CandidateApplicationStatusUpdate(BaseModel):
+    """PATCH body: application status only (separate from HR comments save)."""
+
+    application_status: ApplicationStatus
+
+
 class CandidateHrCommentUpdate(BaseModel):
-    """PATCH body for HR comment only."""
-    hr_comment: str = Field(default="", max_length=10000)
+    """PATCH body: all four stages (empty string clears a stage)."""
+
+    pre_screening: str = ""
+    technical_interview: str = ""
+    hr_interview: str = ""
+    offer_stage: str = ""
+
+    @field_validator(
+        "pre_screening",
+        "technical_interview",
+        "hr_interview",
+        "offer_stage",
+        mode="before",
+    )
+    @classmethod
+    def _trim_and_cap(cls, v: Any) -> str:
+        if v is None:
+            return ""
+        s = str(v).strip()
+        return s[:_MAX_HR_STAGE_COMMENT_LEN] if len(s) > _MAX_HR_STAGE_COMMENT_LEN else s
 
 
 class CandidateRead(CandidateBase):
@@ -158,7 +221,8 @@ class CandidateRead(CandidateBase):
     raw_import_data: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: datetime
-    hr_comment: Optional[str] = None
+    hr_stage_comments: HrStageCommentsRead = Field(default_factory=HrStageCommentsRead)
+    application_status: Optional[ApplicationStatus] = None
 
     # Import source (from import_session when loaded)
     import_filename: Optional[str] = None
@@ -173,6 +237,11 @@ class CandidateRead(CandidateBase):
     education_level_label: Optional[str] = None
     education_completion_status_label: Optional[str] = None
 
+    # Same-email applications (detail view only; list responses omit / use defaults)
+    application_index: Optional[int] = None
+    application_total: Optional[int] = None
+    related_applications: List[RelatedApplicationSummary] = Field(default_factory=list)
+
     class Config:
         from_attributes = True
 
@@ -182,6 +251,9 @@ class CandidateRead(CandidateBase):
         candidate: "Candidate",
         *,
         import_filename: Optional[str] = None,
+        application_index: Optional[int] = None,
+        application_total: Optional[int] = None,
+        related_applications: Optional[List[RelatedApplicationSummary]] = None,
     ) -> "CandidateRead":
         """Build a CandidateRead with resolved lookup labels.
         Pass import_filename when import_session is loaded (e.g. in get_candidate_by_id).
@@ -224,7 +296,13 @@ class CandidateRead(CandidateBase):
             education_completion_status_id=candidate.education_completion_status_id,
             custom_fields=candidate.custom_fields or {},
             raw_import_data=candidate.raw_import_data,
-            hr_comment=candidate.hr_comment,
+            hr_stage_comments=HrStageCommentsRead(
+                **normalize_hr_stage_comments_for_read(
+                    hr_stage_comments=getattr(candidate, "hr_stage_comments", None),
+                    legacy_hr_comment=candidate.hr_comment,
+                )
+            ),
+            application_status=_application_status_from_orm(candidate),
             created_at=candidate.created_at,
             updated_at=candidate.updated_at,
             import_filename=import_filename,
@@ -236,6 +314,9 @@ class CandidateRead(CandidateBase):
             employment_type_label=_label(candidate.employment_type),
             education_level_label=_label(candidate.education_level),
             education_completion_status_label=_label(candidate.education_completion_status),
+            application_index=application_index,
+            application_total=application_total,
+            related_applications=list(related_applications or []),
         )
 
 

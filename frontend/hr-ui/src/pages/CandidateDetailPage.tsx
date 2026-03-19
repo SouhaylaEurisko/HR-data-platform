@@ -1,14 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getCandidateById, patchCandidateHrComment } from '../api/candidates';
-import type { Candidate } from '../types/api';
+import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
+import { getCandidateById, patchCandidateApplicationStatus, patchCandidateHrComment } from '../api/candidates';
+import { APPLICATION_STATUS_OPTIONS, parseApplicationStatus } from '../constants/applicationStatus';
+import {
+  HR_STAGE_DEFS,
+  emptyHrStageComments,
+  type HrStageDef,
+  type HrStageKey,
+} from '../constants/hrStages.ts';
+import type { ApplicationStatus, Candidate } from '../types/api';
+import { apiErrorMessage } from '../utils/apiErrorMessage';
+import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import './CandidateDetailPage.css';
+
+type StageDraftMap = Record<HrStageKey, string>;
+
+function hrCommentsFromCandidate(c: Candidate): StageDraftMap {
+  const out = emptyHrStageComments();
+  const s = c.hr_stage_comments;
+  if (!s) return out;
+  for (const def of HR_STAGE_DEFS as readonly HrStageDef[]) {
+    const key = def.key;
+    const v = s[key];
+    out[key] = typeof v === 'string' ? v : '';
+  }
+  return out;
+}
+
+function hrCommentsDirty(saved: StageDraftMap, draft: StageDraftMap): boolean {
+  return (HR_STAGE_DEFS as readonly HrStageDef[]).some(
+    (def: HrStageDef) =>
+      (saved[def.key] ?? '').trim() !== (draft[def.key] ?? '').trim()
+  );
+}
+
+type CandidateDetailLocationState = {
+  fromChat?: boolean;
+  focusHrComment?: boolean;
+};
 
 export default function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const fromChat = (location.state as any)?.fromChat || false;
+  const fromChat =
+    (location.state as CandidateDetailLocationState | null)?.fromChat ?? false;
 
   const goBack = () => {
     if (fromChat) {
@@ -22,9 +59,31 @@ export default function CandidateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCustomFields, setShowCustomFields] = useState(false);
-  const [commentDraft, setCommentDraft] = useState('');
+  const [stageDrafts, setStageDrafts] = useState<StageDraftMap>(emptyHrStageComments());
+  const [selectedHrStage, setSelectedHrStage] = useState<HrStageKey>('pre_screening');
+  const [hrStageMenuOpen, setHrStageMenuOpen] = useState(false);
   const [commentSaving, setCommentSaving] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const didScrollToHrComment = useRef(false);
+  const hrStageSelectRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    didScrollToHrComment.current = false;
+    setSelectedHrStage('pre_screening');
+    setHrStageMenuOpen(false);
+  }, [id]);
+
+  useEffect(() => {
+    if (!hrStageMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = hrStageSelectRef.current;
+      if (el && !el.contains(e.target as Node)) setHrStageMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [hrStageMenuOpen]);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -43,17 +102,34 @@ export default function CandidateDetailPage() {
         }
         const data = await getCandidateById(candidateId);
         setCandidate(data);
-        setCommentDraft(data.hr_comment ?? '');
-      } catch (err: any) {
-        setError(
-          err.response?.data?.detail || err.message || 'Failed to load candidate details'
-        );
+        setStageDrafts(hrCommentsFromCandidate(data));
+      } catch (err: unknown) {
+        setError(apiErrorMessage(err, 'Failed to load candidate details'));
       } finally {
         setLoading(false);
       }
     };
     fetchCandidate();
   }, [id]);
+
+  useEffect(() => {
+    if (!candidate || didScrollToHrComment.current) return;
+    const st = location.state as CandidateDetailLocationState | null | undefined;
+    if (!st?.focusHrComment) return;
+    didScrollToHrComment.current = true;
+    const run = () => {
+      document.getElementById('hr-comment-section')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      document.getElementById('hr-stage-select-trigger')?.focus();
+    };
+    requestAnimationFrame(() => setTimeout(run, 50));
+    navigate(location.pathname, {
+      replace: true,
+      state: { fromChat: st.fromChat },
+    });
+  }, [candidate, location.pathname, location.state, navigate]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -93,20 +169,54 @@ export default function CandidateDetailPage() {
 
   const hasCustomFields = candidate.custom_fields && Object.keys(candidate.custom_fields).length > 0;
 
+  const setStageField = (key: HrStageKey, value: string) => {
+    setStageDrafts((prev) => ({ ...prev, [key]: value }));
+  };
+
   const handleSaveHrComment = async () => {
     if (!candidate) return;
     setCommentSaving(true);
     setCommentError(null);
     try {
-      const updated = await patchCandidateHrComment(candidate.id, commentDraft);
+      const updated = await patchCandidateHrComment(candidate.id, {
+        pre_screening: stageDrafts.pre_screening,
+        technical_interview: stageDrafts.technical_interview,
+        hr_interview: stageDrafts.hr_interview,
+        offer_stage: stageDrafts.offer_stage,
+      });
       setCandidate(updated);
-      setCommentDraft(updated.hr_comment ?? '');
-    } catch (err: any) {
-      setCommentError(err.response?.data?.detail || err.message || 'Failed to save comment');
+      setStageDrafts(hrCommentsFromCandidate(updated));
+    } catch (err: unknown) {
+      setCommentError(apiErrorMessage(err, 'Failed to save comments'));
     } finally {
       setCommentSaving(false);
     }
   };
+
+  const handleApplicationStatusChange = async (value: ApplicationStatus) => {
+    if (!candidate) return;
+    const current = parseApplicationStatus(candidate.application_status);
+    if (current === value) return;
+    setStatusSaving(true);
+    setStatusError(null);
+    const prev = candidate.application_status;
+    setCandidate({ ...candidate, application_status: value });
+    try {
+      const updated = await patchCandidateApplicationStatus(candidate.id, value);
+      setCandidate(updated);
+    } catch (err: unknown) {
+      setCandidate({ ...candidate, application_status: prev });
+      setStatusError(apiErrorMessage(err, 'Failed to save status'));
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  const savedHrComments = hrCommentsFromCandidate(candidate);
+  const headerApplicationStatus = parseApplicationStatus(candidate.application_status);
+  const selectedStageLabel =
+    (HR_STAGE_DEFS as readonly HrStageDef[]).find((def: HrStageDef) => def.key === selectedHrStage)
+      ?.label ?? 'this stage';
 
   return (
     <div className="candidate-detail-page">
@@ -114,7 +224,51 @@ export default function CandidateDetailPage() {
         <button onClick={goBack} className="back-button">
           &larr; {fromChat ? 'Back to Chat' : 'Back to Candidates'}
         </button>
-        <h1>{displayName(candidate)}</h1>
+        <div className="detail-header-title-row">
+          <h1>{displayName(candidate)}</h1>
+          <ApplicationStatusBadge status={headerApplicationStatus} size="large" />
+        </div>
+        {candidate.application_index != null &&
+          candidate.application_total != null &&
+          candidate.application_total >= 1 && (
+            <div className="application-context-banner" role="region" aria-label="Application context">
+              <p className="application-context-main">
+                <span className="application-context-badge">
+                  Application {candidate.application_index} of {candidate.application_total}
+                </span>
+                {candidate.applied_position ? (
+                  <span className="application-context-position">
+                    {' '}
+                    — Role: <strong>{candidate.applied_position}</strong>
+                  </span>
+                ) : null}
+              </p>
+              {candidate.related_applications &&
+                candidate.related_applications.filter((r) => r.id !== candidate.id).length > 0 && (
+                  <div className="application-context-siblings">
+                    <span className="application-context-siblings-label">Other applications:</span>
+                    <ul>
+                      {candidate.related_applications
+                        .filter((r) => r.id !== candidate.id)
+                        .map((r) => (
+                          <li key={r.id}>
+                            <button
+                              type="button"
+                              className="application-context-link"
+                              onClick={() => navigate(`/candidates/${r.id}`)}
+                            >
+                              {r.applied_position || 'Unknown role'}
+                              {r.applied_at
+                                ? ` (${new Date(r.applied_at).toLocaleDateString()})`
+                                : ''}
+                            </button>
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                )}
+            </div>
+          )}
       </div>
 
       <div className="detail-content">
@@ -242,7 +396,7 @@ export default function CandidateDetailPage() {
             <div className="detail-item">
               <span className="detail-label">Open for Relocation:</span>
               <span className="detail-value">
-                {candidate.is_open_for_relocation === true ? 'Yes' : candidate.is_open_for_relocation === false ? 'No' : '-'}
+                {relocationOpennessLabel(candidate.is_open_for_relocation)}
               </span>
             </div>
             <div className="detail-item">
@@ -303,34 +457,119 @@ export default function CandidateDetailPage() {
           </div>
         )}
 
-        {/* HR comment — below custom fields; save only when draft differs from saved */}
-        <div className="detail-card detail-card-hr-comment">
+        {/* HR comments: one stage at a time via dropdown + single textarea */}
+        <div
+          className="detail-card detail-card-hr-comment"
+          id="hr-comment-section"
+        >
           <div className="custom-fields-header">
-            <h2>HR comment</h2>
+            <h2>HR comments</h2>
           </div>
           <p className="hr-comment-hint">
-            Internal notes for your team. This field is not filled from file uploads.
+            Choose a pipeline stage and add notes below, then save comments. Pick a status beside
+            the stage control — it saves immediately. Not filled from file uploads.
           </p>
+          <div className="hr-stage-and-status-row">
+            <div className="hr-stage-selector-group">
+              <label className="hr-stage-select-label" id="hr-stage-select-label" htmlFor="hr-stage-select-trigger">
+                Stage
+              </label>
+              <div className="hr-stage-select-wrapper" ref={hrStageSelectRef}>
+                <button
+                  type="button"
+                  id="hr-stage-select-trigger"
+                  className="hr-stage-select-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded={hrStageMenuOpen}
+                  aria-label="HR pipeline stage"
+                  onClick={() => setHrStageMenuOpen((o) => !o)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setHrStageMenuOpen(false);
+                  }}
+                >
+                  <span className="hr-stage-select-trigger-text">{selectedStageLabel}</span>
+                  <span className={`hr-stage-select-chevron${hrStageMenuOpen ? ' is-open' : ''}`} aria-hidden>
+                    ▼
+                  </span>
+                </button>
+                {hrStageMenuOpen && (
+                  <ul
+                    className="hr-stage-select-menu"
+                    role="listbox"
+                    aria-labelledby="hr-stage-select-label"
+                  >
+                    {(HR_STAGE_DEFS as readonly HrStageDef[]).map((def: HrStageDef) => (
+                      <li key={def.key} role="presentation">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={def.key === selectedHrStage}
+                          className={
+                            def.key === selectedHrStage
+                              ? 'hr-stage-select-option is-selected'
+                              : 'hr-stage-select-option'
+                          }
+                          onClick={() => {
+                            setSelectedHrStage(def.key);
+                            setHrStageMenuOpen(false);
+                          }}
+                        >
+                          {def.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+            <div className="hr-inline-status-group">
+              <span className="hr-inline-status-label" id="hr-inline-status-label">
+                Status
+              </span>
+              <div
+                className="hr-application-status-radios-inline"
+                role="radiogroup"
+                aria-labelledby="hr-inline-status-label"
+              >
+                {APPLICATION_STATUS_OPTIONS.map(({ value, label }) => (
+                  <label key={value} className="hr-application-status-radio-label">
+                    <input
+                      type="radio"
+                      name="application-status"
+                      value={value}
+                      checked={headerApplicationStatus === value}
+                      disabled={statusSaving}
+                      onChange={() => void handleApplicationStatusChange(value)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          {statusError && (
+            <p className="hr-status-inline-error" role="alert">
+              {statusError}
+            </p>
+          )}
           <textarea
+            id="hr-comment-textarea"
             className="hr-comment-textarea"
-            value={commentDraft}
-            onChange={(e) => setCommentDraft(e.target.value)}
-            placeholder="Add a comment about this candidate…"
-            rows={5}
+            value={stageDrafts[selectedHrStage]}
+            onChange={(e) => setStageField(selectedHrStage, e.target.value)}
+            placeholder={`Add notes for ${selectedStageLabel}…`}
+            rows={6}
             maxLength={10000}
-            aria-label="HR comment"
+            aria-label={`HR comment for ${selectedStageLabel}`}
           />
           <div className="hr-comment-footer">
             <button
               type="button"
               className="hr-comment-save-btn"
               onClick={handleSaveHrComment}
-              disabled={
-                commentSaving ||
-                commentDraft === (candidate.hr_comment ?? '')
-              }
+              disabled={commentSaving || !hrCommentsDirty(savedHrComments, stageDrafts)}
             >
-              {commentSaving ? 'Saving…' : 'Save comment'}
+              {commentSaving ? 'Saving…' : 'Save comments'}
             </button>
             {commentError && (
               <span className="hr-comment-error" role="alert">

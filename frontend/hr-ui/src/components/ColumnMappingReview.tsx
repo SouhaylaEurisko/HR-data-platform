@@ -13,6 +13,9 @@ interface Props {
 
 type Decision = 'map' | 'custom' | 'skip';
 
+/** Select value for suggested/matched dropdown → store as new custom field on import */
+const MAP_AS_CUSTOM_FIELD = '__custom_field__';
+
 interface UnmatchedDecision {
   header: string;
   decision: Decision;
@@ -37,6 +40,14 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
     return init;
   });
 
+  const [suggestedCustomLabels, setSuggestedCustomLabels] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const col of analysis.suggested_columns) {
+      init[col.excel_header] = col.excel_header;
+    }
+    return init;
+  });
+
   const [unmatchedDecisions, setUnmatchedDecisions] = useState<UnmatchedDecision[]>(
     analysis.unmatched_columns.map(col => ({
       header: col.excel_header,
@@ -51,7 +62,9 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
   const usedColumns = useMemo(() => {
     const used = new Set<string>();
     for (const v of Object.values(matchedOverrides)) if (v) used.add(v);
-    for (const v of Object.values(suggestedOverrides)) if (v) used.add(v);
+    for (const v of Object.values(suggestedOverrides)) {
+      if (v && v !== MAP_AS_CUSTOM_FIELD) used.add(v);
+    }
     for (const ud of unmatchedDecisions) {
       if (ud.decision === 'map' && ud.targetColumn) used.add(ud.targetColumn);
     }
@@ -68,6 +81,8 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
     setIsSubmitting(true);
 
     const confirmed: Record<string, string> = {};
+    const newCustomFields: Array<{ header: string; label: string }> = [];
+    const skipColumns: string[] = [];
 
     for (const col of analysis.matched_columns) {
       const override = matchedOverrides[col.excel_header];
@@ -78,13 +93,15 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
 
     for (const col of analysis.suggested_columns) {
       const override = suggestedOverrides[col.excel_header];
-      if (override) {
+      if (override === MAP_AS_CUSTOM_FIELD) {
+        newCustomFields.push({
+          header: col.excel_header,
+          label: suggestedCustomLabels[col.excel_header]?.trim() || col.excel_header,
+        });
+      } else if (override) {
         confirmed[col.excel_header.toLowerCase()] = override;
       }
     }
-
-    const newCustomFields: Array<{ header: string; label: string }> = [];
-    const skipColumns: string[] = [];
 
     for (const ud of unmatchedDecisions) {
       if (ud.decision === 'skip') {
@@ -186,30 +203,60 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
             The system thinks these might match. Please verify and adjust if needed.
           </p>
           <div className="mapping-table">
-            {analysis.suggested_columns.map((col, i) => (
-              <div key={i} className="mapping-row mapping-row-suggested">
-                <span className="mapping-header">{col.excel_header}</span>
-                <span className="mapping-arrow">&rarr;</span>
-                <select
-                  className="mapping-dropdown"
-                  value={suggestedOverrides[col.excel_header] || ''}
-                  onChange={(e) =>
-                    setSuggestedOverrides(prev => ({
-                      ...prev,
-                      [col.excel_header]: e.target.value,
-                    }))
-                  }
-                >
-                  <option value="">-- Skip this column --</option>
-                  {getFilteredOptions(suggestedOverrides[col.excel_header] || '').map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-                <span className="mapping-badge badge-suggested">
-                  {Math.round(col.confidence * 100)}% confidence
-                </span>
-              </div>
-            ))}
+            {analysis.suggested_columns.map((col, i) => {
+              const sel = suggestedOverrides[col.excel_header] || '';
+              const isCustom = sel === MAP_AS_CUSTOM_FIELD;
+              return (
+                <div key={i} className="mapping-row mapping-row-suggested">
+                  <span className="mapping-header">{col.excel_header}</span>
+                  <span className="mapping-arrow">&rarr;</span>
+                  <div className="unmatched-controls">
+                    <select
+                      className="mapping-dropdown"
+                      value={isCustom ? MAP_AS_CUSTOM_FIELD : sel}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setSuggestedOverrides(prev => ({
+                          ...prev,
+                          [col.excel_header]: v,
+                        }));
+                        if (v === MAP_AS_CUSTOM_FIELD) {
+                          setSuggestedCustomLabels(prev => ({
+                            ...prev,
+                            [col.excel_header]: prev[col.excel_header] || col.excel_header,
+                          }));
+                        }
+                      }}
+                    >
+                      <option value="">-- Skip this column --</option>
+                      <option value={MAP_AS_CUSTOM_FIELD}>Create custom field</option>
+                      {getFilteredOptions(isCustom ? '' : sel).map(opt => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    {isCustom && (
+                      <input
+                        type="text"
+                        className="mapping-input"
+                        placeholder="Custom field label"
+                        value={suggestedCustomLabels[col.excel_header] ?? ''}
+                        onChange={(e) =>
+                          setSuggestedCustomLabels(prev => ({
+                            ...prev,
+                            [col.excel_header]: e.target.value,
+                          }))
+                        }
+                      />
+                    )}
+                  </div>
+                  <span className="mapping-badge badge-suggested">
+                    {Math.round(col.confidence * 100)}% confidence
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

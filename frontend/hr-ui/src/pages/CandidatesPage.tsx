@@ -1,8 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
 import { getCandidates } from '../api/candidates';
+import { parseApplicationStatus } from '../constants/applicationStatus';
+import { HR_STAGE_DEFS } from '../constants/hrStages';
 import type { Candidate, CandidateListParams } from '../types/api';
+import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import './CandidatesPage.css';
+
+function hrCommentsListSummary(candidate: Candidate): { full: string; short: string } {
+  const hc = candidate.hr_stage_comments;
+  const parts: string[] = [];
+  for (const { key, label } of HR_STAGE_DEFS) {
+    const t = (hc[key] ?? '').trim();
+    if (t) parts.push(`${label}: ${t}`);
+  }
+  const full = parts.join(' · ');
+  const short = full.length > 72 ? `${full.slice(0, 72)}…` : full;
+  return { full, short };
+}
 
 function parseSearchParams(sp: URLSearchParams) {
   return {
@@ -100,7 +116,7 @@ export default function CandidatesPage() {
   const displayName = (c: Candidate) => c.full_name || 'N/A';
 
   const willingToRelocate = (c: Candidate) =>
-    c.is_open_for_relocation === true ? 'Yes' : c.is_open_for_relocation === false ? 'No' : '—';
+    relocationOpennessLabel(c.is_open_for_relocation);
 
   return (
     <div className="candidates-page">
@@ -183,14 +199,14 @@ export default function CandidatesPage() {
                   )}
                 </th>
                 <th>Willing to relocate</th>
-                <th>HR comment</th>
+                <th>Status</th>
+                <th>HR comments</th>
               </tr>
             </thead>
             <tbody>
               {candidates.map((candidate) => {
-                const full = candidate.hr_comment?.trim() || '';
-                const short =
-                  full.length > 72 ? `${full.slice(0, 72)}…` : full || '—';
+                const { full, short } = hrCommentsListSummary(candidate);
+                const appStatus = parseApplicationStatus(candidate.application_status);
                 return (
                   <tr
                     key={candidate.id}
@@ -200,8 +216,31 @@ export default function CandidatesPage() {
                     <td>{displayName(candidate)}</td>
                     <td>{candidate.applied_position || '—'}</td>
                     <td>{willingToRelocate(candidate)}</td>
+                    <td className="td-application-status" onClick={(e) => e.stopPropagation()}>
+                      {appStatus ? (
+                        <ApplicationStatusBadge status={appStatus} />
+                      ) : (
+                        <span className="td-status-empty">—</span>
+                      )}
+                    </td>
                     <td className="td-hr-comment" title={full || undefined}>
-                      {short}
+                      {full ? (
+                        short
+                      ) : (
+                        <button
+                          type="button"
+                          className="hr-comment-add-trigger"
+                          aria-label={`Add HR comments for ${displayName(candidate)}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/candidates/${candidate.id}`, {
+                              state: { focusHrComment: true },
+                            });
+                          }}
+                        >
+                          +
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

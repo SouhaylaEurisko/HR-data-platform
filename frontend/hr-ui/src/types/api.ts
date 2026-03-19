@@ -2,6 +2,28 @@
  * TypeScript types matching the backend API schemas
  */
 
+/** Matches PostgreSQL enum relocation_openness / backend RelocationOpenness. */
+export type RelocationOpenness = 'yes' | 'no' | 'for_missions_only';
+
+/** Matches backend ApplicationStatus. */
+export type ApplicationStatus = 'pending' | 'on_hold' | 'rejected' | 'selected';
+
+/** Same-email sibling application (detail API only). */
+export interface RelatedApplicationSummary {
+  id: number;
+  applied_position: string | null;
+  applied_at: string | null;
+  created_at: string;
+}
+
+/** HR notes per pipeline stage (API read shape). */
+export interface HrStageComments {
+  pre_screening: string;
+  technical_interview: string;
+  hr_interview: string;
+  offer_stage: string;
+}
+
 export interface Candidate {
   id: number;
   organization_id: number;
@@ -24,7 +46,7 @@ export interface Candidate {
   // Professional
   applied_position: string | null;
   applied_position_location: string | null;
-  is_open_for_relocation: boolean | null;
+  is_open_for_relocation: RelocationOpenness | null;
   years_of_experience: number | null;
   is_employed: boolean | null;
   current_salary: number | null;
@@ -43,8 +65,11 @@ export interface Candidate {
   custom_fields: Record<string, any>;
   raw_import_data: Record<string, any> | null;
 
-  /** HR notes (UI only; never from file import) */
-  hr_comment: string | null;
+  /** HR notes by pipeline stage (UI only; never from file import) */
+  hr_stage_comments: HrStageComments;
+
+  /** HR application outcome (UI only); null until HR sets it */
+  application_status: ApplicationStatus | null;
 
   // Audit
   created_at: string;
@@ -62,6 +87,11 @@ export interface Candidate {
   employment_type_label?: string | null;
   education_level_label?: string | null;
   education_completion_status_label?: string | null;
+
+  /** Set on GET candidate by id when email is present (grouped applications). */
+  application_index?: number | null;
+  application_total?: number | null;
+  related_applications?: RelatedApplicationSummary[];
 }
 
 export interface CandidateListResponse {

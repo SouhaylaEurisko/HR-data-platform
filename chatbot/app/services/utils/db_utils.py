@@ -28,7 +28,7 @@ TABLE candidate (
   has_transportation              BOOLEAN,
   applied_position                VARCHAR(255),
   applied_position_location       VARCHAR(255),
-  is_open_for_relocation          BOOLEAN,
+  is_open_for_relocation          relocation_openness,  -- yes | no | for_missions_only
   years_of_experience             NUMERIC(4,1),
   is_employed                     BOOLEAN,
   current_salary                  NUMERIC(12,2),

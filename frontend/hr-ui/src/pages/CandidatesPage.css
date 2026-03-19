@@ -175,6 +175,16 @@
   font-size: 0.9rem;
 }
 
+.candidates-table td.td-application-status {
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.candidates-table .td-status-empty {
+  color: var(--eurisko-text-muted);
+  font-size: 0.9rem;
+}
+
 .candidates-table td.td-hr-comment {
   max-width: 14rem;
   white-space: nowrap;
@@ -182,6 +192,35 @@
   text-overflow: ellipsis;
   color: var(--eurisko-text-secondary);
   font-size: 0.85rem;
+}
+
+.hr-comment-add-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border-radius: var(--eurisko-radius-sm);
+  border: 1px dashed var(--eurisko-border);
+  background: var(--eurisko-bg-surface);
+  color: var(--eurisko-accent-light);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.hr-comment-add-trigger:hover {
+  border-color: var(--eurisko-accent);
+  background: var(--eurisko-accent-muted);
+  color: var(--eurisko-accent);
+}
+
+.hr-comment-add-trigger:focus-visible {
+  outline: 2px solid var(--eurisko-accent);
+  outline-offset: 2px;
 }
 
 .candidates-table tbody tr {

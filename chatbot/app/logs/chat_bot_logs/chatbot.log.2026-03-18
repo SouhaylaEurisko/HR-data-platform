@@ -1,0 +1,1018 @@
+
+====================================================================================================
+
+REQUEST_ID:       e0f23f8c-3743-467a-abe8-52ae184629b9
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T09:54:17.468885+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     1
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                how many candidates are listed in this platform
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         how many candidates are listed in this platform
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         how many candidates are listed in this platform
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          The user asks for the total number of candidates without any filter criteria.
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           how many candidates are listed in this platform
+  Generated Sql:        SELECT COUNT(*) AS total_candidates FROM candidate;
+  Explanation:          This query calculates the total number of candidates listed in the platform.
+
+====================================================================================================
+  AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             104
+
+
+====================================================================================================
+  AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             104
+
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Stats Rows:           1
+
+====================================================================================================
+  AGGREGATION - RESULT
+====================================================================================================
+
+  Stats Count:          1
+  Summary:              The platform currently lists a total of 104 candidates. This number represents the full pool of individuals available for recruitment or consideration at this time.
+  Reply:                Here are the latest statistics on candidate availability.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                how many candidates are listed in this platform
+  Output:               intent: aggregation
+
+REQUEST e0f23f8c-3743-467a-abe8-52ae184629b9 COMPLETED AT 2026-03-18T09:54:22.228983+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       1d5f1703-e954-492d-90f5-608f76009585
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:19:01.811466+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     3
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what are the positions listed in our platform
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what are the positions listed in our platform
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what are the positions listed in our platform
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          The user is asking for a list of all positions available across all candidates without any filter.
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           what are the positions listed in our platform
+  Generated Sql:        SELECT applied_position, COUNT(*) AS candidate_count FROM candidate GROUP BY applied_position ORDER BY candidate_count DESC;
+  Explanation:          This query counts the number of candidates for each applied position listed on the platform.
+
+====================================================================================================
+  AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Applied Position:             None
+    Candidate Count:              38
+
+    Applied Position:             Java
+    Candidate Count:              18
+
+    Applied Position:             Angular Developer
+    Candidate Count:              11
+
+    Applied Position:             DevOps
+    Candidate Count:              11
+
+    Applied Position:             Senior java deveoper
+    Candidate Count:              7
+
+    Applied Position:             Java Developer
+    Candidate Count:              6
+
+    Applied Position:             data engineer
+    Candidate Count:              4
+
+    Applied Position:             Full Stack
+    Candidate Count:              2
+
+    Applied Position:             DevoOps
+    Candidate Count:              2
+
+    Applied Position:             React Developer
+    Candidate Count:              2
+
+    Applied Position:             Senior Angular Developer
+    Candidate Count:              2
+
+    Applied Position:             Senior QA Eng
+    Candidate Count:              2
+
+    Applied Position:             UX Researcher
+    Candidate Count:              2
+
+    Applied Position:             Tech lead
+    Candidate Count:              2
+
+    Applied Position:             Backend Developer
+    Candidate Count:              2
+
+    Applied Position:             Front end
+    Candidate Count:              1
+
+    Applied Position:             marc Merheb
+    Candidate Count:              1
+
+    Applied Position:             1986-02-05 00:00:00
+    Candidate Count:              1
+
+    Applied Position:             Angular developer
+    Candidate Count:              1
+
+    Applied Position:             AI Engineer
+    Candidate Count:              1
+
+    Applied Position:             Java developer
+    Candidate Count:              1
+
+    Applied Position:             Full Stack Dev
+    Candidate Count:              1
+
+    Applied Position:             Date of Birth
+    Candidate Count:              1
+
+    Applied Position:             Full Name
+    Candidate Count:              1
+
+    Applied Position:             Backend Developer, Full Stack Developer
+    Candidate Count:              1
+
+    Applied Position:             Senior angular developer
+    Candidate Count:              1
+
+    Applied Position:             DevOPs
+    Candidate Count:              1
+
+    Applied Position:             front end
+    Candidate Count:              1
+
+    Applied Position:             Springboot Developer
+    Candidate Count:              1
+
+
+====================================================================================================
+  AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Applied Position:             None
+    Candidate Count:              38
+
+    Applied Position:             Java
+    Candidate Count:              18
+
+    Applied Position:             Angular Developer
+    Candidate Count:              11
+
+    Applied Position:             DevOps
+    Candidate Count:              11
+
+    Applied Position:             Senior java deveoper
+    Candidate Count:              7
+
+    Applied Position:             Java Developer
+    Candidate Count:              6
+
+    Applied Position:             data engineer
+    Candidate Count:              4
+
+    Applied Position:             Full Stack
+    Candidate Count:              2
+
+    Applied Position:             DevoOps
+    Candidate Count:              2
+
+    Applied Position:             React Developer
+    Candidate Count:              2
+
+    Applied Position:             Senior Angular Developer
+    Candidate Count:              2
+
+    Applied Position:             Senior QA Eng
+    Candidate Count:              2
+
+    Applied Position:             UX Researcher
+    Candidate Count:              2
+
+    Applied Position:             Tech lead
+    Candidate Count:              2
+
+    Applied Position:             Backend Developer
+    Candidate Count:              2
+
+    Applied Position:             Front end
+    Candidate Count:              1
+
+    Applied Position:             marc Merheb
+    Candidate Count:              1
+
+    Applied Position:             1986-02-05 00:00:00
+    Candidate Count:              1
+
+    Applied Position:             Angular developer
+    Candidate Count:              1
+
+    Applied Position:             AI Engineer
+    Candidate Count:              1
+
+    Applied Position:             Java developer
+    Candidate Count:              1
+
+    Applied Position:             Full Stack Dev
+    Candidate Count:              1
+
+    Applied Position:             Date of Birth
+    Candidate Count:              1
+
+    Applied Position:             Full Name
+    Candidate Count:              1
+
+    Applied Position:             Backend Developer, Full Stack Developer
+    Candidate Count:              1
+
+    Applied Position:             Senior angular developer
+    Candidate Count:              1
+
+    Applied Position:             DevOPs
+    Candidate Count:              1
+
+    Applied Position:             front end
+    Candidate Count:              1
+
+    Applied Position:             Springboot Developer
+    Candidate Count:              1
+
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Stats Rows:           29
+
+====================================================================================================
+  AGGREGATION - RESULT
+====================================================================================================
+
+  Stats Count:          29
+  Summary:              The platform lists a total of 38 candidates applying for various positions, with the most common roles being Java (18 candidates), Angular Developer (11 candidates), and DevOps (11 candidates). Other notable positions include Senior Java Developer (7 candidates), Java Developer (6 candidates), and Data Engineer (4 candidates). There are also several unique or less frequent roles such as Full Stack, React Developer, UX Researcher, and AI Engineer, each with fewer candidates. Some entries appear t...
+  Reply:                Here's a breakdown of the positions candidates have applied for on our platform.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what are the positions listed in our platform
+  Output:               intent: aggregation
+
+REQUEST 1d5f1703-e954-492d-90f5-608f76009585 COMPLETED AT 2026-03-18T13:19:09.256606+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       a6703688-592e-4a98-bb81-532bded65dbc
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:23:07.231056+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     5
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all Java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all Java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all Java developers
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user explicitly requests a list of candidates filtered by the Java developer position.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me a list of all Java developers
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label, ms.label AS marital_status_label, rv.label AS residency_type_label, pv.label AS passport_validity_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c...
+  Explanation:          This query retrieves all candidates who have 'Java' in their tech stack, including human-readable labels for lookup fields, ordered by the most recently created records.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           0
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         0
+
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          0
+  Summary:              No candidates matched the criteria.
+  Reply:                No candidates were found matching your search criteria.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all Java developers
+  Output:               intent: filter
+
+REQUEST a6703688-592e-4a98-bb81-532bded65dbc COMPLETED AT 2026-03-18T13:23:11.554456+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       c887ac78-8f4c-472b-b16f-a50234d47710
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:23:32.006870+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     7
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all Java positions
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all Java positions
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all Java positions
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user requests a list of candidates for Java positions, which is a filtering query.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me a list of all Java positions
+  Generated Sql:        SELECT DISTINCT applied_position FROM candidate WHERE applied_position ILIKE '%java%' ORDER BY applied_position ASC LIMIT 20;
+  Explanation:          This query retrieves a distinct list of all applied positions containing 'Java' in their title, ordered alphabetically, limited to 20 entries.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           4
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         4
+
+    1. Applied Position: Java
+    2. Applied Position: Java Developer
+    3. Applied Position: Java developer
+    4. Applied Position: Senior java deveoper
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          4
+  Summary:              A total of 4 candidates were found for Java-related positions, including roles titled Java, Java Developer, and Senior Java Developer. The listings indicate a range from standard developer to senior-level experience, reflecting varying levels of expertise within the Java domain.
+  Reply:                Here are the candidates matching your search:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all Java positions
+  Output:               intent: filter
+
+REQUEST c887ac78-8f4c-472b-b16f-a50234d47710 COMPLETED AT 2026-03-18T13:23:37.081275+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       03434d93-24c0-4558-a300-3962bc8796bf
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:24:52.092315+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     9
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all Java Developer
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all Java Developer
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all Java Developer
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user requests a list of candidates with the specific position 'Java Developer', which is a filtering query.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me a list of all Java Developer
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label, ms.label AS marital_status_label, rv.label AS residency_type_label, pv.label AS passport_validity_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c...
+  Explanation:          This query retrieves all candidates who have applied for positions with titles containing 'Java Developer', including relevant lookup labels, ordered by the most recently created records.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           7
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         7
+
+    1. Full Name: Amina Jardali | Applied Position: Java developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Saida
+    2. Full Name: Badih Aboulhosn | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 2.0 | Current Address: Beirut, Lebanon
+    3. Full Name: ghoussoubgabriel@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 2.0 | Current Address: baabdat
+    4. Full Name: michelmaalouly2@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Byakout
+    5. Full Name: amalmaanna@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Tohwita
+    6. Full Name: yasmina.moallem@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 4.0 | Current Address: Kornish el mazraa
+    7. Full Name: Chadi Hammoud | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: KSA, Riyadh
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          7
+  Summary:              A total of 7 candidates for the Java Developer position were found, all of whom are Lebanese nationals. Experience levels range from 2 to 4 years, with most candidates having around 3 years of experience. Salary information is available for two candidates, ranging from $1,200 to $1,300. Candidates are primarily located in Lebanon, with one based in Riyadh, Saudi Arabia.
+  Reply:                Here are the candidates matching your search for Java Developers:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all Java Developer
+  Output:               intent: filter
+
+REQUEST 03434d93-24c0-4558-a300-3962bc8796bf COMPLETED AT 2026-03-18T13:24:59.700990+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       fa34d361-2bba-40a4-91c0-375f784a1531
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:40:10.039126+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me all java candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me all java candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me all java candidates
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user requests a list of all candidates with Java skills, indicating a filtering action.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me all java candidates
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label, ms.label AS marital_status_label, rv.label AS residency_type_label, pv.label AS passport_validity_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c...
+  Explanation:          This query retrieves all candidates who have Java listed in their tech stack, including relevant lookup labels, ordered by the most recently created records.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           0
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         0
+
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          0
+  Summary:              No candidates matched the criteria.
+  Reply:                No candidates were found matching your search criteria.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me all java candidates
+  Output:               intent: filter
+
+REQUEST fa34d361-2bba-40a4-91c0-375f784a1531 COMPLETED AT 2026-03-18T13:40:15.771058+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       af1dac1c-bac2-482e-9b8b-065b25ab7d22
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:42:49.179906+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all java developers
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user explicitly requests a list of candidates who are Java developers, which is a filtering action.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me a list of all java developers
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label, ms.label AS marital_status_label, rv.label AS residency_type_label, pv.label AS passport_validity_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c...
+  Explanation:          This query retrieves all candidates who have 'Java' in their tech stack, including relevant lookup labels, ordered by the most recently created records.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           0
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         0
+
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          0
+  Summary:              No candidates matched the criteria.
+  Reply:                No candidates were found matching your search criteria.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all java developers
+  Output:               intent: filter
+
+REQUEST af1dac1c-bac2-482e-9b8b-065b25ab7d22 COMPLETED AT 2026-03-18T13:42:57.495980+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       c10a99d0-7e68-43ee-990a-c11b5a080040
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:43:45.813513+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all java developers
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user explicitly requests a list of candidates with the Java Developer position, which is a filtering query.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me a list of all java developers
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label, ms.label AS marital_status_label, rv.label AS residency_type_label, pv.label AS passport_validity_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c...
+  Explanation:          This query retrieves all candidates who are Java developers by matching 'java developer' in their applied position or 'java' in their tech stack, including lookup labels, ordered by most recent applications.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           7
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         7
+
+    1. Full Name: Amina Jardali | Applied Position: Java developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Saida
+    2. Full Name: Badih Aboulhosn | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 2.0 | Current Address: Beirut, Lebanon
+    3. Full Name: ghoussoubgabriel@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 2.0 | Current Address: baabdat
+    4. Full Name: michelmaalouly2@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Byakout
+    5. Full Name: amalmaanna@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Tohwita
+    6. Full Name: yasmina.moallem@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 4.0 | Current Address: Kornish el mazraa
+    7. Full Name: Chadi Hammoud | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: KSA, Riyadh
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          7
+  Summary:              A total of 7 Java developers were found, all of Lebanese nationality. Experience ranges from 2 to 4 years, with most candidates having around 3 years of experience. Salary information is available for two candidates, ranging from $1,200 to $1,300. Locations vary, including several cities in Lebanon and one candidate based in Riyadh, KSA.
+  Reply:                Here are the candidates matching your search:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all java developers
+  Output:               intent: filter
+
+REQUEST c10a99d0-7e68-43ee-990a-c11b5a080040 COMPLETED AT 2026-03-18T13:44:00.642527+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       0d87c1b6-2328-4ad5-b516-29066fd792e4
+USER_ID:          1
+CONVERSATION_ID:  5
+TIMESTAMP:        2026-03-18T13:58:24.602502+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all java developers
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user explicitly requests a list of candidates who are Java developers, which is a clear filtering request.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me a list of all java developers
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label, ms.label AS marital_status_label, rv.label AS residency_type_label, pv.label AS passport_validity_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c...
+  Explanation:          This query retrieves all candidates whose applied position includes 'java developer', along with human-readable labels for their lookup fields, ordered by the most recently created records.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           7
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         7
+
+    1. Full Name: Amina Jardali | Applied Position: Java developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Saida
+    2. Full Name: Badih Aboulhosn | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 2.0 | Current Address: Beirut, Lebanon
+    3. Full Name: ghoussoubgabriel@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 2.0 | Current Address: baabdat
+    4. Full Name: michelmaalouly2@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Byakout
+    5. Full Name: amalmaanna@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: Tohwita
+    6. Full Name: yasmina.moallem@gmail.com | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 4.0 | Current Address: Kornish el mazraa
+    7. Full Name: Chadi Hammoud | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Current Address: KSA, Riyadh
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          7
+  Summary:              A total of 7 Java developers were identified, all of Lebanese nationality. Experience levels range from 2 to 4 years, with most candidates having around 3 years of experience. Salary information was available for two candidates, ranging from $1,200 to $1,300. The candidates are primarily located in Lebanon, with one based in Riyadh, KSA.
+  Reply:                Here are the candidates matching your search for Java developers:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all java developers
+  Output:               intent: filter
+
+REQUEST 0d87c1b6-2328-4ad5-b516-29066fd792e4 COMPLETED AT 2026-03-18T13:58:30.919526+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       b48675ce-4cad-45f8-b071-4b0905484db7
+USER_ID:          1
+CONVERSATION_ID:  6
+TIMESTAMP:        2026-03-18T14:34:04.443305+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     1
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is this
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is this
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is this
+  Classification Result:
+    Intent:             chitchat
+    Confidence:         high
+    Reasoning:          The user message is off-topic and does not ask about candidate data.
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         what is this
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         what is this
+  Assistant Response:   Hello! I’m here to assist with HR analytics, candidate searches, and related statistics. How can I help you today?
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is this
+  Output:               intent: chitchat
+
+REQUEST b48675ce-4cad-45f8-b071-4b0905484db7 COMPLETED AT 2026-03-18T14:34:07.305567+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       49935ea4-358d-4c01-8f27-4cf4e49ffc03
+USER_ID:          1
+CONVERSATION_ID:  1
+TIMESTAMP:        2026-03-18T15:03:18.442963+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     1
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                hello
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         hello
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         hello
+  Classification Result:
+    Intent:             chitchat
+    Confidence:         high
+    Reasoning:          The user greeting 'hello' is a chitchat message without any request for candidate data.
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         hello
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         hello
+  Assistant Response:   Hello! I can help you with candidate searches and HR statistics. How can I assist you today?
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                hello
+  Output:               intent: chitchat
+
+REQUEST 49935ea4-358d-4c01-8f27-4cf4e49ffc03 COMPLETED AT 2026-03-18T15:03:21.516048+00:00
+====================================================================================================
+

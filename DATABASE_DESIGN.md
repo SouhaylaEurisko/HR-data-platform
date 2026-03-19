@@ -53,7 +53,7 @@ Database Objects:
                   has_{noun}              → has_transportation
   Timestamps   → {event}_at             → applied_at, created_at
   Indexes      → ix_{table}_{column}     → ix_candidate_email
-  Constraints  → uq_{table}_{columns}    → uq_candidate_org_email
+  Constraints  → uq_{table}_{columns}    → (none on candidate email; multiple applications per email allowed)
                   fk_{table}_{ref}        → fk_candidate_workplace_type
                   ck_{table}_{rule}       → ck_candidate_salary_positive
 ```
@@ -94,7 +94,7 @@ Below is every field you listed, mapped to its production-grade database column 
 |---|---|---|---|
 | `appliedForPosition` | `applied_position` | `VARCHAR(255)` | Concise. The "for" is redundant in a column name since context is clear. |
 | `appliedForPositionLocation` | `applied_position_location` | `VARCHAR(255)` | Direct mapping — the location of the job being applied for. |
-| `openForReallocation` | `is_open_for_relocation` | `BOOLEAN` | Fixed: "reallocation" → "relocation" (correct HR term). Boolean with `is_` prefix. |
+| `openForReallocation` | `is_open_for_relocation` | `relocation_openness` ENUM | Values: `yes`, `no`, `for_missions_only` (labels: Yes, No, For missions only). |
 | `yearsOfExperience` | `years_of_experience` | `NUMERIC(4,1)` | `NUMERIC(4,1)` allows values like `12.5` years. More precise than `FLOAT` (no floating-point rounding issues). |
 | `employmentStatus` | `employment_status_id` | `INTEGER FK` | Points to `lookup_option`. Examples: employed, unemployed, freelance, student. |
 | `currentSalary` | `current_salary` | `NUMERIC(12,2)` | `NUMERIC(12,2)` for exact decimal (up to 9,999,999,999.99). Never use `FLOAT` for money. |
@@ -196,7 +196,7 @@ erDiagram
         %% ── Professional ──
         varchar applied_position
         varchar applied_position_location
-        boolean is_open_for_relocation
+        relocation_openness is_open_for_relocation
         numeric years_of_experience "NUMERIC(4,1)"
         int employment_status_id FK "→ lookup_option"
         numeric current_salary "NUMERIC(12,2)"
@@ -310,7 +310,7 @@ classDiagram
         ── Professional ──
         +str applied_position
         +str applied_position_location
-        +bool is_open_for_relocation
+        +relocation_openness is_open_for_relocation
         +Decimal years_of_experience
         +int employment_status_id
         +Decimal current_salary

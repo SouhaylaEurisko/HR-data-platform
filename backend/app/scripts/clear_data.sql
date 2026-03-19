@@ -7,7 +7,7 @@
 -- CASCADE truncates any tables with FK references to these (none outside this app).
 
 TRUNCATE TABLE
-  message,
+  messages,
   conversation,
   candidate,
   import_session,

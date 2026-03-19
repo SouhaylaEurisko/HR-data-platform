@@ -17,6 +17,7 @@ from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 
 from ..models.candidate import Candidate
+from ..models.enums import RelocationOpenness
 from ..models.import_session import ImportSession
 from .column_normalizer import (
     COLUMN_LABELS,
@@ -71,6 +72,54 @@ def _to_json_safe(value: Any) -> Any:
     return str(value)
 
 
+def _normalize_numeric_string_to_decimal_str(cleaned: str) -> Optional[str]:
+    """
+    Turn a cleaned string (digits, optional . and , and leading -) into a form
+    Decimal() accepts.
+    """
+    s = cleaned.strip()
+    if not s:
+        return None
+    neg = False
+    if s.startswith("-"):
+        neg = True
+        s = s[1:]
+    if not s or not re.fullmatch(r"[\d\.,]+", s):
+        return None
+
+    def with_sign(num: str) -> str:
+        return ("-" if neg else "") + num
+
+    if "," in s and "." in s:
+        # Last separator is the decimal separator
+        if s.rfind(",") > s.rfind("."):
+            # e.g. 1.234,56
+            num = s.replace(".", "").replace(",", ".")
+        else:
+            # e.g. 1,234.56
+            num = s.replace(",", "")
+        return with_sign(num)
+
+    if "," in s:
+        parts = s.split(",")
+        # Multiple groups, last segment short → decimal comma (1234,5 / 1234,56)
+        if len(parts) > 1 and len(parts[-1]) <= 2:
+            num = "".join(parts[:-1]) + "." + parts[-1]
+        else:
+            # Thousands only: 5,000
+            num = "".join(parts)
+        return with_sign(num)
+
+    if "." in s:
+        parts = s.split(".")
+        # Dot as thousands: every segment after the first is exactly 3 digits
+        if len(parts) >= 2 and all(len(p) == 3 for p in parts[1:]):
+            return with_sign("".join(parts))
+        return with_sign(s)
+
+    return with_sign(s)
+
+
 def _to_decimal_or_none(value: Any) -> Optional[Decimal]:
     if value is None:
         return None
@@ -88,9 +137,11 @@ def _to_decimal_or_none(value: Any) -> Optional[Decimal]:
     range_match = re.match(r"^([\d\.,]+)\s*[-–]\s*([\d\.,]+)$", cleaned)
     if range_match:
         cleaned = range_match.group(1)
-    cleaned = cleaned.replace(",", ".")
+    normalized = _normalize_numeric_string_to_decimal_str(cleaned)
+    if not normalized:
+        return None
     try:
-        return Decimal(cleaned)
+        return Decimal(normalized)
     except InvalidOperation:
         return None
 
@@ -127,6 +178,29 @@ def _to_bool_or_none(value: Any) -> Optional[bool]:
         return True
     if text in ("false", "no", "0", "n", "non", "unemployed", "not employed"):
         return False
+    return None
+
+
+def _to_relocation_openness_or_none(value: Any) -> Optional[RelocationOpenness]:
+    """Map Excel/form values to RelocationOpenness (yes | no | for_missions_only)."""
+    if value is None:
+        return None
+    if isinstance(value, RelocationOpenness):
+        return value
+    text = str(value).strip().lower()
+    if not text:
+        return None
+    # Third option (Google Forms / HR wording)
+    if "mission" in text:
+        return RelocationOpenness.for_missions_only
+    if text in ("true", "yes", "1", "y", "oui"):
+        return RelocationOpenness.yes
+    if text in ("false", "no", "0", "n", "non"):
+        return RelocationOpenness.no
+    # Try enum value / name
+    for member in RelocationOpenness:
+        if text == member.value or text == member.name.lower():
+            return member
     return None
 
 
@@ -271,7 +345,7 @@ LOOKUP_COLUMN_MAP = {
 }
 
 BOOLEAN_COLUMNS = {
-    "has_transportation", "is_open_for_relocation",
+    "has_transportation",
     "is_overtime_flexible", "is_contract_flexible",
     "is_employed",
 }
@@ -331,7 +405,11 @@ def _map_row(
             continue
 
         # Type-specific conversion
-        if db_col in BOOLEAN_COLUMNS:
+        if db_col == "is_open_for_relocation":
+            val = _to_relocation_openness_or_none(raw_value)
+            if val is not None:
+                candidate_kwargs[db_col] = val
+        elif db_col in BOOLEAN_COLUMNS:
             val = _to_bool_or_none(raw_value)
             if val is not None:
                 candidate_kwargs[db_col] = val
@@ -665,7 +743,7 @@ def _process_sheet(
 
     created = 0
     skipped_empty = 0
-    skipped_duplicates = 0
+    skipped_duplicates = 0  # retained for API shape; email duplicates are allowed (multiple applications)
     row_errors = []
 
     max_row = getattr(sheet, "max_row", 0) or 0
@@ -706,16 +784,6 @@ def _process_sheet(
                 candidate_kwargs["organization_id"] = org_id
                 candidate_kwargs["import_session_id"] = session_id
                 candidate_kwargs["import_sheet"] = sheet_name
-
-                # Duplicate detection by email within org
-                email = candidate_kwargs.get("email")
-                if email:
-                    existing = db.query(Candidate).filter_by(
-                        organization_id=org_id, email=email
-                    ).first()
-                    if existing:
-                        skipped_duplicates += 1
-                        continue
 
                 candidate = Candidate(**candidate_kwargs)
                 db.add(candidate)

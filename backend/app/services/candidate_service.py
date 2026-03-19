@@ -8,9 +8,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal, Optional
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from ..models.candidate import Candidate, CandidateListResponse, CandidateRead
+from ..models.candidate import (
+    Candidate,
+    CandidateApplicationStatusUpdate,
+    CandidateHrCommentUpdate,
+    CandidateListResponse,
+    CandidateRead,
+    RelatedApplicationSummary,
+)
 
 _LOOKUP_EAGER_LIST = (
     joinedload(Candidate.residency_type),
@@ -69,6 +77,53 @@ class _ListFilters:
 
 def _base_query_for_org(db: Session, org_id: int):
     return db.query(Candidate).filter(Candidate.organization_id == org_id)
+
+
+def _application_context_for_candidate(
+    db: Session,
+    *,
+    org_id: int,
+    candidate_id: int,
+    email: Optional[str],
+) -> tuple[Optional[int], Optional[int], list[RelatedApplicationSummary]]:
+    """
+    Group applications by same email (case-insensitive, trimmed) within the org.
+    Order: applied_at (oldest first), then created_at, then id.
+    """
+    if not email or not str(email).strip():
+        return None, None, []
+    norm = str(email).strip().lower()
+    rows = (
+        db.query(Candidate.id, Candidate.applied_position, Candidate.applied_at, Candidate.created_at)
+        .filter(
+            Candidate.organization_id == org_id,
+            Candidate.email.isnot(None),
+            func.lower(func.trim(Candidate.email)) == norm,
+        )
+        .order_by(
+            Candidate.applied_at.asc().nulls_last(),
+            Candidate.created_at.asc(),
+            Candidate.id.asc(),
+        )
+        .all()
+    )
+    if not rows:
+        return None, None, []
+    related = [
+        RelatedApplicationSummary(
+            id=r.id,
+            applied_position=r.applied_position,
+            applied_at=r.applied_at,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+    ids = [r.id for r in rows]
+    try:
+        idx_1based = ids.index(candidate_id) + 1
+    except ValueError:
+        return None, None, related
+    return idx_1based, len(rows), related
 
 
 def _apply_filters(q, f: _ListFilters):
@@ -173,9 +228,9 @@ def update_candidate_hr_comment(
     db: Session,
     candidate_id: int,
     org_id: int,
-    hr_comment: str,
+    body: CandidateHrCommentUpdate,
 ) -> Optional[CandidateRead]:
-    """Set or clear HR comment (empty string → NULL). Not used by import."""
+    """Replace staged HR comments (UI only). Clears legacy hr_comment."""
     candidate = (
         db.query(Candidate)
         .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
@@ -183,8 +238,28 @@ def update_candidate_hr_comment(
     )
     if candidate is None:
         return None
-    text = hr_comment.strip() if hr_comment else ""
-    candidate.hr_comment = text if text else None
+    candidate.hr_stage_comments = body.model_dump()
+    candidate.hr_comment = None
+    db.commit()
+    db.refresh(candidate)
+    return get_candidate_by_id(db, candidate_id, org_id=org_id)
+
+
+def update_candidate_application_status(
+    db: Session,
+    candidate_id: int,
+    org_id: int,
+    body: CandidateApplicationStatusUpdate,
+) -> Optional[CandidateRead]:
+    """Set application status (UI only); independent from HR stage comments."""
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
+        .first()
+    )
+    if candidate is None:
+        return None
+    candidate.application_status = body.application_status.value
     db.commit()
     db.refresh(candidate)
     return get_candidate_by_id(db, candidate_id, org_id=org_id)
@@ -207,4 +282,16 @@ def get_candidate_by_id(
     import_filename = (
         candidate.import_session.original_filename if candidate.import_session else None
     )
-    return CandidateRead.from_orm_with_lookups(candidate, import_filename=import_filename)
+    app_idx, app_total, related = _application_context_for_candidate(
+        db,
+        org_id=org_id,
+        candidate_id=candidate_id,
+        email=candidate.email,
+    )
+    return CandidateRead.from_orm_with_lookups(
+        candidate,
+        import_filename=import_filename,
+        application_index=app_idx,
+        application_total=app_total,
+        related_applications=related,
+    )

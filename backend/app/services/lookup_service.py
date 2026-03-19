@@ -1,5 +1,5 @@
 """
-Lookup resolution — map raw import text to lookup_option.id (code, label, then aliases).
+Lookup resolution — map import text to lookup_option.id (exact code or label, case-insensitive).
 """
 
 from typing import List, Optional
@@ -7,7 +7,6 @@ from typing import List, Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..data.lookup_aliases import LOOKUP_ALIASES
 from ..models.lookup import LookupCategory, LookupOption
 
 
@@ -54,7 +53,7 @@ def resolve_lookup_value(
     """
     Resolve raw text to lookup_option.id.
 
-    Order: exact code (case-insensitive) → exact label → alias map → canonical code.
+    Order: exact code (case-insensitive) → exact label match.
     """
     if not raw_value or not raw_value.strip():
         return None
@@ -71,9 +70,5 @@ def resolve_lookup_value(
     for opt in options:
         if opt.label.lower() == cleaned:
             return opt.id
-
-    resolved_code = LOOKUP_ALIASES.get(category_code, {}).get(cleaned)
-    if resolved_code:
-        return _find_option_id_by_code(options, resolved_code.lower())
 
     return None

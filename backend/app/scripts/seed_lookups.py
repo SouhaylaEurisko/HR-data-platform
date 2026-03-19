@@ -11,9 +11,43 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from sqlalchemy import func, text
+
 from app.config.database import SessionLocal, init_db
 from app.models.organization import Organization
 from app.models.lookup import LookupCategory, LookupOption
+
+
+def _sync_organization_id_sequence(db) -> None:
+    """
+    After DELETEs, PostgreSQL still advances the id sequence, so the next INSERT
+    can get id=2 even with an empty table. Align sequence with MAX(id).
+    """
+    bind = db.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+    m = db.query(func.max(Organization.id)).scalar()
+    if m is None:
+        return
+    db.execute(
+        text(
+            "SELECT setval("
+            "pg_get_serial_sequence('organization', 'id'), "
+            "CAST(:m AS bigint), true)"
+        ),
+        {"m": m},
+    )
+
+
+def _next_organization_id(db) -> int | None:
+    """
+    If there are no organizations yet, return 1 so the default org is always id=1
+    after a cleared DB. Otherwise None (let the DB assign).
+    """
+    m = db.query(func.max(Organization.id)).scalar()
+    if m is None:
+        return 1
+    return None
 
 
 SEED_DATA = {
@@ -32,7 +66,9 @@ SEED_DATA = {
         "options": [
             ("full_time", "Full-Time", 1),
             ("part_time", "Part-Time", 2),
-            ("contractual", "Contractual", 3),
+            ("contractual", "Contractual model only", 3),
+            ("Long term contract only", "Long term", 4),
+            ("Open for both options", "Open for both options", 5),
         ],
     },
     "employment_status": {
@@ -41,8 +77,6 @@ SEED_DATA = {
         "options": [
             ("employed", "Employed", 1),
             ("unemployed", "Unemployed", 2),
-            ("freelance", "Freelance", 3),
-            ("student", "Student", 4),
         ],
     },
     "residency_type": {
@@ -64,6 +98,7 @@ SEED_DATA = {
             ("married", "Married", 2),
             ("divorced", "Divorced", 3),
             ("widowed", "Widowed", 4),
+            ("engaged", "Engaged", 5),
         ],
     },
     "education_level": {
@@ -104,9 +139,14 @@ def seed(db):
     # -- Default organization --
     existing_org = db.query(Organization).filter_by(slug="default").first()
     if not existing_org:
-        org = Organization(name="Default Organization", slug="default")
+        org_kwargs: dict = {"name": "Default Organization", "slug": "default"}
+        forced_id = _next_organization_id(db)
+        if forced_id is not None:
+            org_kwargs["id"] = forced_id
+        org = Organization(**org_kwargs)
         db.add(org)
         db.flush()
+        _sync_organization_id_sequence(db)
         print("Created default organization.")
     else:
         print("Default organization already exists.")

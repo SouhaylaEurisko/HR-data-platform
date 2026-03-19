@@ -33,6 +33,8 @@ export const API_ENDPOINTS = {
   candidates: `${API_BASE_URL}/api/candidates`,
   candidateById: (id: number) => `${API_BASE_URL}/api/candidates/${id}`,
   candidateHrComment: (id: number) => `${API_BASE_URL}/api/candidates/${id}/hr-comment`,
+  candidateApplicationStatus: (id: number) =>
+    `${API_BASE_URL}/api/candidates/${id}/application-status`,
   
   // Chat endpoint
   chat: `${API_BASE_URL}/api/chat`,

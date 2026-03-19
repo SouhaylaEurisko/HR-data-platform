@@ -6,14 +6,18 @@ from .organization import Organization
 from .lookup import LookupCategory, LookupOption
 from .custom_field import CustomFieldDefinition
 from .import_session import ImportSession
+from .enums import ApplicationStatus, RelocationOpenness
 from .candidate import (
     Candidate,
+    CandidateApplicationStatusUpdate,
     CandidateBase,
     CandidateCreate,
     CandidateHrCommentUpdate,
     CandidateRead,
     CandidateListResponse,
+    HrStageCommentsRead,
     LookupOptionLabel,
+    RelatedApplicationSummary,
 )
 from .chat import (
     QuestionClassification,
@@ -50,14 +54,20 @@ __all__ = [
     "CustomFieldDefinition",
     # Import session
     "ImportSession",
+    # Enums
+    "ApplicationStatus",
+    "RelocationOpenness",
     # Candidate models
     "Candidate",
+    "CandidateApplicationStatusUpdate",
     "CandidateBase",
     "CandidateCreate",
     "CandidateHrCommentUpdate",
+    "HrStageCommentsRead",
     "CandidateRead",
     "CandidateListResponse",
     "LookupOptionLabel",
+    "RelatedApplicationSummary",
     # Chat models
     "QuestionClassification",
     "ChatSearchFilters",
