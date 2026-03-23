@@ -3,16 +3,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
 import { getCandidates } from '../api/candidates';
 import { parseApplicationStatus } from '../constants/applicationStatus';
-import { HR_STAGE_DEFS } from '../constants/hrStages';
+import { HR_STAGE_DEFS, emptyHrStageCommentLists, latestStageComment } from '../constants/hrStages';
 import type { Candidate, CandidateListParams } from '../types/api';
 import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import './CandidatesPage.css';
 
 function hrCommentsListSummary(candidate: Candidate): { full: string; short: string } {
-  const hc = candidate.hr_stage_comments;
+  const hc = candidate.hr_stage_comments ?? emptyHrStageCommentLists();
   const parts: string[] = [];
   for (const { key, label } of HR_STAGE_DEFS) {
-    const t = (hc[key] ?? '').trim();
+    const latest = latestStageComment(hc[key]);
+    const t = (latest?.text ?? '').trim();
     if (t) parts.push(`${label}: ${t}`);
   }
   const full = parts.join(' · ');

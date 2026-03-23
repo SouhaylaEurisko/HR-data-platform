@@ -1,12 +1,7 @@
 import apiClient from './client';
 import { API_ENDPOINTS } from '../config';
-import type {
-  ApplicationStatus,
-  Candidate,
-  CandidateListResponse,
-  CandidateListParams,
-  HrStageComments,
-} from '../types/api';
+import type { ApplicationStatus, Candidate, CandidateListResponse, CandidateListParams } from '../types/api';
+import type { HrStageKey } from '../constants/hrStages';
 
 /**
  * Get a list of candidates with optional filters
@@ -29,16 +24,11 @@ export const getCandidateById = async (id: number): Promise<Candidate> => {
   return response.data;
 };
 
-export const patchCandidateHrComment = async (
+export const postCandidateHrStageComment = async (
   id: number,
-  hr_stage_comments: HrStageComments
+  body: { stage: HrStageKey; text: string }
 ): Promise<Candidate> => {
-  const response = await apiClient.patch<Candidate>(API_ENDPOINTS.candidateHrComment(id), {
-    pre_screening: hr_stage_comments.pre_screening,
-    technical_interview: hr_stage_comments.technical_interview,
-    hr_interview: hr_stage_comments.hr_interview,
-    offer_stage: hr_stage_comments.offer_stage,
-  });
+  const response = await apiClient.post<Candidate>(API_ENDPOINTS.candidateHrStageComments(id), body);
   return response.data;
 };
 

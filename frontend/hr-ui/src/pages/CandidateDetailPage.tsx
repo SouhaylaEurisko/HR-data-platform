@@ -1,38 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
-import { getCandidateById, patchCandidateApplicationStatus, patchCandidateHrComment } from '../api/candidates';
+import { getCandidateById, patchCandidateApplicationStatus, postCandidateHrStageComment } from '../api/candidates';
 import { APPLICATION_STATUS_OPTIONS, parseApplicationStatus } from '../constants/applicationStatus';
 import {
   HR_STAGE_DEFS,
-  emptyHrStageComments,
+  latestStageComment,
   type HrStageDef,
   type HrStageKey,
 } from '../constants/hrStages.ts';
-import type { ApplicationStatus, Candidate } from '../types/api';
+import type { ApplicationStatus, Candidate, HrStageCommentEntry } from '../types/api';
 import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import './CandidateDetailPage.css';
 
-type StageDraftMap = Record<HrStageKey, string>;
-
-function hrCommentsFromCandidate(c: Candidate): StageDraftMap {
-  const out = emptyHrStageComments();
-  const s = c.hr_stage_comments;
-  if (!s) return out;
-  for (const def of HR_STAGE_DEFS as readonly HrStageDef[]) {
-    const key = def.key;
-    const v = s[key];
-    out[key] = typeof v === 'string' ? v : '';
-  }
-  return out;
-}
-
-function hrCommentsDirty(saved: StageDraftMap, draft: StageDraftMap): boolean {
-  return (HR_STAGE_DEFS as readonly HrStageDef[]).some(
-    (def: HrStageDef) =>
-      (saved[def.key] ?? '').trim() !== (draft[def.key] ?? '').trim()
-  );
+function entriesForStage(c: Candidate, key: HrStageKey): HrStageCommentEntry[] {
+  const s = c.hr_stage_comments?.[key];
+  return Array.isArray(s) ? s : [];
 }
 
 type CandidateDetailLocationState = {
@@ -59,20 +43,24 @@ export default function CandidateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCustomFields, setShowCustomFields] = useState(false);
-  const [stageDrafts, setStageDrafts] = useState<StageDraftMap>(emptyHrStageComments());
+  const [newCommentText, setNewCommentText] = useState('');
   const [selectedHrStage, setSelectedHrStage] = useState<HrStageKey>('pre_screening');
   const [hrStageMenuOpen, setHrStageMenuOpen] = useState(false);
+  const [hrHistoryOpen, setHrHistoryOpen] = useState(false);
   const [commentSaving, setCommentSaving] = useState(false);
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const didScrollToHrComment = useRef(false);
   const hrStageSelectRef = useRef<HTMLDivElement>(null);
+  const hrLatestBlockRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     didScrollToHrComment.current = false;
     setSelectedHrStage('pre_screening');
     setHrStageMenuOpen(false);
+    setHrHistoryOpen(false);
+    setNewCommentText('');
   }, [id]);
 
   useEffect(() => {
@@ -84,6 +72,23 @@ export default function CandidateDetailPage() {
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
   }, [hrStageMenuOpen]);
+
+  useEffect(() => {
+    if (!hrHistoryOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = hrLatestBlockRef.current;
+      if (el && !el.contains(e.target as Node)) setHrHistoryOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [hrHistoryOpen]);
+
+  const stageHasLatestComment =
+    !!candidate && !!latestStageComment(entriesForStage(candidate, selectedHrStage));
+
+  useEffect(() => {
+    if (!stageHasLatestComment) setHrHistoryOpen(false);
+  }, [stageHasLatestComment, selectedHrStage]);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -102,7 +107,6 @@ export default function CandidateDetailPage() {
         }
         const data = await getCandidateById(candidateId);
         setCandidate(data);
-        setStageDrafts(hrCommentsFromCandidate(data));
       } catch (err: unknown) {
         setError(apiErrorMessage(err, 'Failed to load candidate details'));
       } finally {
@@ -169,25 +173,21 @@ export default function CandidateDetailPage() {
 
   const hasCustomFields = candidate.custom_fields && Object.keys(candidate.custom_fields).length > 0;
 
-  const setStageField = (key: HrStageKey, value: string) => {
-    setStageDrafts((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSaveHrComment = async () => {
+  const handleAddHrStageComment = async () => {
     if (!candidate) return;
+    const text = newCommentText.trim();
+    if (!text) return;
     setCommentSaving(true);
     setCommentError(null);
     try {
-      const updated = await patchCandidateHrComment(candidate.id, {
-        pre_screening: stageDrafts.pre_screening,
-        technical_interview: stageDrafts.technical_interview,
-        hr_interview: stageDrafts.hr_interview,
-        offer_stage: stageDrafts.offer_stage,
+      const updated = await postCandidateHrStageComment(candidate.id, {
+        stage: selectedHrStage,
+        text,
       });
       setCandidate(updated);
-      setStageDrafts(hrCommentsFromCandidate(updated));
+      setNewCommentText('');
     } catch (err: unknown) {
-      setCommentError(apiErrorMessage(err, 'Failed to save comments'));
+      setCommentError(apiErrorMessage(err, 'Failed to add comment'));
     } finally {
       setCommentSaving(false);
     }
@@ -212,8 +212,13 @@ export default function CandidateDetailPage() {
     }
   };
 
-  const savedHrComments = hrCommentsFromCandidate(candidate);
   const headerApplicationStatus = parseApplicationStatus(candidate.application_status);
+  const selectedEntries = entriesForStage(candidate, selectedHrStage);
+  const selectedLatest = latestStageComment(selectedEntries);
+  const selectedEarlier =
+    selectedEntries.length > 1
+      ? selectedEntries.slice(0, -1).reverse()
+      : [];
   const selectedStageLabel =
     (HR_STAGE_DEFS as readonly HrStageDef[]).find((def: HrStageDef) => def.key === selectedHrStage)
       ?.label ?? 'this stage';
@@ -466,8 +471,7 @@ export default function CandidateDetailPage() {
             <h2>HR comments</h2>
           </div>
           <p className="hr-comment-hint">
-            Choose a pipeline stage and add notes below, then save comments. Pick a status beside
-            the stage control — it saves immediately. Not filled from file uploads.
+            Add a comment and track your comment history for each stage.
           </p>
           <div className="hr-stage-and-status-row">
             <div className="hr-stage-selector-group">
@@ -512,6 +516,8 @@ export default function CandidateDetailPage() {
                           onClick={() => {
                             setSelectedHrStage(def.key);
                             setHrStageMenuOpen(false);
+                            setHrHistoryOpen(false);
+                            setNewCommentText('');
                           }}
                         >
                           {def.label}
@@ -552,24 +558,73 @@ export default function CandidateDetailPage() {
               {statusError}
             </p>
           )}
+          {selectedLatest && (
+            <div
+              className={`hr-stage-latest-block${selectedEarlier.length > 0 ? ' has-history' : ''}`}
+              aria-live="polite"
+              ref={hrLatestBlockRef}
+            >
+              <div className="hr-stage-latest-inner">
+                <div className="hr-stage-latest-label">Latest</div>
+                <time className="hr-stage-latest-meta" dateTime={selectedLatest.created_at}>
+                  {formatDate(selectedLatest.created_at)}
+                </time>
+                <p className="hr-stage-latest-text">{selectedLatest.text}</p>
+              </div>
+              {selectedEarlier.length > 0 && (
+                <div className="hr-stage-latest-actions">
+                  <button
+                    type="button"
+                    className={`hr-stage-history-chevron${hrHistoryOpen ? ' is-open' : ''}`}
+                    aria-expanded={hrHistoryOpen}
+                    aria-label={`Earlier comments, ${selectedEarlier.length} entries`}
+                    title="Earlier comments"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHrHistoryOpen((o) => !o);
+                    }}
+                  >
+                    <span aria-hidden>▼</span>
+                  </button>
+                  {hrHistoryOpen && (
+                    <div className="hr-stage-history-dropdown" role="region" aria-label="Earlier comments">
+                      <ul className="hr-stage-history-dropdown-list">
+                        {selectedEarlier.map((e) => (
+                          <li key={e.id} className="hr-stage-history-dropdown-item">
+                            <time className="hr-stage-history-date" dateTime={e.created_at}>
+                              {formatDate(e.created_at)}
+                            </time>
+                            <p className="hr-stage-history-text">{e.text}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <label className="hr-comment-add-label" htmlFor="hr-comment-textarea">
+            Add a comment
+          </label>
           <textarea
             id="hr-comment-textarea"
             className="hr-comment-textarea"
-            value={stageDrafts[selectedHrStage]}
-            onChange={(e) => setStageField(selectedHrStage, e.target.value)}
-            placeholder={`Add notes for ${selectedStageLabel}…`}
-            rows={6}
+            value={newCommentText}
+            onChange={(e) => setNewCommentText(e.target.value)}
+            placeholder={`Add an update for ${selectedStageLabel}…`}
+            rows={4}
             maxLength={10000}
-            aria-label={`HR comment for ${selectedStageLabel}`}
+            aria-label={`New HR comment for ${selectedStageLabel}`}
           />
           <div className="hr-comment-footer">
             <button
               type="button"
               className="hr-comment-save-btn"
-              onClick={handleSaveHrComment}
-              disabled={commentSaving || !hrCommentsDirty(savedHrComments, stageDrafts)}
+              onClick={() => void handleAddHrStageComment()}
+              disabled={commentSaving || !newCommentText.trim()}
             >
-              {commentSaving ? 'Saving…' : 'Save comments'}
+              {commentSaving ? 'Adding…' : 'Add comment'}
             </button>
             {commentError && (
               <span className="hr-comment-error" role="alert">

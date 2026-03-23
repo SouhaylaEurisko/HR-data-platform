@@ -12,12 +12,16 @@ from .candidate import (
     CandidateApplicationStatusUpdate,
     CandidateBase,
     CandidateCreate,
-    CandidateHrCommentUpdate,
     CandidateRead,
     CandidateListResponse,
-    HrStageCommentsRead,
     LookupOptionLabel,
     RelatedApplicationSummary,
+)
+from .candidate_stage_comment import (
+    CandidateHrStageCommentCreate,
+    CandidateStageComment,
+    HrStageCommentEntryRead,
+    HrStageCommentsRead,
 )
 from .chat import (
     QuestionClassification,
@@ -62,7 +66,9 @@ __all__ = [
     "CandidateApplicationStatusUpdate",
     "CandidateBase",
     "CandidateCreate",
-    "CandidateHrCommentUpdate",
+    "CandidateHrStageCommentCreate",
+    "CandidateStageComment",
+    "HrStageCommentEntryRead",
     "HrStageCommentsRead",
     "CandidateRead",
     "CandidateListResponse",

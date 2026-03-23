@@ -27,6 +27,12 @@ interface ChatMessage {
   response?: AgentResponseData | null;
 }
 
+/** Comparison reply already states the pick; skip duplicate summary paragraph. */
+function shouldShowResponseSummary(intent: string | undefined): boolean {
+  if (!intent) return true;
+  return intent !== 'candidate_comparison';
+}
+
 // Helper functions for localStorage persistence
 const saveMessagesToStorage = (messages: ChatMessage[]) => {
   try {
@@ -334,7 +340,10 @@ export default function ChatPage() {
             <div className="empty-state">
               <div className="empty-icon">💬</div>
               <h2>Start a conversation</h2>
-              <p>Ask me anything about candidates in the database.</p>
+              <p>
+                Search candidates, ask for stats, compare applicants for a role, or request HR stage feedback
+                for someone by name.
+              </p>
             </div>
           ) : (
             <div className="messages-list">
@@ -364,15 +373,16 @@ export default function ChatPage() {
 
                     {message.response && message.response.intent && message.response.intent !== 'chitchat' && (
                       <div className="response-details">
-                        {/* Summary paragraph */}
-                        {message.response.summary && (
+                        {message.response.summary && shouldShowResponseSummary(message.response.intent) && (
                           <div className="summary-section">
                             <p className="summary-text">{message.response.summary}</p>
                           </div>
                         )}
 
-                        {/* Total found */}
-                        {message.response.total_found != null && message.response.total_found > 0 && (
+                        {/* Total found (hidden for comparison — single recommended card uses its own heading) */}
+                        {message.response.intent !== 'candidate_comparison' &&
+                          message.response.total_found != null &&
+                          message.response.total_found > 0 && (
                           <div className="matches-info">
                             <strong>{message.response.total_found}</strong> candidate
                             {message.response.total_found !== 1 ? 's' : ''} found
@@ -405,7 +415,11 @@ export default function ChatPage() {
                         {/* Candidate rows */}
                         {message.response.candidates && message.response.candidates.length > 0 && (
                           <div className="candidates-preview">
-                            <h3>Candidates:</h3>
+                            <h3>
+                              {message.response.intent === 'candidate_comparison'
+                                ? 'Recommended candidate'
+                                : 'Candidates:'}
+                            </h3>
                             <div className="candidates-grid">
                               {message.response.candidates.map((candidate: any, ci: number) => (
                                 <div

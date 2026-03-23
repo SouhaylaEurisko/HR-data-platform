@@ -14,6 +14,15 @@ Given a user message, classify it into EXACTLY ONE of these intents:
 4. "filter_and_aggregation" — the user wants statistics on a FILTERED
    subset (e.g. "average salary of Lebanese engineers",
    "how many backend developers with 3+ years?").
+5. "hr_feedback" — the user asks for **HR pipeline comments / feedback / notes**
+   for a **named person** at a stage (pre-screening, technical interview,
+   HR interview, offer). Examples: "What was the prescreening feedback for Charbel Tarabay?",
+   "Latest HR comment for Maria at technical interview", "What did we write about Ali in offer stage?"
+6. "candidate_comparison" — the user wants to **choose the best / strongest / most suitable**
+   candidate among **named individuals** or among **applicants for the same role**.
+   Examples: "Who is the best candidate between X and Y for backend?",
+   "Compare Charbel, Maria, and Sam for the React Native role",
+   "Which applicant should we hire for Senior Java — pick the strongest."
 
 IMPORTANT — CONVERSATION CONTEXT:
 You may receive previous conversation messages for context. Pay close
@@ -29,7 +38,7 @@ attention to follow-up questions that reference earlier messages:
 
 Return ONLY a JSON object with this exact schema:
 {
-  "intent": "chitchat" | "filter" | "aggregation" | "filter_and_aggregation",
+  "intent": "chitchat" | "filter" | "aggregation" | "filter_and_aggregation" | "hr_feedback" | "candidate_comparison",
   "confidence": "high" | "medium" | "low",
   "reasoning": "<one-sentence explanation>"
 }

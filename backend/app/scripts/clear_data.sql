@@ -9,12 +9,9 @@
 TRUNCATE TABLE
   messages,
   conversation,
+  candidate_stage_comment,
   candidate,
   import_session,
   custom_field_definition,
-  lookup_option,
-  user_account,
-  lookup_category,
-  organization
 RESTART IDENTITY
 CASCADE;

@@ -17,11 +17,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..config.database import Base
-from ..data.hr_stage_comments import normalize_hr_stage_comments_for_read
+from .candidate_stage_comment import HrStageCommentsRead
 from .enums import ApplicationStatus, RelocationOpenness
-
-_MAX_HR_STAGE_COMMENT_LEN = 10000
-
 
 def _application_status_from_orm(candidate: Any) -> Optional[ApplicationStatus]:
     raw = getattr(candidate, "application_status", None)
@@ -94,9 +91,7 @@ class Candidate(Base):
     custom_fields = Column(JSONB, server_default="{}")
     raw_import_data = Column(JSONB, nullable=True)
 
-    # -- HR (UI only; not set by import) --
-    hr_comment = Column(Text, nullable=True)  # legacy; merged into hr_stage_comments in API
-    hr_stage_comments = Column(JSONB, nullable=False, server_default="{}")
+    # -- HR (UI only; not set by import) — timeline lives in candidate_stage_comment --
     application_status = Column(String(32), nullable=True, index=True)
 
     # -- Audit --
@@ -177,40 +172,10 @@ class RelatedApplicationSummary(BaseModel):
     created_at: datetime
 
 
-class HrStageCommentsRead(BaseModel):
-    pre_screening: str = ""
-    technical_interview: str = ""
-    hr_interview: str = ""
-    offer_stage: str = ""
-
-
 class CandidateApplicationStatusUpdate(BaseModel):
     """PATCH body: application status only (separate from HR comments save)."""
 
     application_status: ApplicationStatus
-
-
-class CandidateHrCommentUpdate(BaseModel):
-    """PATCH body: all four stages (empty string clears a stage)."""
-
-    pre_screening: str = ""
-    technical_interview: str = ""
-    hr_interview: str = ""
-    offer_stage: str = ""
-
-    @field_validator(
-        "pre_screening",
-        "technical_interview",
-        "hr_interview",
-        "offer_stage",
-        mode="before",
-    )
-    @classmethod
-    def _trim_and_cap(cls, v: Any) -> str:
-        if v is None:
-            return ""
-        s = str(v).strip()
-        return s[:_MAX_HR_STAGE_COMMENT_LEN] if len(s) > _MAX_HR_STAGE_COMMENT_LEN else s
 
 
 class CandidateRead(CandidateBase):
@@ -250,6 +215,7 @@ class CandidateRead(CandidateBase):
         cls,
         candidate: "Candidate",
         *,
+        hr_stage_comments: HrStageCommentsRead,
         import_filename: Optional[str] = None,
         application_index: Optional[int] = None,
         application_total: Optional[int] = None,
@@ -296,12 +262,7 @@ class CandidateRead(CandidateBase):
             education_completion_status_id=candidate.education_completion_status_id,
             custom_fields=candidate.custom_fields or {},
             raw_import_data=candidate.raw_import_data,
-            hr_stage_comments=HrStageCommentsRead(
-                **normalize_hr_stage_comments_for_read(
-                    hr_stage_comments=getattr(candidate, "hr_stage_comments", None),
-                    legacy_hr_comment=candidate.hr_comment,
-                )
-            ),
+            hr_stage_comments=hr_stage_comments,
             application_status=_application_status_from_orm(candidate),
             created_at=candidate.created_at,
             updated_at=candidate.updated_at,

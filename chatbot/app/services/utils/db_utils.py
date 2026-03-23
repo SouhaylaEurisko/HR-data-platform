@@ -67,6 +67,15 @@ TABLE lookup_category (
   code  VARCHAR(100),   -- e.g. 'workplace_type', 'employment_type', 'education_level'
   label VARCHAR(255)
 )
+
+TABLE candidate_stage_comment (
+  id               INTEGER PRIMARY KEY,
+  candidate_id     INTEGER NOT NULL,  -- -> candidate.id
+  organization_id  INTEGER NOT NULL,
+  stage_key        VARCHAR(64),       -- pre_screening | technical_interview | hr_interview | offer_stage
+  entries          JSONB,             -- array of {"text": "...", "created_at": "ISO-8601"} oldest->newest
+  updated_at       TIMESTAMPTZ
+)
 """.strip()
 
 

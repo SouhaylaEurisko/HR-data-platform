@@ -32,7 +32,8 @@ export const API_ENDPOINTS = {
   // Candidate endpoints
   candidates: `${API_BASE_URL}/api/candidates`,
   candidateById: (id: number) => `${API_BASE_URL}/api/candidates/${id}`,
-  candidateHrComment: (id: number) => `${API_BASE_URL}/api/candidates/${id}/hr-comment`,
+  candidateHrStageComments: (id: number) =>
+    `${API_BASE_URL}/api/candidates/${id}/hr-stage-comments`,
   candidateApplicationStatus: (id: number) =>
     `${API_BASE_URL}/api/candidates/${id}/application-status`,
   

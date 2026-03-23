@@ -15,6 +15,8 @@ from ..chit_chat_agent import ChitChatAgent
 from ..filter_agent import FilterAgent
 from ..aggregation_agent import AggregationAgent
 from ..filter_aggregation_agent import FilterAggregationAgent
+from ..hr_feedback_agent import HrFeedbackAgent
+from ..candidate_comparison_agent import CandidateComparisonAgent
 from ....config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,8 @@ class FlowAgent:
         self.filter = FilterAgent()
         self.aggregation = AggregationAgent()
         self.filter_agg = FilterAggregationAgent()
+        self.hr_feedback = HrFeedbackAgent()
+        self.candidate_comparison = CandidateComparisonAgent()
 
     async def process(
         self,
@@ -120,6 +124,40 @@ class FlowAgent:
                 total_found=result.total_found,
                 sql=result.filter_sql,
                 explanation=result.explanation,
+            )
+
+        elif intent == "hr_feedback":
+            r = await self.hr_feedback.process(
+                message,
+                db,
+                chatbot_logger=chatbot_logger,
+                conversation_history=history,
+            )
+            flow_result = FlowResult(
+                intent=intent,
+                reply=r["reply"],
+                summary=r.get("summary"),
+                rows=r.get("rows"),
+                total_found=r.get("total_found"),
+                sql=r.get("sql"),
+                explanation=r.get("explanation"),
+            )
+
+        elif intent == "candidate_comparison":
+            r = await self.candidate_comparison.process(
+                message,
+                db,
+                chatbot_logger=chatbot_logger,
+                conversation_history=history,
+            )
+            flow_result = FlowResult(
+                intent=intent,
+                reply=r["reply"],
+                summary=r.get("summary"),
+                rows=r.get("rows"),
+                total_found=r.get("total_found"),
+                sql=r.get("sql"),
+                explanation=r.get("explanation"),
             )
 
         else:

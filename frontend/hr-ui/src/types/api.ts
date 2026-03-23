@@ -16,12 +16,19 @@ export interface RelatedApplicationSummary {
   created_at: string;
 }
 
-/** HR notes per pipeline stage (API read shape). */
+/** One timestamped HR note for a pipeline stage (append-only). */
+export interface HrStageCommentEntry {
+  id: number;
+  text: string;
+  created_at: string;
+}
+
+/** HR notes per pipeline stage: chronological list (oldest → newest). */
 export interface HrStageComments {
-  pre_screening: string;
-  technical_interview: string;
-  hr_interview: string;
-  offer_stage: string;
+  pre_screening: HrStageCommentEntry[];
+  technical_interview: HrStageCommentEntry[];
+  hr_interview: HrStageCommentEntry[];
+  offer_stage: HrStageCommentEntry[];
 }
 
 export interface Candidate {

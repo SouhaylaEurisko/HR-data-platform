@@ -5,19 +5,29 @@ HTTP list endpoint exposes name + position only; optional kwargs support chat-ri
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm.attributes import flag_modified
 
 from ..models.candidate import (
     Candidate,
     CandidateApplicationStatusUpdate,
-    CandidateHrCommentUpdate,
     CandidateListResponse,
     CandidateRead,
     RelatedApplicationSummary,
+)
+from ..models.candidate_stage_comment import (
+    CandidateHrStageCommentCreate,
+    CandidateStageComment,
+    empty_hr_stage_comments_read,
+)
+from .candidate_stage_comments import (
+    fetch_hr_stage_comments_for_candidate,
+    fetch_hr_stage_comments_for_candidate_ids,
 )
 
 _LOOKUP_EAGER_LIST = (
@@ -214,7 +224,17 @@ def list_candidates(
         .limit(page_size)
     )
     rows = data_q.all()
-    items = [CandidateRead.from_orm_with_lookups(c) for c in rows]
+    ids = [c.id for c in rows]
+    latest_by_id = fetch_hr_stage_comments_for_candidate_ids(
+        db, org_id=org_id, candidate_ids=ids, latest_only=True
+    )
+    items = [
+        CandidateRead.from_orm_with_lookups(
+            c,
+            hr_stage_comments=latest_by_id.get(c.id, empty_hr_stage_comments_read()),
+        )
+        for c in rows
+    ]
 
     return CandidateListResponse(
         items=items,
@@ -224,13 +244,13 @@ def list_candidates(
     )
 
 
-def update_candidate_hr_comment(
+def append_candidate_hr_stage_comment(
     db: Session,
     candidate_id: int,
     org_id: int,
-    body: CandidateHrCommentUpdate,
+    body: CandidateHrStageCommentCreate,
 ) -> Optional[CandidateRead]:
-    """Replace staged HR comments (UI only). Clears legacy hr_comment."""
+    """Append one object to the JSONB `entries` array for (candidate, stage)."""
     candidate = (
         db.query(Candidate)
         .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
@@ -238,10 +258,33 @@ def update_candidate_hr_comment(
     )
     if candidate is None:
         return None
-    candidate.hr_stage_comments = body.model_dump()
-    candidate.hr_comment = None
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    new_item = {"text": body.text, "created_at": now}
+    existing = (
+        db.query(CandidateStageComment)
+        .filter(
+            CandidateStageComment.candidate_id == candidate_id,
+            CandidateStageComment.organization_id == org_id,
+            CandidateStageComment.stage_key == body.stage,
+        )
+        .with_for_update()
+        .first()
+    )
+    if existing:
+        entries = list(existing.entries) if isinstance(existing.entries, list) else []
+        entries.append(new_item)
+        existing.entries = entries
+        flag_modified(existing, "entries")
+    else:
+        db.add(
+            CandidateStageComment(
+                candidate_id=candidate_id,
+                organization_id=org_id,
+                stage_key=body.stage,
+                entries=[new_item],
+            )
+        )
     db.commit()
-    db.refresh(candidate)
     return get_candidate_by_id(db, candidate_id, org_id=org_id)
 
 
@@ -288,8 +331,12 @@ def get_candidate_by_id(
         candidate_id=candidate_id,
         email=candidate.email,
     )
+    hr_comments = fetch_hr_stage_comments_for_candidate(
+        db, org_id=org_id, candidate_id=candidate_id
+    )
     return CandidateRead.from_orm_with_lookups(
         candidate,
+        hr_stage_comments=hr_comments,
         import_filename=import_filename,
         application_index=app_idx,
         application_total=app_total,

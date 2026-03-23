@@ -12,15 +12,15 @@ from sqlalchemy.orm import Session
 from ..config import get_db
 from ..models import (
     CandidateApplicationStatusUpdate,
-    CandidateHrCommentUpdate,
+    CandidateHrStageCommentCreate,
     CandidateListResponse,
     CandidateRead,
 )
 from ..services.candidate_service import (
+    append_candidate_hr_stage_comment,
     get_candidate_by_id,
     list_candidates,
     update_candidate_application_status,
-    update_candidate_hr_comment,
 )
 
 router = APIRouter(prefix="/api/candidates", tags=["candidates"])
@@ -56,14 +56,14 @@ def list_candidates_endpoint(
     )
 
 
-@router.patch("/{candidate_id}/hr-comment", response_model=CandidateRead)
-def patch_candidate_hr_comment(
+@router.post("/{candidate_id}/hr-stage-comments", response_model=CandidateRead)
+def post_candidate_hr_stage_comment(
     candidate_id: int,
-    body: CandidateHrCommentUpdate,
+    body: CandidateHrStageCommentCreate,
     org_id: int = Query(1, description="Organization ID"),
     db: Session = Depends(get_db),
 ) -> CandidateRead:
-    result = update_candidate_hr_comment(db, candidate_id, org_id=org_id, body=body)
+    result = append_candidate_hr_stage_comment(db, candidate_id, org_id=org_id, body=body)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
     return result

@@ -1,8 +1,8 @@
 from .candidate_service import (
+    append_candidate_hr_stage_comment,
     list_candidates,
     get_candidate_by_id,
     update_candidate_application_status,
-    update_candidate_hr_comment,
 )
 from .import_service import (
     load_workbook_from_file,
@@ -18,7 +18,7 @@ __all__ = [
     "list_candidates",
     "get_candidate_by_id",
     "update_candidate_application_status",
-    "update_candidate_hr_comment",
+    "append_candidate_hr_stage_comment",
     "load_workbook_from_file",
     "preview_workbook",
     "analyze_workbook",
