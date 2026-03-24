@@ -25,7 +25,7 @@ TABLE candidate (
   current_address                 TEXT,
   number_of_dependents            SMALLINT,
   religion_sect                   VARCHAR(100),
-  has_transportation              BOOLEAN,
+  has_transportation              transportation_availability,  -- yes | no | only_open_for_remote_opportunities
   applied_position                VARCHAR(255),
   applied_position_location       VARCHAR(255),
   is_open_for_relocation          relocation_openness,  -- yes | no | for_missions_only

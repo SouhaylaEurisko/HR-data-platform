@@ -14,6 +14,17 @@ class RelocationOpenness(str, Enum):
     for_missions_only = "for_missions_only"
 
 
+class TransportationAvailability(str, Enum):
+    """
+    Stored in PostgreSQL as type transportation_availability.
+    Display labels: YES, NO, Only Open for Remote Opportunities.
+    """
+
+    yes = "yes"
+    no = "no"
+    only_open_for_remote_opportunities = "only_open_for_remote_opportunities"
+
+
 class ApplicationStatus(str, Enum):
     """HR-facing pipeline outcome; stored as VARCHAR on candidate.application_status."""
 

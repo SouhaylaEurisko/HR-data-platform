@@ -1,0 +1,2118 @@
+
+====================================================================================================
+
+REQUEST_ID:       ad76330e-8fc2-4b04-8e92-c761f3c43903
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T08:45:39.191866+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     1
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me a list of all backend developers
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user explicitly requests a list of candidates filtered by the backend developer role.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           give me a list of all backend developers
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c.education_completion_status_id = ecs.id WHERE c.applied_position ILIKE '%backend%' ORDER BY c.created_at DESC L...
+  Explanation:          This query retrieves up to 20 candidates who applied for backend developer positions, including their workplace type, employment type, education level, and education completion status labels, ordered by the most recently created records.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           3
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         3
+
+    1. Full Name: Tony Youssef Nasrallah | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1000.0 | Current Address: Mansouriyeh, Metn
+    2. Full Name: Georges Khalife | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 5.0 | Current Address: Jbeil
+    3. Full Name: Elias Saker | Applied Position: Backend Developer, Full Stack Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Expected Salary Onsite: 1200.0 | Current Address: Metn, Bayada
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          3
+  Summary:              Three backend developers were identified, all Lebanese nationals with experience ranging from 1 to 5 years. Positions include Backend Developer exclusively, with one candidate also holding a Full Stack Developer role. Locations vary within Lebanon, including Mansouriyeh, Jbeil, and Metn.
+  Reply:                Here are the candidates matching your search:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me a list of all backend developers
+  Output:               intent: filter
+
+REQUEST ad76330e-8fc2-4b04-8e92-c761f3c43903 COMPLETED AT 2026-03-23T08:45:47.160101+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       6189125a-a43e-4625-8024-970743174bda
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T08:46:28.780225+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     3
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                who is the better fit for this position
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         who is the better fit for this position
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         who is the better fit for this position
+  Classification Result:
+    Intent:             candidate_comparison
+    Confidence:         medium
+    Reasoning:          The user is asking to identify the better fit among candidates for a position, implying a comparison, but no specific candidates are named.
+
+====================================================================================================
+  CANDIDATE COMPARISON
+====================================================================================================
+
+  User Message:         who is the better fit for this position
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                who is the better fit for this position
+  Output:               intent: candidate_comparison
+
+REQUEST 6189125a-a43e-4625-8024-970743174bda COMPLETED AT 2026-03-23T08:46:35.175095+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       22131ffa-96b1-4d10-8f2a-307b6bda9221
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T09:01:32.950374+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     5
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is the latest feedback for Georges Khalife
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is the latest feedback for Georges Khalife
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is the latest feedback for Georges Khalife
+  Classification Result:
+    Intent:             hr_feedback
+    Confidence:         high
+    Reasoning:          The user explicitly asks for the latest HR feedback for a named candidate, Georges Khalife.
+
+====================================================================================================
+  HR FEEDBACK
+====================================================================================================
+
+  User Message:         what is the latest feedback for Georges Khalife
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is the latest feedback for Georges Khalife
+  Output:               intent: hr_feedback
+
+REQUEST 22131ffa-96b1-4d10-8f2a-307b6bda9221 COMPLETED AT 2026-03-23T09:01:35.875104+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       c82332c1-acfb-45f7-aa0c-7dd5629180ad
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T09:05:44.420788+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     7
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is the latest feedback for Georges Khalife
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is the latest feedback for Georges Khalife
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is the latest feedback for Georges Khalife
+  Classification Result:
+    Intent:             hr_feedback
+    Confidence:         high
+    Reasoning:          The user explicitly asks for the latest HR feedback for a named candidate, Georges Khalife.
+
+====================================================================================================
+  HR FEEDBACK
+====================================================================================================
+
+  User Message:         what is the latest feedback for Georges Khalife
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is the latest feedback for Georges Khalife
+  Output:               intent: hr_feedback
+
+REQUEST c82332c1-acfb-45f7-aa0c-7dd5629180ad COMPLETED AT 2026-03-23T09:05:46.877468+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       f410b39c-2fc6-4eb6-a113-5c7725be3d6b
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T09:06:13.234950+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     9
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is the latest feedback for Elias Saker
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is the latest feedback for Elias Saker
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is the latest feedback for Elias Saker
+  Classification Result:
+    Intent:             hr_feedback
+    Confidence:         high
+    Reasoning:          The user explicitly asks for the latest HR feedback for a named candidate, Elias Saker.
+
+====================================================================================================
+  HR FEEDBACK
+====================================================================================================
+
+  User Message:         what is the latest feedback for Elias Saker
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is the latest feedback for Elias Saker
+  Output:               intent: hr_feedback
+
+REQUEST f410b39c-2fc6-4eb6-a113-5c7725be3d6b COMPLETED AT 2026-03-23T09:06:15.628373+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       707dea11-35ab-47c0-b350-74e6265013bf
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T10:15:11.479977+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                list of BA candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         list of BA candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         list of BA candidates
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user is requesting a list of candidates with the BA (Business Analyst) role, which is a filtering request.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           list of BA candidates
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c.education_completion_status_id = ecs.id WHERE c.applied_position ILIKE '%ba%' ORDER BY c.created_at DESC LIMIT ...
+  Explanation:          This query retrieves all candidates who have applied for positions with 'BA' in the title, including their lookup labels, ordered by the most recently created applications.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           20
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         20
+
+    1. Full Name: Eliana Akiki | Applied Position: Backend | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1600.0 | Current Address: Zouk mosbeh
+    2. Full Name: Laury Dawra | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 8.0 | Expected Salary Onsite: 2500.0 | Current Address: Aajltoun
+    3. Full Name: John Moumdjian | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 8.0 | Expected Salary Onsite: 2500.0 | Current Address: Biyada
+    4. Full Name: Sarah Jabbour | Applied Position: BA internal | Nationality: lebanese | Years Of Experience: 6.0 | Expected Salary Onsite: 2000.0 | Current Address: jBEIL
+    5. Full Name: Andrew eid | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 6.0 | Expected Salary Onsite: 2500.0 | Current Address: Hadath, feytroun
+    6. Full Name: Anis Sahih | Applied Position: Senior BA | Nationality: Lebanese | Years Of Experience: 5.0 | Expected Salary Onsite: 3000.0 | Current Address: Mansourieh
+    7. Full Name: Sandy Semaan | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 2.5 | Expected Salary Onsite: 1500.0 | Current Address: Zalka
+    8. Full Name: Mireille Chbeyaa | Applied Position: Senior BA | Nationality: Lebanese | Years Of Experience: 16.0 | Expected Salary Onsite: 3200.0 | Current Address: Beit L chaar
+    9. Full Name: Mona Boji | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 17.0 | Expected Salary Onsite: 3400.0 | Current Address: Bsalim
+    10. Full Name: Rana Abou Ghazaleh | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 10.0 | Current Address: safra
+    ... and 10 more rows
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          20
+  Summary:              A total of 20 candidates were found, predominantly Lebanese nationals, with roles primarily as Business Analysts (BA) or Senior BAs. Experience levels vary widely, ranging from 1 to 17 years, with most candidates having between 5 to 10 years of experience. Salary details are not provided, but the candidates are distributed across various locations in Lebanon.
+  Reply:                Here are the candidates matching your search for Business Analysts:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                list of BA candidates
+  Output:               intent: filter
+
+REQUEST 707dea11-35ab-47c0-b350-74e6265013bf COMPLETED AT 2026-03-23T10:15:18.323990+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       e4c2a05c-3b0d-4b73-8ea1-6c1aefade023
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T11:01:08.971566+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                list of BA candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         list of BA candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         list of BA candidates
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          The user explicitly requests a list of candidates for the Business Analyst (BA) role, which is a filtering request.
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           list of BA candidates
+  Generated Sql:        SELECT c.*, wt.label AS workplace_type_label, et.label AS employment_type_label, ed.label AS education_level_label, ecs.label AS education_completion_status_label FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id LEFT JOIN lookup_option et ON c.employment_type_id = et.id LEFT JOIN lookup_option ed ON c.education_level_id = ed.id LEFT JOIN lookup_option ecs ON c.education_completion_status_id = ecs.id WHERE (c.applied_position ~* '\mBA\M' OR c.applied_position ILIKE '%bus...
+  Explanation:          Selects candidates who applied for positions matching 'BA' as a whole word or 'business analyst' in their applied_position, including lookup labels, ordered by newest applications.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           20
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         20
+
+    1. Full Name: Andrew eid | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 6.0 | Expected Salary Onsite: 2500.0 | Current Address: Hadath, feytroun
+    2. Full Name: Anis Sahih | Applied Position: Senior BA | Nationality: Lebanese | Years Of Experience: 5.0 | Expected Salary Onsite: 3000.0 | Current Address: Mansourieh
+    3. Full Name: Sandy Semaan | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 2.5 | Expected Salary Onsite: 1500.0 | Current Address: Zalka
+    4. Full Name: Mireille Chbeyaa | Applied Position: Senior BA | Nationality: Lebanese | Years Of Experience: 16.0 | Expected Salary Onsite: 3200.0 | Current Address: Beit L chaar
+    5. Full Name: Mona Boji | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 17.0 | Expected Salary Onsite: 3400.0 | Current Address: Bsalim
+    6. Full Name: Rana Abou Ghazaleh | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 10.0 | Current Address: safra
+    7. Full Name: Carmen bou abboud | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 18.0 | Expected Salary Onsite: 4000.0 | Current Address: RABWEH
+    8. Full Name: David Hayek | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 13.0 | Expected Salary Onsite: 2400.0 | Current Address: Jounieh
+    9. Full Name: Hicham Khrayzat | Applied Position: Senior BA | Nationality: Lebanese | Years Of Experience: 4.0 | Expected Salary Onsite: 2800.0 | Current Address: beirut
+    10. Full Name: Laury Dawra | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 8.0 | Expected Salary Onsite: 2500.0 | Current Address: Aajltoun
+    ... and 10 more rows
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          20
+  Summary:              A total of 20 Business Analyst candidates were identified, all Lebanese nationals with experience ranging from 2.5 to 18 years. Positions include BA, Senior BA, and BA internal roles, with most candidates based in various locations across Lebanon. The group demonstrates a broad range of experience levels, predominantly mid to senior level.
+  Reply:                Here are the candidates matching your search:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                list of BA candidates
+  Output:               intent: filter
+
+REQUEST e4c2a05c-3b0d-4b73-8ea1-6c1aefade023 COMPLETED AT 2026-03-23T11:01:16.787691+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       426ecb5d-192e-42bf-8455-2dfc6c4c6184
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T11:02:37.973575+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me the most qualified candidate
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me the most qualified candidate
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         give me the most qualified candidate
+  Classification Result:
+    Intent:             candidate_comparison
+    Confidence:         low
+    Reasoning:          The user asks for the most qualified candidate without specifying names or a role, indicating a vague comparison intent.
+
+====================================================================================================
+  CANDIDATE COMPARISON
+====================================================================================================
+
+  User Message:         give me the most qualified candidate
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                give me the most qualified candidate
+  Output:               intent: candidate_comparison
+
+REQUEST 426ecb5d-192e-42bf-8455-2dfc6c4c6184 COMPLETED AT 2026-03-23T11:02:40.064105+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       296c2128-7f1b-4248-bdbd-96c777962c86
+USER_ID:          1
+CONVERSATION_ID:  3
+TIMESTAMP:        2026-03-23T11:03:11.156941+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                for BA positions
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         for BA positions
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         for BA positions
+  Classification Result:
+    Intent:             candidate_comparison
+    Confidence:         medium
+    Reasoning:          User wants to identify the most qualified candidate among Business Analyst applicants, implying a comparison within a filtered role.
+
+====================================================================================================
+  CANDIDATE COMPARISON
+====================================================================================================
+
+  User Message:         for BA positions
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                for BA positions
+  Output:               intent: candidate_comparison
+
+REQUEST 296c2128-7f1b-4248-bdbd-96c777962c86 COMPLETED AT 2026-03-23T11:03:18.262872+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       92c3f61b-cb87-4ab8-aa41-048fe5878af2
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T11:38:44.799809+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     1
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Show me Backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Show me Backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Show me Backend developers
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          Request to list candidates with Backend developer role
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           Show me Backend developers
+  Generated Sql:        SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%backend developer%' ORDER BY c.created_at DESC LIMIT 20
+  Explanation:          This query selects all candidates who applied for positions with 'backend developer' in the job title, ordered by most recently created records.
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           3
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         3
+
+    1. Full Name: Tony Youssef Nasrallah | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1000.0 | Current Address: Mansouriyeh, Metn
+    2. Full Name: Georges Khalife | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 5.0 | Current Address: Jbeil
+    3. Full Name: Elias Saker | Applied Position: Backend Developer, Full Stack Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Expected Salary Onsite: 1200.0 | Current Address: Metn, Bayada
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          3
+  Summary:              Three candidates were identified for Backend Developer roles, all of whom are Lebanese nationals. Their experience ranges from 1 to 5 years, with one candidate also skilled in Full Stack development. Locations vary within Lebanon, including Mansouriyeh, Jbeil, and Bayada.
+  Reply:                Here are the Backend Developer candidates matching your search:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Show me Backend developers
+  Output:               intent: filter
+
+REQUEST 92c3f61b-cb87-4ab8-aa41-048fe5878af2 COMPLETED AT 2026-03-23T11:38:49.430474+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       70dbf4d9-9cc6-4e41-a8b9-98594632a37c
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T11:39:26.048729+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     3
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                How many candidates do we have?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         How many candidates do we have?
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         How many candidates do we have?
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          Request for total number of candidates
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           How many candidates do we have?
+  Generated Sql:        SELECT COUNT(*) AS total_count FROM candidate
+  Explanation:          This query calculates the total number of candidates in the database.
+
+====================================================================================================
+  AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Count:                  145
+
+
+====================================================================================================
+  AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Count:                  145
+
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Stats Rows:           1
+
+====================================================================================================
+  AGGREGATION - RESULT
+====================================================================================================
+
+  Stats Count:          1
+  Summary:              As of the current data, we have a total of 145 candidates in our database. This number represents all individuals who have applied or been considered for positions within the organization.
+  Reply:                Here are the latest candidate statistics you requested.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                How many candidates do we have?
+  Output:               intent: aggregation
+
+REQUEST 70dbf4d9-9cc6-4e41-a8b9-98594632a37c COMPLETED AT 2026-03-23T11:39:29.187481+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       74e03cc6-345f-4bce-9733-aab596471c44
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T11:40:14.678635+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     5
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Compare souhayla and djolina
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Compare souhayla and djolina
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Compare souhayla and djolina
+  Classification Result:
+    Intent:             candidate_comparison
+    Confidence:         high
+    Reasoning:          User wants to compare two named candidates
+
+====================================================================================================
+  CANDIDATE COMPARISON
+====================================================================================================
+
+  User Message:         Compare souhayla and djolina
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Compare souhayla and djolina
+  Output:               intent: candidate_comparison
+
+REQUEST 74e03cc6-345f-4bce-9733-aab596471c44 COMPLETED AT 2026-03-23T11:40:23.361316+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       8864ac34-a05a-4f4b-8af0-adf02b494941
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T11:41:38.928980+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     7
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                thanks
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         thanks
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         thanks
+  Classification Result:
+    Intent:             chitchat
+    Confidence:         high
+    Reasoning:          User expressed gratitude, casual talk
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         thanks
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         thanks
+  Assistant Response:   You're welcome! Let me know if you need any more help with candidate searches or HR statistics.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                thanks
+  Output:               intent: chitchat
+
+REQUEST 8864ac34-a05a-4f4b-8af0-adf02b494941 COMPLETED AT 2026-03-23T11:41:40.881998+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       814eb003-df41-4d39-a88b-81902b1775c4
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T11:56:04.444397+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     9
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                BA candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         BA candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         BA candidates
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          Request to list Business Analyst candidates
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           BA candidates
+  Generated Sql:        SELECT c.* FROM candidate c WHERE (c.applied_position ~* '\mBA\M' OR c.applied_position ILIKE '%business analyst%') AND c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50 ORDER BY c.years_of_experience DESC LIMIT 20
+  Explanation:          Filters candidates with BA or business analyst roles and valid experience
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           17
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         17
+
+    1. Full Name: Carmen bou abboud | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 18.0 | Expected Salary Onsite: 4000.0 | Current Address: RABWEH
+    2. Full Name: Mona Boji | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 17.0 | Expected Salary Onsite: 3400.0 | Current Address: Bsalim
+    3. Full Name: Mireille Chbeyaa | Applied Position: Senior BA | Nationality: Lebanese | Years Of Experience: 16.0 | Expected Salary Onsite: 3200.0 | Current Address: Beit L chaar
+    4. Full Name: David Hayek | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 13.0 | Expected Salary Onsite: 2400.0 | Current Address: Jounieh
+    5. Full Name: Jennifer Maksoud | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 12.0 | Expected Salary Onsite: 2500.0 | Current Address: Chouf
+    6. Full Name: Rana Abou Ghazaleh | Applied Position: BA | Nationality: Lebanese | Years Of Experience: 10.0 | Current Address: safra
+    7. Full Name: Laury Dawra | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 8.0 | Expected Salary Onsite: 2500.0 | Current Address: Aajltoun
+    8. Full Name: John Moumdjian | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 8.0 | Expected Salary Onsite: 2500.0 | Current Address: Biyada
+    9. Full Name: Tarek Yaman | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 6.0 | Expected Salary Onsite: 2500.0 | Current Address: Hamra
+    10. Full Name: Andrew eid | Applied Position: BA internal | Nationality: Lebanese | Years Of Experience: 6.0 | Expected Salary Onsite: 2500.0 | Current Address: Hadath, feytroun
+    ... and 7 more rows
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          17
+  Summary:              17 candidates were identified, all in Business Analyst roles including senior and internal positions, with experience ranging from 6 to 18 years. The majority have over 8 years of experience, indicating a highly experienced candidate pool. Salary data was not provided.
+  Reply:                Here are the Business Analyst candidates matching your criteria:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                BA candidates
+  Output:               intent: filter
+
+REQUEST 814eb003-df41-4d39-a88b-81902b1775c4 COMPLETED AT 2026-03-23T11:56:09.219204+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       96f2163a-6419-45ec-9de2-14c518b8e8b6
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T11:57:03.622096+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                list of BE candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         list of BE candidates
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         list of BE candidates
+  Classification Result:
+    Intent:             filter
+    Confidence:         high
+    Reasoning:          Request to list backend engineer candidates
+
+====================================================================================================
+  FILTER - SQL GENERATION
+====================================================================================================
+
+  User Query:           list of BE candidates
+  Generated Sql:        SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%backend%' ORDER BY c.created_at DESC LIMIT 20
+  Explanation:          Lists candidates with backend roles
+
+====================================================================================================
+  FILTER - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Rows Found:           4
+  Salary Post Filter Applied:False
+
+====================================================================================================
+  FILTER - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         4
+
+    1. Full Name: Eliana Akiki | Applied Position: Backend | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1600.0 | Current Address: Zouk mosbeh
+    2. Full Name: Tony Youssef Nasrallah | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1000.0 | Current Address: Mansouriyeh, Metn
+    3. Full Name: Georges Khalife | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 5.0 | Current Address: Jbeil
+    4. Full Name: Elias Saker | Applied Position: Backend Developer, Full Stack Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Expected Salary Onsite: 1200.0 | Current Address: Metn, Bayada
+
+====================================================================================================
+  FILTER - RESULT
+====================================================================================================
+
+  Total Found:          4
+  Summary:              4 candidates were identified, all in backend-related roles with experience ranging from 1 to 5 years. Most candidates have around 1 to 3 years of experience, with one candidate having 5 years. Salary details were not provided.
+  Reply:                Here are the backend candidates matching your criteria:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                list of BE candidates
+  Output:               intent: filter
+
+REQUEST 96f2163a-6419-45ec-9de2-14c518b8e8b6 COMPLETED AT 2026-03-23T11:57:08.552048+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       9fbb9b94-d5c8-4df9-a7e7-4d347e907067
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T13:40:57.844334+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                "Average experience of backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         "Average experience of backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         "Average experience of backend developers
+  Classification Result:
+    Intent:             filter_and_aggregation
+    Confidence:         high
+    Reasoning:          Request for average experience with backend developer filter
+
+====================================================================================================
+  FILTER + AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           "Average experience of backend developers
+  Filter Sql:           SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%backend%' AND c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50 ORDER BY c.years_of_experience DESC LIMIT 5
+  Aggregation Sql:      SELECT COUNT(*) AS total_candidates, AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c WHERE c.applied_position ILIKE '%backend%' AND c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50
+  Explanation:          Filters backend developers and computes average experience
+
+====================================================================================================
+  FILTER + AGGREGATION - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         4
+
+    1. Full Name: Georges Khalife | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 5.0 | Current Address: Jbeil
+    2. Full Name: Elias Saker | Applied Position: Backend Developer, Full Stack Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Expected Salary Onsite: 1200.0 | Current Address: Metn, Bayada
+    3. Full Name: Tony Youssef Nasrallah | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1000.0 | Current Address: Mansouriyeh, Metn
+    4. Full Name: Eliana Akiki | Applied Position: Backend | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1600.0 | Current Address: Zouk mosbeh
+
+====================================================================================================
+  FILTER + AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             4
+    Avg Experience:               2.5
+
+
+====================================================================================================
+  FILTER + AGGREGATION - EXPERIENCE CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Valid Count:          4
+  Min Experience:       1.0
+  Max Experience:       5.0
+  Avg Experience:       2.5
+
+====================================================================================================
+  FILTER + AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             4
+    Avg Experience:               2.5
+
+
+====================================================================================================
+  FILTER + AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Filter Rows Found:    4
+  Aggregation Stats Rows:1
+
+====================================================================================================
+  ERROR
+====================================================================================================
+
+  Error:                Filter+Aggregation summary: OpenAI returned 400 — {
+  "error": {
+    "message": "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.",
+    "type": "invalid_request_error",
+    "param": "messages",
+    "code": null
+  }
+}
+
+REQUEST 9fbb9b94-d5c8-4df9-a7e7-4d347e907067 COMPLETED AT 2026-03-23T13:41:02.470042+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       266dfe2a-8d72-4a0b-8773-4608fe756adb
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T13:45:47.407680+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience of backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience of backend developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience of backend developers
+  Classification Result:
+    Intent:             filter_and_aggregation
+    Confidence:         high
+    Reasoning:          Request for average experience filtered by backend developers
+
+====================================================================================================
+  FILTER + AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           Average experience of backend developers
+  Filter Sql:           SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%backend%' AND c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50 ORDER BY c.years_of_experience DESC LIMIT 5
+  Aggregation Sql:      SELECT COUNT(*) AS total_candidates, AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c WHERE c.applied_position ILIKE '%backend%' AND c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50
+  Explanation:          Filters backend developers and computes average experience
+
+====================================================================================================
+  FILTER + AGGREGATION - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         4
+
+    1. Full Name: Georges Khalife | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 5.0 | Current Address: Jbeil
+    2. Full Name: Elias Saker | Applied Position: Backend Developer, Full Stack Developer | Nationality: Lebanese | Years Of Experience: 3.0 | Expected Salary Onsite: 1200.0 | Current Address: Metn, Bayada
+    3. Full Name: Tony Youssef Nasrallah | Applied Position: Backend Developer | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1000.0 | Current Address: Mansouriyeh, Metn
+    4. Full Name: Eliana Akiki | Applied Position: Backend | Nationality: Lebanese | Years Of Experience: 1.0 | Expected Salary Onsite: 1600.0 | Current Address: Zouk mosbeh
+
+====================================================================================================
+  FILTER + AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             4
+    Avg Experience:               2.5
+
+
+====================================================================================================
+  FILTER + AGGREGATION - EXPERIENCE CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Valid Count:          4
+  Min Experience:       1.0
+  Max Experience:       5.0
+  Avg Experience:       2.5
+
+====================================================================================================
+  FILTER + AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             4
+    Avg Experience:               2.5
+
+
+====================================================================================================
+  FILTER + AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Filter Rows Found:    4
+  Aggregation Stats Rows:1
+
+====================================================================================================
+  FILTER + AGGREGATION - RESULT
+====================================================================================================
+
+  Total Found:          4
+  Stats Count:          1
+  Summary:              There are 4 backend developer candidates with an average experience of 2.5 years. Experience ranges from 1 to 5 years, showing a mix of junior to mid-level professionals. All candidates are Lebanese and primarily located in different regions of Lebanon. The roles focus mainly on backend development, with one candidate also having full stack experience.
+  Reply:                Here’s a summary of the matching candidates:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience of backend developers
+  Output:               intent: filter_and_aggregation
+
+REQUEST 266dfe2a-8d72-4a0b-8773-4608fe756adb COMPLETED AT 2026-03-23T13:45:53.063141+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       713e8034-4759-4bf1-a029-b98909a4c2d9
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T13:47:53.750289+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average salary of Java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average salary of Java developers
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average salary of Java developers
+  Classification Result:
+    Intent:             filter_and_aggregation
+    Confidence:         high
+    Reasoning:          Request for average salary with filter on Java developers
+
+====================================================================================================
+  FILTER + AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           Average salary of Java developers
+  Filter Sql:           SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%java%' AND c.current_salary IS NOT NULL ORDER BY c.current_salary DESC LIMIT 5
+  Aggregation Sql:      SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary, MIN(c.current_salary) AS min_salary, MAX(c.current_salary) AS max_salary FROM candidate c WHERE c.applied_position ILIKE '%java%' AND c.current_salary IS NOT NULL
+  Explanation:          Filters Java developers and computes salary statistics
+
+====================================================================================================
+  FILTER + AGGREGATION - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         2
+
+    1. Full Name: Badih Aboulhosn | Applied Position: Java Developer | Nationality: Lebanese | Years Of Experience: 2.0 | Expected Salary Onsite: 1700.0 | Current Address: Beirut, Lebanon
+    2. Full Name: Amina Jardali | Applied Position: Java developer | Nationality: Lebanese | Years Of Experience: 3.0 | Expected Salary Onsite: 1200.0 | Current Address: Saida
+
+====================================================================================================
+  FILTER + AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             2
+    Avg Salary:                   1250.0
+    Min Salary:                   1200.0
+    Max Salary:                   1300.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - SALARY CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Parsed Count:         2
+  Min Salary:           1200.0
+  Max Salary:           1300.0
+  Avg Min Salary:       N/A
+  Avg Max Salary:       N/A
+
+====================================================================================================
+  FILTER + AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             2
+    Avg Salary:                   1250.0
+    Min Salary:                   1200.0
+    Max Salary:                   1300.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Filter Rows Found:    2
+  Aggregation Stats Rows:1
+
+====================================================================================================
+  FILTER + AGGREGATION - RESULT
+====================================================================================================
+
+  Total Found:          2
+  Stats Count:          1
+  Summary:              There are 2 Java developer candidates with an average salary of $1,250. The minimum salary is $1,200 and the maximum is $1,300. Their experience ranges from 2 to 3 years, and both candidates are based in Lebanon. The roles and salaries are quite similar, indicating a consistent market level for junior Java developers in this region.
+  Reply:                Here’s a summary of the matching candidates:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average salary of Java developers
+  Output:               intent: filter_and_aggregation
+
+REQUEST 713e8034-4759-4bf1-a029-b98909a4c2d9 COMPLETED AT 2026-03-23T13:47:58.242422+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       527ff0e2-2206-4e7d-8d0c-87e481d5d81e
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T13:52:28.380738+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Lebanese candidates average salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Lebanese candidates average salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Lebanese candidates average salary
+  Classification Result:
+    Intent:             filter_and_aggregation
+    Confidence:         high
+    Reasoning:          Request for average salary with nationality filter
+
+====================================================================================================
+  FILTER + AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           Lebanese candidates average salary
+  Filter Sql:           SELECT c.* FROM candidate c WHERE c.nationality ILIKE '%lebanese%' AND c.current_salary IS NOT NULL ORDER BY c.current_salary DESC LIMIT 5
+  Aggregation Sql:      SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary, MIN(c.current_salary) AS min_salary, MAX(c.current_salary) AS max_salary FROM candidate c WHERE c.nationality ILIKE '%lebanese%' AND c.current_salary IS NOT NULL
+  Explanation:          Filters Lebanese candidates and computes salary statistics
+
+====================================================================================================
+  FILTER + AGGREGATION - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         5
+
+    1. Full Name: Rami Mneimneh | Nationality: Lebanese | Years Of Experience: 11.0 | Expected Salary Remote: 8500.0 | Expected Salary Onsite: 9000.0 | Current Address: Jeddah - Saudi Arabia
+    2. Full Name: Joseph Bhanini | Nationality: Lebanese | Years Of Experience: 6.0 | Expected Salary Onsite: 4300.0 | Current Address: Nabay
+    3. Full Name: Abdallah Ftouni | Applied Position: Diital marketing specilaist | Nationality: Lebanese | Years Of Experience: 5.0 | Current Address: Tripoli
+    4. Full Name: RAMY EL MIR | Nationality: Lebanese | Years Of Experience: 14.0 | Expected Salary Onsite: 4500.0 | Current Address: Beirut, Lebanon
+    5. Full Name: Eimad Anis Akroush | Nationality: Lebanese | Years Of Experience: 9.0 | Expected Salary Onsite: 2800.0 | Current Address: West Bekaa/Almansoura
+
+====================================================================================================
+  FILTER + AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             42
+    Avg Salary:                   1947.62
+    Min Salary:                   0.0
+    Max Salary:                   8000.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - SALARY CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Parsed Count:         42
+  Min Salary:           0.0
+  Max Salary:           8000.0
+  Avg Min Salary:       N/A
+  Avg Max Salary:       N/A
+
+====================================================================================================
+  FILTER + AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             42
+    Avg Salary:                   1947.62
+    Min Salary:                   0.0
+    Max Salary:                   8000.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Filter Rows Found:    5
+  Aggregation Stats Rows:1
+
+====================================================================================================
+  FILTER + AGGREGATION - RESULT
+====================================================================================================
+
+  Total Found:          5
+  Stats Count:          1
+  Summary:              There are 5 Lebanese candidates with an average salary of approximately $4,040 and an average experience of 9 years. Salaries range widely from $2,800 to $8,000, with experience spanning from 5 to 14 years. The candidates hold diverse roles including digital marketing, and are located across various cities such as Jeddah, Beirut, and Tripoli. This group shows a trend of mid to senior-level professionals with varied salary expectations.
+  Reply:                Here’s a summary of the Lebanese candidates you requested:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Lebanese candidates average salary
+  Output:               intent: filter_and_aggregation
+
+REQUEST 527ff0e2-2206-4e7d-8d0c-87e481d5d81e COMPLETED AT 2026-03-23T13:52:34.331921+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       2185652e-4da3-468b-aaf1-2c6afc988585
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:15:47.180018+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Highest salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Highest salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Highest salary
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          Request for highest salary statistic without filters
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           Highest salary
+  Generated Sql:        SELECT COUNT(*) AS total_candidates, MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary FROM candidate c WHERE c.current_salary IS NOT NULL
+  Explanation:          Finds highest salary among all candidates
+
+====================================================================================================
+  AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             55
+    Max Salary:                   100000.0
+
+
+====================================================================================================
+  AGGREGATION - SALARY CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Parsed Count:         55
+  Min Salary:           0.0
+  Max Salary:           100000.0
+  Avg Min Salary:       N/A
+  Avg Max Salary:       N/A
+
+====================================================================================================
+  AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             55
+    Max Salary:                   100000.0
+
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Stats Rows:           1
+
+====================================================================================================
+  AGGREGATION - RESULT
+====================================================================================================
+
+  Stats Count:          1
+  Summary:              There are 55 candidates in total, with the highest salary reaching 100,000.00. This indicates the top earning potential within the candidate pool.
+  Reply:                Here’s the summary of the highest salary among candidates:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Highest salary
+  Output:               intent: aggregation
+
+REQUEST 2185652e-4da3-468b-aaf1-2c6afc988585 COMPLETED AT 2026-03-23T15:15:53.335471+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       ad5c094e-515c-4a0a-8477-715c51676db8
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:16:15.777553+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                who is this candidate
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         who is this candidate
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         who is this candidate
+  Classification Result:
+    Intent:             chitchat
+    Confidence:         medium
+    Reasoning:          Ambiguous question without candidate reference
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         who is this candidate
+
+====================================================================================================
+  CHIT CHAT
+====================================================================================================
+
+  User Message:         who is this candidate
+  Assistant Response:   Please specify which candidate or provide more details so I can assist you in identifying them.
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                who is this candidate
+  Output:               intent: chitchat
+
+REQUEST ad5c094e-515c-4a0a-8477-715c51676db8 COMPLETED AT 2026-03-23T15:16:17.956692+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       8b4d462f-f496-4ed4-b5e0-5feddeaeb2af
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:16:36.069273+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                who is the candidate with the highest salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         who is the candidate with the highest salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         who is the candidate with the highest salary
+  Classification Result:
+    Intent:             filter_and_aggregation
+    Confidence:         high
+    Reasoning:          Request to identify candidate with highest salary
+
+====================================================================================================
+  FILTER + AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           who is the candidate with the highest salary
+  Filter Sql:           SELECT c.* FROM candidate c WHERE c.current_salary IS NOT NULL ORDER BY c.current_salary DESC LIMIT 5
+  Aggregation Sql:      SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary, MIN(c.current_salary) AS min_salary, MAX(c.current_salary) AS max_salary FROM candidate c WHERE c.current_salary IS NOT NULL
+  Explanation:          Finds candidates with highest salary and computes salary statistics
+
+====================================================================================================
+  FILTER + AGGREGATION - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         5
+
+    1. Full Name: wolf | Applied Position: Software Engineer | Years Of Experience: 10.0 | Expected Salary Onsite: 7888.0 | Current Address: soumal
+    2. Full Name: Haya Alajan | Applied Position: UX Researcher | Years Of Experience: 5.0 | Expected Salary Onsite: 27000.0 | Current Address: Riyadh
+    3. Full Name: Rami Mneimneh | Nationality: Lebanese | Years Of Experience: 11.0 | Expected Salary Remote: 8500.0 | Expected Salary Onsite: 9000.0 | Current Address: Jeddah - Saudi Arabia
+    4. Full Name: Joseph Bhanini | Nationality: Lebanese | Years Of Experience: 6.0 | Expected Salary Onsite: 4300.0 | Current Address: Nabay
+    5. Full Name: djolina | Applied Position: Human Resource | Years Of Experience: 20.0 | Expected Salary Onsite: 5000.0 | Current Address: wede anubin
+
+====================================================================================================
+  FILTER + AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             55
+    Avg Salary:                   4246.84
+    Min Salary:                   0.0
+    Max Salary:                   100000.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - SALARY CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Parsed Count:         55
+  Min Salary:           0.0
+  Max Salary:           100000.0
+  Avg Min Salary:       N/A
+  Avg Max Salary:       N/A
+
+====================================================================================================
+  FILTER + AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             55
+    Avg Salary:                   4246.84
+    Min Salary:                   0.0
+    Max Salary:                   100000.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Filter Rows Found:    5
+  Aggregation Stats Rows:1
+
+====================================================================================================
+  FILTER + AGGREGATION - RESULT
+====================================================================================================
+
+  Total Found:          5
+  Stats Count:          1
+  Summary:              Among 55 candidates, the highest salary recorded is $100,000, earned by a Software Engineer with 10 years of experience. The average salary across all candidates is approximately $4,247, with experience ranging widely up to 20 years. Roles vary from software engineering and UX research to human resources, with significant salary disparities reflecting diverse positions and experience levels. The minimum salary is reported as $0, indicating a broad range in compensation packages.
+  Reply:                Here’s a summary of the candidates and their salary statistics:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                who is the candidate with the highest salary
+  Output:               intent: filter_and_aggregation
+
+REQUEST 8b4d462f-f496-4ed4-b5e0-5feddeaeb2af COMPLETED AT 2026-03-23T15:16:46.300139+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       63c45a8e-dc71-4c6f-beac-b6bed00cc2fc
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:32:51.607600+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         what is Average experience
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          Request for overall average experience statistic
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           what is Average experience
+  Generated Sql:        SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_experience)::NUMERIC, 2) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c
+  Explanation:          Computes average years of experience across all candidates
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               FAILED
+  Error:                SQL execution error: (psycopg2.errors.WrongObjectType) FILTER specified, but round is not an aggregate function
+LINE 1: SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_ex...
+                                             ^
+
+[SQL: SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_experience)::NUMERIC, 2) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c LIMIT 50]
+(Background on this error at: https://sqlalche.me/e/2...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                what is Average experience
+  Output:               intent: aggregation
+
+REQUEST 63c45a8e-dc71-4c6f-beac-b6bed00cc2fc COMPLETED AT 2026-03-23T15:32:55.195391+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       7965832d-8f0a-4aae-9dcc-4a23fd7baadd
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:33:04.929179+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          Request for overall average experience statistic
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           Average experience
+  Generated Sql:        SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_experience)::NUMERIC, 2) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c
+  Explanation:          Computes average experience across all candidates
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               FAILED
+  Error:                SQL execution error: (psycopg2.errors.WrongObjectType) FILTER specified, but round is not an aggregate function
+LINE 1: SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_ex...
+                                             ^
+
+[SQL: SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_experience)::NUMERIC, 2) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c LIMIT 50]
+(Background on this error at: https://sqlalche.me/e/2...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience
+  Output:               intent: aggregation
+
+REQUEST 7965832d-8f0a-4aae-9dcc-4a23fd7baadd COMPLETED AT 2026-03-23T15:33:09.325435+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       35043823-55bb-4e33-adf0-47829b4edd64
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:33:48.374708+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          Request for overall average experience statistic
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           Average experience
+  Generated Sql:        SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_experience)::NUMERIC, 2) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c
+  Explanation:          Computes average years of experience for all candidates
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               FAILED
+  Error:                SQL execution error: (psycopg2.errors.WrongObjectType) FILTER specified, but round is not an aggregate function
+LINE 1: SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_ex...
+                                             ^
+
+[SQL: SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_experience)::NUMERIC, 2) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50) AS avg_experience FROM candidate c LIMIT 50]
+(Background on this error at: https://sqlalche.me/e/2...
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience
+  Output:               intent: aggregation
+
+REQUEST 35043823-55bb-4e33-adf0-47829b4edd64 COMPLETED AT 2026-03-23T15:33:51.456495+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       bac29f75-f18a-4f7c-b47f-5de77d0e8dcb
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:40:54.310111+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         Average experience
+  Classification Result:
+    Intent:             aggregation
+    Confidence:         high
+    Reasoning:          Request for overall average experience statistic
+
+====================================================================================================
+  AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           Average experience
+  Generated Sql:        SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience FROM candidate c
+  Explanation:          Computes average years of experience for all candidates
+
+====================================================================================================
+  AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             145
+    Avg Experience:               5.9
+
+
+====================================================================================================
+  AGGREGATION - EXPERIENCE CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Valid Count:          130
+  Min Experience:       1.0
+  Max Experience:       31.0
+  Avg Experience:       5.9
+
+====================================================================================================
+  AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             145
+    Avg Experience:               5.9
+
+
+====================================================================================================
+  AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Status:               SUCCESS
+  Stats Rows:           1
+
+====================================================================================================
+  AGGREGATION - RESULT
+====================================================================================================
+
+  Stats Count:          1
+  Summary:              There are 145 candidates in total, with an average experience of 5.9 years. This suggests a moderately experienced candidate pool overall.
+  Reply:                Here’s a summary of the candidates' experience levels:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                Average experience
+  Output:               intent: aggregation
+
+REQUEST bac29f75-f18a-4f7c-b47f-5de77d0e8dcb COMPLETED AT 2026-03-23T15:40:58.972662+00:00
+====================================================================================================
+
+
+====================================================================================================
+
+REQUEST_ID:       c55c5de1-e769-4ca4-b831-4013c768ae3a
+USER_ID:          1
+CONVERSATION_ID:  4
+TIMESTAMP:        2026-03-23T15:41:45.615329+00:00
+
+====================================================================================================
+  CONVERSATION CONTEXT
+====================================================================================================
+
+  History Messages:     10
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                BA candidates average salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         BA candidates average salary
+
+====================================================================================================
+  INTENT CLASSIFIER
+====================================================================================================
+
+  User Message:         BA candidates average salary
+  Classification Result:
+    Intent:             filter_and_aggregation
+    Confidence:         high
+    Reasoning:          Average salary requested for filtered BA candidates
+
+====================================================================================================
+  FILTER + AGGREGATION - SQL GENERATION
+====================================================================================================
+
+  User Query:           BA candidates average salary
+  Filter Sql:           SELECT c.* FROM candidate c WHERE (c.applied_position ~* '\mBA\M' OR c.applied_position ILIKE '%business analyst%') AND c.current_salary IS NOT NULL ORDER BY c.current_salary DESC LIMIT 5
+  Aggregation Sql:      SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE (c.applied_position ~* '\mBA\M' OR c.applied_position ILIKE '%business analyst%') AND c.current_salary IS NOT NULL
+  Explanation:          Filters BA candidates and computes their average salary
+
+====================================================================================================
+  FILTER + AGGREGATION - DB ROWS RETRIEVED
+====================================================================================================
+
+  Total Rows:         2
+
+    1. Full Name: djolina | Applied Position: Business Analyst | Years Of Experience: 5.0 | Expected Salary Onsite: 5000.0 | Current Address: wede anubin
+    2. Full Name: Lynn Dhaiby | Applied Position: Business Analyst | Nationality: Lebanese | Years Of Experience: 3.0 | Expected Salary Onsite: 1400.0 | Current Address: Tripoli/ i work in Naccache
+
+====================================================================================================
+  FILTER + AGGREGATION - RAW DB STATS
+====================================================================================================
+
+    Total Candidates:             2
+    Avg Salary:                   2575.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - SALARY CORRECTION
+====================================================================================================
+
+  Status:               APPLIED
+  Parsed Count:         2
+  Min Salary:           1150.0
+  Max Salary:           4000.0
+  Avg Min Salary:       N/A
+  Avg Max Salary:       N/A
+
+====================================================================================================
+  FILTER + AGGREGATION - CORRECTED STATS (sent to LLM)
+====================================================================================================
+
+    Total Candidates:             2
+    Avg Salary:                   2575.0
+
+
+====================================================================================================
+  FILTER + AGGREGATION - QUERY EXECUTION
+====================================================================================================
+
+  Filter Rows Found:    2
+  Aggregation Stats Rows:1
+
+====================================================================================================
+  FILTER + AGGREGATION - RESULT
+====================================================================================================
+
+  Total Found:          2
+  Stats Count:          1
+  Summary:              There are 2 Business Analyst candidates with an average salary of $2,575. The experience ranges from 3 to 5 years, with salaries varying significantly from $1,150 to $4,000. Both candidates have relevant experience, but salary differences suggest varying levels of seniority or market conditions.
+  Reply:                Here’s a summary of the matching candidates:
+
+====================================================================================================
+  FLOW
+====================================================================================================
+
+  Input:                BA candidates average salary
+  Output:               intent: filter_and_aggregation
+
+REQUEST c55c5de1-e769-4ca4-b831-4013c768ae3a COMPLETED AT 2026-03-23T15:41:53.657992+00:00
+====================================================================================================
+

@@ -5,6 +5,12 @@
 /** Matches PostgreSQL enum relocation_openness / backend RelocationOpenness. */
 export type RelocationOpenness = 'yes' | 'no' | 'for_missions_only';
 
+/** Matches PostgreSQL enum transportation_availability / backend TransportationAvailability. */
+export type TransportationAvailability =
+  | 'yes'
+  | 'no'
+  | 'only_open_for_remote_opportunities';
+
 /** Matches backend ApplicationStatus. */
 export type ApplicationStatus = 'pending' | 'on_hold' | 'rejected' | 'selected';
 
@@ -48,7 +54,7 @@ export interface Candidate {
   number_of_dependents: number | null;
   religion_sect: string | null;
   passport_validity_status_id: number | null;
-  has_transportation: boolean | null;
+  has_transportation: TransportationAvailability | null;
 
   // Professional
   applied_position: string | null;

@@ -18,7 +18,7 @@ from sqlalchemy.sql import func
 
 from ..config.database import Base
 from .candidate_stage_comment import HrStageCommentsRead
-from .enums import ApplicationStatus, RelocationOpenness
+from .enums import ApplicationStatus, RelocationOpenness, TransportationAvailability
 
 def _application_status_from_orm(candidate: Any) -> Optional[ApplicationStatus]:
     raw = getattr(candidate, "application_status", None)
@@ -59,7 +59,15 @@ class Candidate(Base):
     number_of_dependents = Column(SmallInteger, nullable=True)
     religion_sect = Column(String(100), nullable=True)
     passport_validity_status_id = Column(Integer, ForeignKey("lookup_option.id"), nullable=True)
-    has_transportation = Column(Boolean, nullable=True)
+    has_transportation = Column(
+        SAEnum(
+            TransportationAvailability,
+            name="transportation_availability",
+            native_enum=True,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        nullable=True,
+    )
 
     # -- Professional --
     applied_position = Column(String(255), nullable=True, index=True)
@@ -125,7 +133,7 @@ class CandidateBase(BaseModel):
     number_of_dependents: Optional[int] = None
     religion_sect: Optional[str] = None
     passport_validity_status_id: Optional[int] = None
-    has_transportation: Optional[bool] = None
+    has_transportation: Optional[TransportationAvailability] = None
 
     applied_position: Optional[str] = None
     applied_position_location: Optional[str] = None

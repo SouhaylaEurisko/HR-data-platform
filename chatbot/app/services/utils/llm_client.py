@@ -62,6 +62,13 @@ class LLMClient:
 
         messages.append({"role": "user", "content": user_message})
 
+        # OpenAI rejects json_object mode unless some message mentions "json".
+        if not any("json" in (m.get("content") or "").lower() for m in messages):
+            messages[0]["content"] = (
+                (messages[0].get("content") or "")
+                + "\n\nRespond with a single valid JSON object only."
+            )
+
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import text
@@ -24,6 +24,94 @@ _STAGE_LABELS = {
     "hr_interview": "HR Interview",
     "offer_stage": "Offer Stage",
 }
+
+# When two stages share the same latest-entry timestamp, prefer a later pipeline stage.
+_STAGE_TIEBREAK_RANK = {
+    "pre_screening": 0,
+    "technical_interview": 1,
+    "hr_interview": 2,
+    "offer_stage": 3,
+}
+
+_SQL_BY_STAGE = (
+    "SELECT c.id, c.full_name, csc.stage_key, csc.entries "
+    "FROM candidate c JOIN candidate_stage_comment csc "
+    "ON c.id = csc.candidate_id AND c.organization_id = csc.organization_id "
+    "WHERE c.full_name ILIKE :pat AND csc.stage_key = :stage LIMIT 5"
+)
+
+_SQL_ALL_STAGES_FOR_NAME = (
+    "SELECT c.id, c.full_name, csc.stage_key, csc.entries "
+    "FROM candidate c JOIN candidate_stage_comment csc "
+    "ON c.id = csc.candidate_id AND c.organization_id = csc.organization_id "
+    "WHERE c.full_name ILIKE :pat"
+)
+
+
+def _parse_entry_datetime(raw: Any) -> Optional[datetime]:
+    if raw is None:
+        return None
+    if isinstance(raw, datetime):
+        return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+    s = str(raw).strip()
+    if not s:
+        return None
+    try:
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _entries_as_list(entries_raw: Any) -> List[Any]:
+    if entries_raw is None:
+        return []
+    if isinstance(entries_raw, str):
+        try:
+            raw = json.loads(entries_raw)
+        except json.JSONDecodeError:
+            return []
+        return list(raw) if isinstance(raw, list) else []
+    if isinstance(entries_raw, list):
+        return list(entries_raw)
+    return []
+
+
+def _latest_nonempty_entry_dict(entries: List[Any]) -> Optional[Dict[str, Any]]:
+    """Newest comment object (array is oldest → newest)."""
+    for item in reversed(entries):
+        if isinstance(item, dict) and str(item.get("text") or "").strip():
+            return item
+    return None
+
+
+def _latest_nonempty_entry_time(entries_raw: Any) -> Optional[datetime]:
+    """Time of the newest comment entry (array is oldest → newest)."""
+    ent = _latest_nonempty_entry_dict(_entries_as_list(entries_raw))
+    if not ent:
+        return None
+    return _parse_entry_datetime(ent.get("created_at"))
+
+
+def _pick_row_latest_comment_stage(rows: List[Any]) -> Optional[Any]:
+    """Among rows (same or mixed candidates), pick the row whose stage has the latest comment."""
+    best_key: Optional[tuple] = None
+    best_row: Optional[Any] = None
+    for row in rows:
+        sk = row.get("stage_key")
+        if sk not in _STAGE_LABELS:
+            continue
+        ts = _latest_nonempty_entry_time(row.get("entries"))
+        if ts is None:
+            continue
+        rank = _STAGE_TIEBREAK_RANK[sk]
+        key = (ts, rank)
+        if best_key is None or key > best_key:
+            best_key = key
+            best_row = row
+    return best_row
 
 
 class HrFeedbackAgent:
@@ -62,9 +150,12 @@ class HrFeedbackAgent:
             }
 
         name = (data.get("candidate_name") or "").strip()
-        stage = (data.get("stage") or "pre_screening").strip()
-        if stage not in _STAGE_LABELS:
-            stage = "pre_screening"
+        raw_stage = data.get("stage")
+        stage_explicit: Optional[str] = None
+        if raw_stage is not None:
+            s = str(raw_stage).strip()
+            if s in _STAGE_LABELS:
+                stage_explicit = s
 
         if not name:
             return {
@@ -76,20 +167,98 @@ class HrFeedbackAgent:
                 "explanation": "missing candidate_name",
             }
 
-        sql_debug = (
-            "SELECT c.full_name, csc.stage_key, csc.entries "
-            "FROM candidate c JOIN candidate_stage_comment csc "
-            "ON c.id = csc.candidate_id AND c.organization_id = csc.organization_id "
-            "WHERE c.full_name ILIKE :pat AND csc.stage_key = :stage LIMIT 5"
-        )
+        pat = f"%{name}%"
+        sql_debug = _SQL_BY_STAGE if stage_explicit else _SQL_ALL_STAGES_FOR_NAME
 
         try:
-            rows = list(
-                db.execute(
-                    text(sql_debug),
-                    {"pat": f"%{name}%", "stage": stage},
-                ).mappings()
-            )
+            if stage_explicit is not None:
+                rows = list(
+                    db.execute(
+                        text(_SQL_BY_STAGE),
+                        {"pat": pat, "stage": stage_explicit},
+                    ).mappings()
+                )
+                if not rows:
+                    label = _STAGE_LABELS[stage_explicit]
+                    return {
+                        "reply": (
+                            f"I found no **{label}** comments stored for a candidate matching “{name}”. "
+                            "Check the spelling or add a comment on the candidate’s detail page first."
+                        ),
+                        "summary": None,
+                        "sql": sql_debug,
+                        "rows": [],
+                        "total_found": 0,
+                        "explanation": "no matching rows",
+                    }
+                if len(rows) > 1:
+                    names = list({r["full_name"] or "—" for r in rows})
+                    return {
+                        "reply": (
+                            f"Several candidates matched “{name}”: {', '.join(names[:5])}. "
+                            "Please use a more specific name so I can pick the right person."
+                        ),
+                        "summary": None,
+                        "sql": sql_debug,
+                        "rows": sanitize_rows([dict(r) for r in rows]),
+                        "total_found": len(rows),
+                        "explanation": "ambiguous match",
+                    }
+                row = rows[0]
+                stage = stage_explicit
+            else:
+                all_rows = list(
+                    db.execute(
+                        text(_SQL_ALL_STAGES_FOR_NAME),
+                        {"pat": pat},
+                    ).mappings()
+                )
+                if not all_rows:
+                    return {
+                        "reply": (
+                            f"I found no HR stage comments stored for a candidate matching “{name}”. "
+                            "Check the spelling or add notes on the candidate’s detail page first."
+                        ),
+                        "summary": None,
+                        "sql": sql_debug,
+                        "rows": [],
+                        "total_found": 0,
+                        "explanation": "no matching rows",
+                    }
+                by_id: Dict[int, List[Any]] = {}
+                for r in all_rows:
+                    cid = int(r["id"])
+                    by_id.setdefault(cid, []).append(r)
+                if len(by_id) > 1:
+                    names = list({r["full_name"] or "—" for r in all_rows})
+                    return {
+                        "reply": (
+                            f"Several candidates matched “{name}”: {', '.join(names[:5])}. "
+                            "Please use a more specific name so I can pick the right person."
+                        ),
+                        "summary": None,
+                        "sql": sql_debug,
+                        "rows": sanitize_rows([dict(r) for r in all_rows]),
+                        "total_found": len(all_rows),
+                        "explanation": "ambiguous match",
+                    }
+                cand_rows = next(iter(by_id.values()))
+                picked = _pick_row_latest_comment_stage(cand_rows)
+                if picked is None:
+                    fn = str(cand_rows[0].get("full_name") or name).strip() or name
+                    return {
+                        "reply": (
+                            f"There are HR stage records for **{fn}**, but **no comment text** has been added in any stage yet."
+                        ),
+                        "summary": None,
+                        "sql": sql_debug,
+                        "rows": None,
+                        "total_found": 0,
+                        "explanation": "no comment text in any stage",
+                    }
+                row = picked
+                stage = str(picked["stage_key"])
+
         except Exception as exc:
             logger.exception("HR feedback query failed: %s", exc)
             return {
@@ -101,49 +270,10 @@ class HrFeedbackAgent:
                 "explanation": str(exc),
             }
 
-        if not rows:
-            label = _STAGE_LABELS[stage]
-            return {
-                "reply": (
-                    f"I found no **{label}** comments stored for a candidate matching “{name}”. "
-                    "Check the spelling or add a comment on the candidate’s detail page first."
-                ),
-                "summary": None,
-                "sql": sql_debug,
-                "rows": [],
-                "total_found": 0,
-                "explanation": "no matching rows",
-            }
-
-        if len(rows) > 1:
-            names = list({r["full_name"] or "—" for r in rows})
-            return {
-                "reply": (
-                    f"Several candidates matched “{name}”: {', '.join(names[:5])}. "
-                    "Please use a more specific name so I can pick the right person."
-                ),
-                "summary": None,
-                "sql": sql_debug,
-                "rows": sanitize_rows([dict(r) for r in rows]),
-                "total_found": len(rows),
-                "explanation": "ambiguous match",
-            }
-
-        row = rows[0]
         full_name = row["full_name"] or name
-        entries_raw = row["entries"]
-        entries: List[Any]
-        if entries_raw is None:
-            entries = []
-        elif isinstance(entries_raw, str):
-            try:
-                entries = json.loads(entries_raw)
-            except json.JSONDecodeError:
-                entries = []
-        else:
-            entries = list(entries_raw) if isinstance(entries_raw, list) else []
-
-        if not entries:
+        entries = _entries_as_list(row.get("entries"))
+        latest = _latest_nonempty_entry_dict(entries)
+        if not latest:
             label = _STAGE_LABELS[stage]
             return {
                 "reply": f"There is a **{label}** record for **{full_name}**, but it has no comment text yet.",
@@ -154,26 +284,10 @@ class HrFeedbackAgent:
                 "explanation": "empty entries",
             }
 
-        latest = entries[-1]
-        if not isinstance(latest, dict):
-            latest = {}
         comment_text = str(latest.get("text") or "").strip()
         created = latest.get("created_at")
         date_str = _format_comment_date(created)
-
         label = _STAGE_LABELS[stage]
-        if not comment_text:
-            return {
-                "reply": (
-                    f"There is a **{label}** record for **{full_name}** on **{date_str}**, "
-                    "but the latest entry has no text."
-                ),
-                "summary": None,
-                "sql": sql_debug,
-                "rows": None,
-                "total_found": 0,
-                "explanation": "empty latest text",
-            }
 
         # Main bubble: context only. Comment body goes to `summary` (purple box in HR UI).
         reply = f"**Latest {label} feedback for {full_name}** ({date_str})"

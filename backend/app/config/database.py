@@ -28,7 +28,7 @@ def get_db():
 
 
 def init_db():
-    """Create all tables defined by SQLAlchemy models (no migrations here)."""
+    """Create all tables defined by SQLAlchemy models."""
     from ..models import (  # noqa: F401
         organization,
         lookup,

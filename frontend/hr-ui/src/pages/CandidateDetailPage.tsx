@@ -12,6 +12,7 @@ import {
 import type { ApplicationStatus, Candidate, HrStageCommentEntry } from '../types/api';
 import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { relocationOpennessLabel } from '../utils/relocationOpenness';
+import { transportationAvailabilityLabel } from '../utils/transportationAvailability';
 import './CandidateDetailPage.css';
 
 function entriesForStage(c: Candidate, key: HrStageKey): HrStageCommentEntry[] {
@@ -322,7 +323,7 @@ export default function CandidateDetailPage() {
             <div className="detail-item">
               <span className="detail-label">Transportation:</span>
               <span className="detail-value">
-                {candidate.has_transportation === true ? 'Yes' : candidate.has_transportation === false ? 'No' : '-'}
+                {transportationAvailabilityLabel(candidate.has_transportation)}
               </span>
             </div>
             <div className="detail-item">

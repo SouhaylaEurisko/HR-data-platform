@@ -5,19 +5,18 @@ programmatic validation, lookup resolution, and single-INSERT writes.
 
 import os
 import re
-import shutil
 import tempfile
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from fastapi import UploadFile
 from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 
 from ..models.candidate import Candidate
-from ..models.enums import RelocationOpenness
+from ..models.enums import RelocationOpenness, TransportationAvailability
 from ..models.import_session import ImportSession
 from .column_normalizer import (
     COLUMN_LABELS,
@@ -204,6 +203,31 @@ def _to_relocation_openness_or_none(value: Any) -> Optional[RelocationOpenness]:
     return None
 
 
+def _to_transportation_availability_or_none(
+    value: Any,
+) -> Optional[TransportationAvailability]:
+    """Map Excel/form values to TransportationAvailability (yes | no | only_open_for_remote_opportunities)."""
+    if value is None:
+        return None
+    if isinstance(value, TransportationAvailability):
+        return value
+    text = str(value).strip().lower()
+    if not text:
+        return None
+    for member in TransportationAvailability:
+        if text == member.value or text == member.name.lower():
+            return member
+    if text in ("true", "yes", "1", "y", "oui", "has transportation", "has car", "own vehicle"):
+        return TransportationAvailability.yes
+    if text in ("false", "no", "0", "n", "non", "no transportation"):
+        return TransportationAvailability.no
+    if "only" in text and "remote" in text:
+        return TransportationAvailability.only_open_for_remote_opportunities
+    if "remote only" in text or "remote opportunities" in text:
+        return TransportationAvailability.only_open_for_remote_opportunities
+    return None
+
+
 def _to_int_or_none(value: Any) -> Optional[int]:
     if value is None:
         return None
@@ -239,10 +263,6 @@ def _truncate(value: Optional[str], max_len: int = 255) -> Optional[str]:
 # ──────────────────────────────────────────────
 # Header / table detection (kept from original)
 # ──────────────────────────────────────────────
-
-def _is_empty_row(row: tuple) -> bool:
-    return all(c is None or (isinstance(c, str) and not c.strip()) for c in row)
-
 
 def _cell_looks_like_header_label(cell: Any) -> bool:
     """True if the cell value looks like a column title rather than data."""
@@ -291,17 +311,6 @@ def _row_is_mostly_empty(row: tuple, max_non_empty: int = 1) -> bool:
     return len(non_empty) <= max_non_empty
 
 
-def _detect_header_row(sheet) -> Optional[int]:
-    """Find the first row that looks like a header (3+ string cells)."""
-    for row_idx, row in enumerate(sheet.iter_rows(max_row=20, values_only=True), start=1):
-        non_empty = [c for c in row if c is not None and str(c).strip()]
-        if len(non_empty) >= 3:
-            str_count = sum(1 for c in non_empty if isinstance(c, str))
-            if str_count >= 3:
-                return row_idx
-    return 1
-
-
 def _detect_all_header_rows(sheet) -> List[int]:
     """
     Find all row indices that look like header rows (start of a new table).
@@ -345,7 +354,6 @@ LOOKUP_COLUMN_MAP = {
 }
 
 BOOLEAN_COLUMNS = {
-    "has_transportation",
     "is_overtime_flexible", "is_contract_flexible",
     "is_employed",
 }
@@ -407,6 +415,10 @@ def _map_row(
         # Type-specific conversion
         if db_col == "is_open_for_relocation":
             val = _to_relocation_openness_or_none(raw_value)
+            if val is not None:
+                candidate_kwargs[db_col] = val
+        elif db_col == "has_transportation":
+            val = _to_transportation_availability_or_none(raw_value)
             if val is not None:
                 candidate_kwargs[db_col] = val
         elif db_col in BOOLEAN_COLUMNS:
@@ -500,12 +512,6 @@ def _extract_headers_from_row(sheet, row_idx: int) -> List[str]:
             else:
                 headers.append("")
     return headers
-
-
-def _extract_headers_from_sheet(sheet) -> List[str]:
-    """Extract header strings from the first detected header row (backward compat)."""
-    header_row_idx = _detect_header_row(sheet)
-    return _extract_headers_from_row(sheet, header_row_idx)
 
 
 def _extract_all_headers_from_sheet(sheet) -> List[str]:
@@ -616,7 +622,7 @@ def confirm_and_import(
 
     confirmed_mappings: {excel_header_lower: db_column}
     new_custom_fields: [{"header": "...", "label": "..."}, ...]
-    skip_columns: [excel_header, ...]
+    skip_columns: Excel headers to omit from import (no mapping, excluded from raw_import_data).
     """
     session = db.query(ImportSession).filter_by(id=session_id).first()
     if not session:
@@ -642,6 +648,14 @@ def confirm_and_import(
     for header, db_col in confirmed_mappings.items():
         col_map[header.strip().lower()] = db_col
 
+    skip_lower: Set[str] = {
+        str(h).strip().lower()
+        for h in (skip_columns or [])
+        if h is not None and str(h).strip()
+    }
+    for hl in skip_lower:
+        col_map.pop(hl, None)
+
     # Process all sheets
     total_created = 0
     total_skipped_empty = 0
@@ -652,7 +666,9 @@ def confirm_and_import(
 
     for sheet_name in sheet_names:
         sheet = workbook[sheet_name]
-        result = _process_sheet(sheet, sheet_name, col_map, org_id, session.id, db)
+        result = _process_sheet(
+            sheet, sheet_name, col_map, org_id, session.id, db, skip_lower
+        )
         total_created += result["created"]
         total_skipped_empty += result["skipped_empty"]
         total_skipped_duplicates += result["skipped_duplicates"]
@@ -730,12 +746,14 @@ def _process_sheet(
     org_id: int,
     session_id: int,
     db: Session,
+    skip_headers_lower: Optional[Set[str]] = None,
 ) -> dict:
     """
     Process a single sheet; supports multiple tables per sheet.
     Each table starts at a header row; we detect all header rows and process
     the data rows between consecutive headers (or from header to end of sheet).
     """
+    skipped = skip_headers_lower or set()
     header_row_indices = _detect_all_header_rows(sheet)
     if not header_row_indices:
         # Fallback: treat row 1 as header (empty sheet or no header-like row)
@@ -773,6 +791,8 @@ def _process_sheet(
             row_dict = {}
             for i, h in enumerate(headers):
                 if h and i < len(row):
+                    if str(h).strip().lower() in skipped:
+                        continue
                     row_dict[h] = row[i]
 
             if not any(v is not None and str(v).strip() for v in row_dict.values()):

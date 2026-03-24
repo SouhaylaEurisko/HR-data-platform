@@ -6,7 +6,7 @@ from .organization import Organization
 from .lookup import LookupCategory, LookupOption
 from .custom_field import CustomFieldDefinition
 from .import_session import ImportSession
-from .enums import ApplicationStatus, RelocationOpenness
+from .enums import ApplicationStatus, RelocationOpenness, TransportationAvailability
 from .candidate import (
     Candidate,
     CandidateApplicationStatusUpdate,
@@ -61,6 +61,7 @@ __all__ = [
     # Enums
     "ApplicationStatus",
     "RelocationOpenness",
+    "TransportationAvailability",
     # Candidate models
     "Candidate",
     "CandidateApplicationStatusUpdate",

@@ -41,6 +41,21 @@ LIMIT :lim
 """
 
 
+def _applied_position_where(position: str, params: Dict[str, Any]) -> str:
+    """Build applied_position predicate; BA uses word boundaries so 'Backend' is excluded."""
+    p = position.strip()
+    pl = p.lower().rstrip(".")
+    if pl == "b.a":
+        pl = "ba"
+    ba_intent = pl == "ba" or pl.startswith("business analyst")
+    if ba_intent:
+        params["pos_ba_re"] = r"\mBA\M"
+        params["pos_ba_txt"] = "%business analyst%"
+        return "(c.applied_position ~* :pos_ba_re OR c.applied_position ILIKE :pos_ba_txt)"
+    params["pos"] = f"%{p}%"
+    return "c.applied_position ILIKE :pos"
+
+
 class CandidateComparisonAgent:
     def __init__(self) -> None:
         self.llm = LLMClient()
@@ -104,8 +119,7 @@ class CandidateComparisonAgent:
             where_parts.append("(" + " OR ".join(ors) + ")")
 
         if position:
-            where_parts.append("c.applied_position ILIKE :pos")
-            params["pos"] = f"%{position}%"
+            where_parts.append(_applied_position_where(position, params))
 
         if scope == "best_for_position" and not position:
             return {
