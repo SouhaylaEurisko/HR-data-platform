@@ -17,6 +17,7 @@ from ..aggregation_agent import AggregationAgent
 from ..filter_aggregation_agent import FilterAggregationAgent
 from ..hr_feedback_agent import HrFeedbackAgent
 from ..candidate_comparison_agent import CandidateComparisonAgent
+from ..cv_info_agent import CvInfoAgent
 from ....config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class FlowAgent:
         self.filter_agg = FilterAggregationAgent()
         self.hr_feedback = HrFeedbackAgent()
         self.candidate_comparison = CandidateComparisonAgent()
+        self.cv_info = CvInfoAgent()
 
     async def process(
         self,
@@ -158,6 +160,22 @@ class FlowAgent:
                 total_found=r.get("total_found"),
                 sql=r.get("sql"),
                 explanation=r.get("explanation"),
+            )
+
+        elif intent == "cv_info":
+            result = await self.cv_info.process(
+                message, db,
+                chatbot_logger=chatbot_logger,
+                conversation_history=history,
+            )
+            flow_result = FlowResult(
+                intent=intent,
+                reply=result.reply,
+                summary=result.summary,
+                rows=result.rows,
+                total_found=result.total_found,
+                sql=result.sql,
+                explanation=result.explanation,
             )
 
         else:

@@ -53,6 +53,29 @@ def _apply_salary_correction(
     return corrected
 
 
+def _strip_avg_experience_from_stats(stats: List[Dict]) -> List[Dict]:
+    """
+    Drop average/mean years-of-experience columns from stats before API + summariser.
+
+    Removing avg_experience from logs only hides it in log files; the SQL row still
+    contains those keys until we remove them here.
+    """
+    if not stats:
+        return stats
+    out: List[Dict] = []
+    for row in stats:
+        pruned = {}
+        for k, v in row.items():
+            lk = k.lower().replace(" ", "_")
+            if "experience" in lk and (
+                "avg" in lk or "average" in lk or lk.startswith("mean_")
+            ):
+                continue
+            pruned[k] = v
+        out.append(pruned)
+    return out
+
+
 def _apply_experience_correction(
     stats: List[Dict],
     exp_stats: Dict,
@@ -64,13 +87,12 @@ def _apply_experience_correction(
     if not stats or not exp_stats:
         return stats
 
+    # Do not correct avg experience — we strip those columns before display (see _strip_avg_experience_from_stats).
     corrections = {
         "max_years_of_experience": exp_stats.get("max_experience"),
         "min_years_of_experience": exp_stats.get("min_experience"),
-        "avg_years_of_experience": exp_stats.get("avg_experience"),
         "max_experience": exp_stats.get("max_experience"),
         "min_experience": exp_stats.get("min_experience"),
-        "avg_experience": exp_stats.get("avg_experience"),
     }
 
     corrected = []
@@ -162,8 +184,9 @@ class AggregationAgent:
                     valid_count=exp_stats.get("count", 0),
                     min_experience=exp_stats.get("min_experience"),
                     max_experience=exp_stats.get("max_experience"),
-                    avg_experience=exp_stats.get("avg_experience"),
                 )
+
+        safe_stats = _strip_avg_experience_from_stats(safe_stats)
 
         # Log corrected stats + query execution
         if chatbot_logger:

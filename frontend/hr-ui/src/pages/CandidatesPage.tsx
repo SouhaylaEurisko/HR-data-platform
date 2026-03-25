@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
 import { getCandidates } from '../api/candidates';
+import { useAuth } from '../contexts/AuthContext';
 import { parseApplicationStatus } from '../constants/applicationStatus';
 import { HR_STAGE_DEFS, emptyHrStageCommentLists, latestStageComment } from '../constants/hrStages';
 import type { Candidate, CandidateListParams } from '../types/api';
@@ -35,6 +36,7 @@ function parseSearchParams(sp: URLSearchParams) {
 
 export default function CandidatesPage() {
   const navigate = useNavigate();
+  const { canWrite } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,16 +130,18 @@ export default function CandidatesPage() {
             {loading ? 'Loading...' : `Showing ${candidates.length} of ${total} candidates`}
           </p>
         </div>
-        <button onClick={() => navigate('/upload')} className="cross-nav-btn">
-          <svg viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fillRule="evenodd"
-              d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Upload Data
-        </button>
+        {canWrite && (
+          <button type="button" onClick={() => navigate('/upload')} className="cross-nav-btn">
+            <svg viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fillRule="evenodd"
+                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
+                clipRule="evenodd"
+              />
+            </svg>
+            Upload Data
+          </button>
+        )}
       </div>
 
       <div className="filters-panel">
@@ -227,7 +231,7 @@ export default function CandidatesPage() {
                     <td className="td-hr-comment" title={full || undefined}>
                       {full ? (
                         short
-                      ) : (
+                      ) : canWrite ? (
                         <button
                           type="button"
                           className="hr-comment-add-trigger"
@@ -241,6 +245,8 @@ export default function CandidatesPage() {
                         >
                           +
                         </button>
+                      ) : (
+                        <span className="td-status-empty">—</span>
                       )}
                     </td>
                   </tr>

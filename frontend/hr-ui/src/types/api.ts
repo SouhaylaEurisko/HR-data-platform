@@ -107,6 +107,46 @@ export interface Candidate {
   related_applications?: RelatedApplicationSummary[];
 }
 
+// Resume types
+export interface ResumeWorkExperience {
+  company: string | null;
+  title: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  description: string | null;
+}
+
+export interface ResumeEducation {
+  institution: string | null;
+  degree: string | null;
+  field_of_study: string | null;
+  start_date: string | null;
+  end_date: string | null;
+}
+
+export interface ResumeInfo {
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  summary?: string | null;
+  skills?: string[];
+  languages?: string[];
+  work_experience?: ResumeWorkExperience[];
+  education?: ResumeEducation[];
+  certifications?: string[];
+}
+
+export interface CandidateResume {
+  id: number;
+  candidate_id: number;
+  organization_id: number;
+  filename: string;
+  content_type: string;
+  resume_info: ResumeInfo;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CandidateListResponse {
   items: Candidate[];
   total: number;

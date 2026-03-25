@@ -1,6 +1,6 @@
 import apiClient from './client';
 import { API_ENDPOINTS } from '../config';
-import type { ApplicationStatus, Candidate, CandidateListResponse, CandidateListParams } from '../types/api';
+import type { ApplicationStatus, Candidate, CandidateListResponse, CandidateListParams, CandidateResume } from '../types/api';
 import type { HrStageKey } from '../constants/hrStages';
 
 /**
@@ -41,4 +41,31 @@ export const patchCandidateApplicationStatus = async (
     { application_status }
   );
   return response.data;
+};
+
+export const getResume = async (candidateId: number): Promise<CandidateResume> => {
+  const response = await apiClient.get<CandidateResume>(API_ENDPOINTS.candidateResume(candidateId));
+  return response.data;
+};
+
+export const uploadResume = async (candidateId: number, file: File): Promise<CandidateResume> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post<CandidateResume>(
+    API_ENDPOINTS.candidateResume(candidateId),
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return response.data;
+};
+
+export const downloadResume = async (candidateId: number): Promise<Blob> => {
+  const response = await apiClient.get(API_ENDPOINTS.candidateResumeDownload(candidateId), {
+    responseType: 'blob',
+  });
+  return response.data as Blob;
+};
+
+export const deleteResume = async (candidateId: number): Promise<void> => {
+  await apiClient.delete(API_ENDPOINTS.candidateResume(candidateId));
 };

@@ -45,8 +45,8 @@ AGGREGATION RULES
 
 - Include ONLY relevant metrics:
   
-  Salary-related:
-  - ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary
+  Salary-related (never require c.current_salary IS NOT NULL in WHERE for role-only filters):
+  - ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary
   - MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary
   - MIN(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS min_salary
 
@@ -64,15 +64,34 @@ FILTERING RULES
 - Numbers → >=, <=, BETWEEN
 
 --------------------------------------
-ROLE MATCHING (IMPORTANT)
+ROLE / POSITION MATCHING (CRITICAL)
 --------------------------------------
 
-- Use ONLY c.applied_position
+PRIMARY column for roles/positions: c.applied_position (VARCHAR)
+SECONDARY column for skills/tools:  c.tech_stack (JSONB array of strings)
 
-- Multi-word roles:
-  c.applied_position ILIKE '%data scientist%'
+DECISION LOGIC:
 
-- Short abbreviations:
+1. User asks for a ROLE or POSITION (e.g. "backend developers", "react native candidates"):
+   → Search ONLY c.applied_position with ILIKE.
+     c.applied_position ILIKE '%backend%'
+     c.applied_position ILIKE '%react native%'
+
+2. User asks about SKILLS they "know" / "use" (e.g. "candidates who know Python"):
+   → Search c.tech_stack::text ILIKE '%python%'
+   → Also include c.applied_position ILIKE for the inferred role as fallback.
+
+3. User names BOTH role AND skill:
+   → c.applied_position ILIKE '%role%' AND c.tech_stack::text ILIKE '%skill%'
+
+FORBIDDEN OPERATORS on tech_stack:
+  NEVER use @>, jsonb_array_elements, jsonb_array_elements_text, or ANY().
+  ALWAYS use:  c.tech_stack::text ILIKE '%value%'
+
+Short abbreviations (BA, PM, QA):
+  c.applied_position ~* '\\mBA\\M'
+
+Combine synonyms:
   (c.applied_position ~* '\\mBA\\M' OR c.applied_position ILIKE '%business analyst%')
 
 --------------------------------------
@@ -97,7 +116,8 @@ DATA QUALITY RULES
 --------------------------------------
 
 - Salary:
-  c.current_salary IS NOT NULL
+  Do NOT add c.current_salary IS NOT NULL to WHERE for cohort filters (role, nationality, etc.).
+  Many rows have NULL current_salary; use FILTER (WHERE c.current_salary IS NOT NULL) on salary aggregates.
 
 - Experience:
   c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50
@@ -107,7 +127,7 @@ AMBIGUITY HANDLING
 --------------------------------------
 
 - If user asks vague question (e.g. "stats about candidates"):
-  → return COUNT + avg_salary + avg_experience
+  → return COUNT + avg_salary (with FILTER on non-null salary) + avg_experience
 
 --------------------------------------
 CONTEXT HANDLING
@@ -140,16 +160,16 @@ User: "Average salary of candidates"
 
 Output:
 {{
-  "sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.current_salary IS NOT NULL",
-  "explanation": "Computes average salary across candidates"
+  "sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidate c",
+  "explanation": "Counts all candidates; average over non-null current_salary only"
 }}
 
 User: "Highest salary among backend developers"
 
 Output:
 {{
-  "sql": "SELECT COUNT(*) AS total_candidates, MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary FROM candidate c WHERE c.applied_position ILIKE '%backend%' AND c.current_salary IS NOT NULL",
-  "explanation": "Finds highest salary among backend candidates"
+  "sql": "SELECT COUNT(*) AS total_candidates, MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary FROM candidate c WHERE c.applied_position ILIKE '%backend%'",
+  "explanation": "Backend cohort; max salary among those with current_salary on file"
 }}
 
 User: "Average experience of Lebanese candidates"
@@ -167,6 +187,30 @@ Output:
   "sql": "SELECT lo.label AS employment_type, COUNT(*) AS total_candidates FROM candidate c JOIN lookup_option lo ON c.employment_type_id = lo.id GROUP BY lo.label",
   "explanation": "Counts candidates grouped by employment type"
 }}
+
+User: "How many react native candidates?"
+
+Output:
+{{
+  "sql": "SELECT COUNT(*) AS total_candidates FROM candidate c WHERE c.applied_position ILIKE '%react native%'",
+  "explanation": "Counts candidates whose position matches react native"
+}}
+
+User: "How many candidates know python and fastapi?"
+
+Output:
+{{
+  "sql": "SELECT COUNT(*) AS total_candidates FROM candidate c WHERE (c.applied_position ILIKE '%backend%' OR c.tech_stack::text ILIKE '%python%' OR c.tech_stack::text ILIKE '%fastapi%')",
+  "explanation": "Skills query: searches position for inferred role and tech_stack"
+}}
+
+User: "Average salary of frontend developers"
+
+Output:
+{{
+  "sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.applied_position ILIKE '%frontend%'",
+  "explanation": "Position query: filters applied_position for frontend role"
+}}
 """
 
 AGGREGATION_SUMMARY_PROMPT = """
@@ -181,8 +225,9 @@ RULES
 
 - 2–4 sentences
 - MUST include:
-  - Total candidates
-  - Key statistics (avg, max, min)
+  - Total candidates (when present in the input)
+  - Other key statistics that appear in the input (e.g. salary avg/max/min)
+- Do NOT mention average or mean **years of experience** in the summary or reply (that metric is excluded from results on purpose).
 - If grouped:
   - Highlight key differences or dominant group
 

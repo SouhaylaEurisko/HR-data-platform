@@ -5,24 +5,33 @@ import { getErrorMessage } from '../utils/errorHandler';
 import './AuthPage.css';
 
 export default function SignupPage() {
-  const { signup } = useAuth();
+  const { createUserAsAdmin } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'hr_manager' | 'hr_viewer'>('hr_viewer');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
     setIsSubmitting(true);
     try {
-      await signup(email, password, firstName.trim(), lastName.trim());
-      navigate('/', { replace: true });
-    } catch (err: any) {
+      const created = await createUserAsAdmin(email, password, firstName.trim(), lastName.trim(), role);
+      setSuccessMessage(
+        `User ${created.email} was created. Share the email and temporary password so they can sign in.`
+      );
+      setEmail('');
+      setFirstName('');
+      setLastName('');
+      setPassword('');
+    } catch (err: unknown) {
       setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
@@ -45,12 +54,17 @@ export default function SignupPage() {
       <main className="auth-main">
         <div className="auth-card auth-card-centered">
           <div className="auth-card-header">
-            <h3 className="auth-card-title">Sign Up</h3>
+            <h3 className="auth-card-title">Add user</h3>
             <p className="auth-card-subtitle">
-              Use your email to create a personal workspace for managing candidates.
+              Create an account for a colleague in your organization. They will use these credentials to sign in.
             </p>
           </div>
 
+          {successMessage && (
+            <div className="auth-error" style={{ background: 'rgba(34, 197, 94, 0.12)', borderColor: 'rgba(34, 197, 94, 0.4)', color: '#166534' }}>
+              {successMessage}
+            </div>
+          )}
           {error && <div className="auth-error">{error}</div>}
 
           <form onSubmit={handleSubmit} className="auth-form">
@@ -104,8 +118,23 @@ export default function SignupPage() {
             </div>
 
             <div className="auth-form-row">
+              <label htmlFor="role" className="auth-label">
+                Role
+              </label>
+              <select
+                id="role"
+                className="auth-input"
+                value={role}
+                onChange={(e) => setRole(e.target.value as 'hr_manager' | 'hr_viewer')}
+              >
+                <option value="hr_viewer">HR viewer (read-focused)</option>
+                <option value="hr_manager">HR manager</option>
+              </select>
+            </div>
+
+            <div className="auth-form-row">
               <label htmlFor="password" className="auth-label">
-                Password
+                Temporary password
               </label>
               <div className="auth-password-wrapper">
                 <input
@@ -140,13 +169,12 @@ export default function SignupPage() {
             </div>
 
             <button type="submit" className="auth-button" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating account...' : 'Create Account'}
+              {isSubmitting ? 'Creating user...' : 'Create user'}
             </button>
           </form>
 
           <div className="auth-meta">
-            Already have an account?{' '}
-            <Link to="/auth/login">Sign in</Link>
+            <Link to="/">Back to home</Link>
           </div>
         </div>
       </main>

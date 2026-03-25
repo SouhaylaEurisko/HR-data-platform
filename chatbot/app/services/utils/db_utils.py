@@ -76,6 +76,18 @@ TABLE candidate_stage_comment (
   entries          JSONB,             -- array of {"text": "...", "created_at": "ISO-8601"} oldest->newest
   updated_at       TIMESTAMPTZ
 )
+
+TABLE candidate_resume (
+  id               INTEGER PRIMARY KEY,
+  candidate_id     INTEGER NOT NULL UNIQUE,  -- -> candidate.id (one resume per candidate)
+  organization_id  INTEGER NOT NULL,
+  filename         VARCHAR(255),
+  content_type     VARCHAR(100),
+  resume_info      JSONB   -- GPT-extracted structured data; keys: full_name, email, phone, summary,
+                           --   skills (array of strings), languages (array), certifications (array),
+                           --   work_experience (array of {company, title, start_date, end_date, description}),
+                           --   education (array of {institution, degree, field_of_study, start_date, end_date})
+)
 """.strip()
 
 
@@ -240,6 +252,11 @@ _SALARY_SUBQUERY_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SALARY_IS_NOT_NULL_RE = re.compile(
+    r"current_salary\s+IS\s+NOT\s+NULL",
+    re.IGNORECASE,
+)
+
 _SALARY_CONDITION_RE = re.compile(
     r"""(?:AND\s+)?"""
     r"""current_salary\s*"""
@@ -266,6 +283,7 @@ def _has_salary_filter(sql: str) -> bool:
         _SALARY_SIMPLE_RE.search(where_part)
         or _SALARY_BETWEEN_RE.search(where_part)
         or _SALARY_SUBQUERY_RE.search(where_part)
+        or _SALARY_IS_NOT_NULL_RE.search(where_part)
     )
 
 
@@ -289,6 +307,9 @@ def _build_salary_matcher(
             "!=": lambda r: r is not None and not (r[0] <= val <= r[1]),
         }
         return matchers.get(op)
+
+    if _SALARY_IS_NOT_NULL_RE.search(sql):
+        return lambda r: r is not None
 
     return None
 

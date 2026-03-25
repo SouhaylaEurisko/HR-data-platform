@@ -116,6 +116,7 @@ class Candidate(Base):
     employment_type = relationship("LookupOption", foreign_keys=[employment_type_id])
     education_level = relationship("LookupOption", foreign_keys=[education_level_id])
     education_completion_status = relationship("LookupOption", foreign_keys=[education_completion_status_id])
+    resume = relationship("CandidateResume", back_populates="candidate", uselist=False, cascade="all, delete-orphan")
 
 
 # ──────────────────────────────────────────────

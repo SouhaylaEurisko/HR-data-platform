@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 
-import { login as apiLogin, signup as apiSignup, getCurrentUser } from '../api/auth';
+import { login as apiLogin, createUserAsAdmin as apiCreateUserAdmin, getCurrentUser } from '../api/auth';
 import { clearChatLocalStorage } from '../constants/chatStorage';
 import type { AuthResponse, User } from '../types/api';
 
@@ -10,8 +10,17 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** True when user can mutate data (import, HR comments, status, etc.). Only hr_manager. */
+  canWrite: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  /** HR manager only — creates a user in the same org; does not switch session. */
+  createUserAsAdmin: (
+    email: string,
+    password: string,
+    firstName: string,
+    lastName: string,
+    role: 'hr_manager' | 'hr_viewer'
+  ) => Promise<User>;
   logout: () => void;
 }
 
@@ -56,20 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     handleAuthSuccess(response);
   };
 
-  const handleSignup = async (
+  const handleCreateUserAsAdmin = async (
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    role: 'hr_manager' | 'hr_viewer'
   ) => {
-    const response = await apiSignup({
+    return apiCreateUserAdmin({
       email,
       password,
       first_name: firstName.trim(),
       last_name: lastName.trim(),
-      organization_id: 1,
+      role,
     });
-    handleAuthSuccess(response);
   };
 
   const handleLogout = () => {
@@ -86,8 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         isLoading,
         isAuthenticated: !!user && !!token,
+        canWrite: user?.role === 'hr_manager',
         login: handleLogin,
-        signup: handleSignup,
+        createUserAsAdmin: handleCreateUserAsAdmin,
         logout: handleLogout,
       }}
     >

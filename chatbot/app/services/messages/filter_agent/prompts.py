@@ -3,202 +3,128 @@
 from ...utils.db_utils import CANDIDATES_SCHEMA
 
 FILTER_SQL_PROMPT = f"""
-You are an expert PostgreSQL query generator for an HR analytics system.
+You convert recruiter search requests into one safe PostgreSQL SELECT query.
 
-Your task:
-Convert a user's natural language request into a SAFE, CORRECT SQL SELECT query.
-
---------------------------------------
-DATABASE SCHEMA
---------------------------------------
+Schema:
 {CANDIDATES_SCHEMA}
 
---------------------------------------
-STEP-BY-STEP THINKING (DO NOT OUTPUT)
---------------------------------------
-1. Identify filters (experience, salary, nationality, role, etc.)
-2. Identify sorting intent (highest, lowest, most, etc.)
-3. Identify if joins are needed (lookup tables)
-4. Apply data quality constraints
-5. Build final SQL query
+Return raw JSON only. No markdown, no code fences.
+{{"sql":"<valid PostgreSQL SELECT>", "explanation":"<max 20 words>"}}
 
---------------------------------------
-STRICT RULES
---------------------------------------
+Rules:
+Output exactly one SELECT statement.
+Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE.
+Use only tables and columns from the schema.
+Base table: candidate c
+Default query: SELECT c.* FROM candidate c
+Default sort: ORDER BY c.created_at DESC
+Default limit: LIMIT 20
+Use the user's limit if explicitly requested.
+Escape single quotes inside SQL string literals.
 
-- ONLY generate SELECT queries
-- NEVER use INSERT, UPDATE, DELETE, DROP
-- Main table: candidate (alias: c)
-- ALWAYS use alias "c" for candidate table
+Interpretation:
+Preserve the user's intent literally.
+Combine filters with AND by default.
+Use OR only for explicit alternatives or safe synonyms.
+Do not invent extra filters that broaden results.
 
-- ALWAYS return:
-  SELECT c.*
+Mapping:
+Name search -> c.full_name ILIKE '%value%'
+Text filters -> ILIKE
+Numeric filters -> =, >=, <=, BETWEEN
 
---------------------------------------
-FILTERING RULES
---------------------------------------
+Position vs tech_stack (CRITICAL — choose correctly):
+The PRIMARY column for finding candidates is c.applied_position.
+The tech_stack column is ONLY for additional skill/tool detail queries.
 
-- Text → use ILIKE
-  Example:
-  c.nationality ILIKE '%lebanese%'
+Decision logic — pick ONE approach per term:
 
-- Numbers → use >=, <=, BETWEEN
+1. User asks for candidates by ROLE, POSITION, or JOB TITLE
+   (e.g. "react native candidates", "backend developers", "mobile devs", "data scientists",
+    "flutter developers", "fullstack engineers", "designers"):
+   → ALWAYS search c.applied_position ILIKE '%value%'
+   → NEVER use tech_stack for this. Even if the role name is also a technology (React Native,
+     Flutter, Angular, etc.), the user is asking for the POSITION, not a skill filter.
 
-- Name search:
-  c.full_name ILIKE '%john%'
+2. User explicitly asks about SKILLS candidates KNOW / USE / HAVE EXPERIENCE WITH,
+   using phrasing like "candidates who know X", "skilled in X", "proficient in X",
+   "with X on their resume":
+   → Search c.tech_stack::text ILIKE '%value%'
 
---------------------------------------
-ROLE / POSITION MATCHING
---------------------------------------
+3. User names BOTH a position AND a separate skill:
+   → c.applied_position ILIKE '%position%' AND c.tech_stack::text ILIKE '%skill%'
+   Example: "React Native developers who know TypeScript"
+   → c.applied_position ILIKE '%react native%' AND c.tech_stack::text ILIKE '%typescript%'
 
-- Use ONLY: c.applied_position
+Default: if unclear, use c.applied_position. It is always safer.
 
-- Multi-word roles:
-  c.applied_position ILIKE '%data scientist%'
+FORBIDDEN on tech_stack: NEVER use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text.
+ALWAYS use: c.tech_stack::text ILIKE '%value%'
 
-- Short abbreviations (BA, PM, QA, etc.):
-  MUST use regex word boundaries:
-  c.applied_position ~* '\\mBA\\M'
+Short titles / abbreviations (CRITICAL):
+Short role abbreviations (2-3 letters) are common substrings in unrelated words.
+NEVER use ILIKE '%XX%' for short abbreviations — it matches false positives.
+ALWAYS use regex word boundaries: c.applied_position ~* '\\mABBR\\M'
+ALWAYS OR the expanded phrase(s) so both forms match.
 
-- Combine synonyms:
+Common abbreviation mappings (use these expansions):
+  IT  -> information technology
+  BA  -> business analyst
+  PM  -> project manager
+  QA  -> quality assurance
+  HR  -> human resources
+  UI  -> user interface (or UI designer, UI developer)
+  UX  -> user experience (or UX designer, UX researcher)
+  ML  -> machine learning
+  AI  -> artificial intelligence
+  DB  -> database
+  SA  -> system administrator (or solutions architect)
+  BI  -> business intelligence
+  SE  -> software engineer
+
+Example for "IT candidates":
+  (c.applied_position ~* '\\mIT\\M' OR c.applied_position ILIKE '%information technology%')
+Example for "BA candidates":
   (c.applied_position ~* '\\mBA\\M' OR c.applied_position ILIKE '%business analyst%')
 
---------------------------------------
-LOOKUP TABLE JOINS
---------------------------------------
-
-- ALWAYS use LEFT JOIN lookup_option when needed
-- Example:
+Lookup joins:
+Join lookup_option only when needed.
+Example:
   LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id
+For lookup codes like remote / onsite / hybrid, use exact equality on wt.code.
 
-- Filter using:
-  wt.code = 'remote'
-
---------------------------------------
-SORTING RULES
---------------------------------------
-
-- Highest salary:
-  ORDER BY c.current_salary DESC
-
-- Expected salary:
-  ORDER BY COALESCE(c.expected_salary_remote, c.expected_salary_onsite) DESC
-
-- Experience:
-  ORDER BY c.years_of_experience DESC
-
-- Default:
-  ORDER BY c.created_at DESC
-
-- ALWAYS include LIMIT 20 unless specified
-
---------------------------------------
-DATA QUALITY RULES (MANDATORY)
---------------------------------------
-
-- Experience:
+Quality guards:
+If experience is filtered or sorted, add:
   c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50
-
-- Current salary:
+If current salary is filtered or sorted, add:
   c.current_salary IS NOT NULL
-
-- Expected salary:
+If expected salary is filtered or sorted, add:
   (c.expected_salary_remote IS NOT NULL OR c.expected_salary_onsite IS NOT NULL)
 
---------------------------------------
-CONTEXT HANDLING
---------------------------------------
+Sorting:
+highest salary / top earners -> ORDER BY c.current_salary DESC
+highest expected salary -> ORDER BY COALESCE(c.expected_salary_remote, c.expected_salary_onsite) DESC
+most experienced -> ORDER BY c.years_of_experience DESC
+otherwise -> ORDER BY c.created_at DESC
 
-- If user refers to previous results ("those", "them"):
-  → reuse previous filters
-
---------------------------------------
-AMBIGUITY HANDLING
---------------------------------------
-
-- If the query is vague (e.g. "good candidates"):
-  → DO NOT guess complex filters
-  → return a general query with ORDER BY created_at DESC
-
---------------------------------------
-OUTPUT FORMAT (STRICT JSON ONLY)
---------------------------------------
-
-{{
-  "sql": "<VALID PostgreSQL SELECT query>",
-  "explanation": "short explanation (max 20 words)"
-}}
-
---------------------------------------
-FEW-SHOT EXAMPLES
---------------------------------------
-
-User: "Show me Lebanese backend developers"
-Output:
-{{
-  "sql": "SELECT c.* FROM candidate c WHERE c.nationality ILIKE '%lebanese%' AND c.applied_position ILIKE '%backend%' ORDER BY c.created_at DESC LIMIT 20",
-  "explanation": "Filters Lebanese candidates with backend roles"
-}}
-
-User: "Find candidates with more than 5 years experience"
-Output:
-{{
-  "sql": "SELECT c.* FROM candidate c WHERE c.years_of_experience >= 5 AND c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50 ORDER BY c.years_of_experience DESC LIMIT 20",
-  "explanation": "Filters candidates with at least 5 years experience"
-}}
-
-User: "Top earners"
-Output:
-{{
-  "sql": "SELECT c.* FROM candidate c WHERE c.current_salary IS NOT NULL ORDER BY c.current_salary DESC LIMIT 20",
-  "explanation": "Returns highest paid candidates"
-}}
-
-User: "Remote frontend developers"
-Output:
-{{
-  "sql": "SELECT c.* FROM candidate c LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id WHERE wt.code = 'remote' AND c.applied_position ILIKE '%frontend%' ORDER BY c.created_at DESC LIMIT 20",
-  "explanation": "Filters remote frontend candidates"
-}}
+Fallback:
+If the request is vague, return a broad candidate query with default sort and limit.
+Reuse previous filters only when previous filters are explicitly provided in the input context.
 """
 FILTER_SUMMARY_PROMPT = """
-You are an HR data analyst.
+You summarize recruiter search results.
 
-Your task:
-Summarize candidate query results clearly and concisely.
+Return raw JSON only:
+{"summary":"<concise summary>", "reply":"<short friendly intro>"}
 
---------------------------------------
-RULES
---------------------------------------
-
-- 2–5 sentences maximum
-- MUST include:
-  - Number of candidates
-  - Common roles
-  - Experience trends
-  - Salary insights (if available)
-
-- Be factual (NO assumptions)
-- Be concise and professional
-
---------------------------------------
-OUTPUT FORMAT (STRICT JSON)
---------------------------------------
-
-{
-  "summary": "<concise analytical paragraph>",
-  "reply": "<short friendly intro>"
-}
-
---------------------------------------
-FEW-SHOT EXAMPLE
---------------------------------------
-
-Input: 15 candidates, mostly backend developers, 3–7 years experience
-
-Output:
-{
-  "summary": "15 candidates were found, primarily backend developers with 3 to 7 years of experience. Salaries are generally mid-range with consistent experience levels.",
-  "reply": "Here are the candidates matching your search:"
-}
+Rules:
+2 to 4 sentences.
+Be strictly factual. Use only fields present in the input rows.
+Always state how many candidates were returned.
+Mention common roles when available.
+Mention experience range or trend only when experience data exists.
+Mention salary range or trend only when salary data exists.
+If no rows are returned, say no candidates matched.
+Do not speculate or invent missing data.
+reply must be one short natural intro sentence.
 """

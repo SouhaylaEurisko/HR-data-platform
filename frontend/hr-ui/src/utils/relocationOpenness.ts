@@ -10,7 +10,7 @@ const LABELS: Record<RelocationOpenness, string> = {
 export function relocationOpennessLabel(
   value: RelocationOpenness | string | null | undefined,
 ): string {
-  if (value == null || value === '') return '—';
+  if (value == null || value === '') return '-';
   if (value in LABELS) return LABELS[value as RelocationOpenness];
   return String(value);
 }

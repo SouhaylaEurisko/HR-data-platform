@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
-import { getCandidateById, patchCandidateApplicationStatus, postCandidateHrStageComment } from '../api/candidates';
+import { getCandidateById, patchCandidateApplicationStatus, postCandidateHrStageComment, getResume, uploadResume, downloadResume, deleteResume } from '../api/candidates';
 import { APPLICATION_STATUS_OPTIONS, parseApplicationStatus } from '../constants/applicationStatus';
 import {
   HR_STAGE_DEFS,
@@ -9,10 +9,11 @@ import {
   type HrStageDef,
   type HrStageKey,
 } from '../constants/hrStages.ts';
-import type { ApplicationStatus, Candidate, HrStageCommentEntry } from '../types/api';
+import type { ApplicationStatus, Candidate, CandidateResume, HrStageCommentEntry } from '../types/api';
 import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import { transportationAvailabilityLabel } from '../utils/transportationAvailability';
+import { useAuth } from '../contexts/AuthContext';
 import './CandidateDetailPage.css';
 
 function entriesForStage(c: Candidate, key: HrStageKey): HrStageCommentEntry[] {
@@ -29,6 +30,7 @@ export default function CandidateDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { canWrite } = useAuth();
   const fromChat =
     (location.state as CandidateDetailLocationState | null)?.fromChat ?? false;
 
@@ -36,7 +38,7 @@ export default function CandidateDetailPage() {
     if (fromChat) {
       navigate('/chat');
     } else {
-      navigate(-1);
+      navigate('/candidates');
     }
   };
 
@@ -52,6 +54,13 @@ export default function CandidateDetailPage() {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [resume, setResume] = useState<CandidateResume | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [showResumePanel, setShowResumePanel] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
+  const resumeFileRef = useRef<HTMLInputElement>(null);
   const didScrollToHrComment = useRef(false);
   const hrStageSelectRef = useRef<HTMLDivElement>(null);
   const hrLatestBlockRef = useRef<HTMLDivElement>(null);
@@ -118,6 +127,75 @@ export default function CandidateDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    if (!id) return;
+    const candidateId = parseInt(id, 10);
+    if (isNaN(candidateId)) return;
+    setResumeLoading(true);
+    getResume(candidateId)
+      .then((r) => setResume(r))
+      .catch(() => setResume(null))
+      .finally(() => setResumeLoading(false));
+  }, [id]);
+
+  const handleResumeUpload = async (file: File) => {
+    if (!candidate) return;
+    setResumeUploading(true);
+    setResumeError(null);
+    try {
+      const r = await uploadResume(candidate.id, file);
+      setResume(r);
+    } catch (err: unknown) {
+      setResumeError(apiErrorMessage(err, 'Failed to upload resume'));
+    } finally {
+      setResumeUploading(false);
+    }
+  };
+
+  const handleResumeDownload = async () => {
+    if (!candidate || !resume) return;
+    try {
+      const blob = await downloadResume(candidate.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = resume.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setResumeError(apiErrorMessage(err, 'Failed to download resume'));
+    }
+  };
+
+  const handleViewPdf = async () => {
+    if (!candidate || !resume) return;
+    try {
+      const blob = await downloadResume(candidate.id);
+      const url = URL.createObjectURL(blob);
+      setPdfViewerUrl(url);
+    } catch (err: unknown) {
+      setResumeError(apiErrorMessage(err, 'Failed to load PDF preview'));
+    }
+  };
+
+  const closePdfViewer = () => {
+    if (pdfViewerUrl) {
+      URL.revokeObjectURL(pdfViewerUrl);
+      setPdfViewerUrl(null);
+    }
+  };
+
+  const handleResumeDelete = async () => {
+    if (!candidate) return;
+    setResumeError(null);
+    try {
+      await deleteResume(candidate.id);
+      setResume(null);
+    } catch (err: unknown) {
+      setResumeError(apiErrorMessage(err, 'Failed to delete resume'));
+    }
+  };
+
+  useEffect(() => {
     if (!candidate || didScrollToHrComment.current) return;
     const st = location.state as CandidateDetailLocationState | null | undefined;
     if (!st?.focusHrComment) return;
@@ -127,14 +205,16 @@ export default function CandidateDetailPage() {
         behavior: 'smooth',
         block: 'center',
       });
-      document.getElementById('hr-stage-select-trigger')?.focus();
+      if (canWrite) {
+        document.getElementById('hr-stage-select-trigger')?.focus();
+      }
     };
     requestAnimationFrame(() => setTimeout(run, 50));
     navigate(location.pathname, {
       replace: true,
       state: { fromChat: st.fromChat },
     });
-  }, [candidate, location.pathname, location.state, navigate]);
+  }, [candidate, location.pathname, location.state, navigate, canWrite]);
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -231,8 +311,70 @@ export default function CandidateDetailPage() {
           &larr; {fromChat ? 'Back to Chat' : 'Back to Candidates'}
         </button>
         <div className="detail-header-title-row">
-          <h1>{displayName(candidate)}</h1>
-          <ApplicationStatusBadge status={headerApplicationStatus} size="large" />
+          <div className="detail-header-left">
+            <h1>{displayName(candidate)}</h1>
+            <ApplicationStatusBadge status={headerApplicationStatus} size="large" />
+          </div>
+          <div className="detail-header-cv">
+            <input
+              ref={resumeFileRef}
+              type="file"
+              accept=".pdf"
+              className="resume-file-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleResumeUpload(file);
+              }}
+            />
+            {resumeLoading ? (
+              <span className="cv-btn cv-btn-loading">Loading CV...</span>
+            ) : resume ? (
+              <>
+                <button type="button" className="cv-btn cv-btn-view" onClick={() => void handleViewPdf()}>
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="cv-icon">
+                    <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+                  </svg>
+                  View CV
+                </button>
+                <button type="button" className="cv-btn cv-btn-download" onClick={handleResumeDownload}>
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="cv-icon">
+                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  Download
+                </button>
+                {canWrite && (
+                  <>
+                    <button
+                      type="button"
+                      className="cv-btn cv-btn-replace"
+                      disabled={resumeUploading}
+                      onClick={() => resumeFileRef.current?.click()}
+                    >
+                      {resumeUploading ? 'Uploading...' : 'Replace'}
+                    </button>
+                    <button type="button" className="cv-btn cv-btn-delete" onClick={handleResumeDelete}>
+                      Delete
+                    </button>
+                  </>
+                )}
+              </>
+            ) : canWrite ? (
+              <button
+                type="button"
+                className="cv-btn cv-btn-upload"
+                disabled={resumeUploading}
+                onClick={() => resumeFileRef.current?.click()}
+              >
+                <svg viewBox="0 0 20 20" fill="currentColor" className="cv-icon">
+                  <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+                {resumeUploading ? 'Uploading...' : 'Upload CV'}
+              </button>
+            ) : (
+              <span className="cv-btn cv-btn-none">No CV</span>
+            )}
+            {resumeError && <span className="cv-error">{resumeError}</span>}
+          </div>
         </div>
         {candidate.application_index != null &&
           candidate.application_total != null &&
@@ -278,6 +420,12 @@ export default function CandidateDetailPage() {
       </div>
 
       <div className="detail-content">
+        {!canWrite && (
+          <div className="read-only-banner" role="status">
+            Read-only access: you can view candidates and HR comments. Only HR managers can change
+            application status or add comments.
+          </div>
+        )}
         {/* Personal Information */}
         <div className="detail-card">
           <h2>Personal Information</h2>
@@ -472,7 +620,9 @@ export default function CandidateDetailPage() {
             <h2>HR comments</h2>
           </div>
           <p className="hr-comment-hint">
-            Add a comment and track your comment history for each stage.
+            {canWrite
+              ? 'Add a comment and track your comment history for each stage.'
+              : 'View comments by stage below. Adding comments requires an HR manager role.'}
           </p>
           <div className="hr-stage-and-status-row">
             <div className="hr-stage-selector-group">
@@ -545,7 +695,7 @@ export default function CandidateDetailPage() {
                       name="application-status"
                       value={value}
                       checked={headerApplicationStatus === value}
-                      disabled={statusSaving}
+                      disabled={statusSaving || !canWrite}
                       onChange={() => void handleApplicationStatusChange(value)}
                     />
                     <span>{label}</span>
@@ -605,35 +755,152 @@ export default function CandidateDetailPage() {
               )}
             </div>
           )}
-          <label className="hr-comment-add-label" htmlFor="hr-comment-textarea">
-            Add a comment
-          </label>
-          <textarea
-            id="hr-comment-textarea"
-            className="hr-comment-textarea"
-            value={newCommentText}
-            onChange={(e) => setNewCommentText(e.target.value)}
-            placeholder={`Add an update for ${selectedStageLabel}…`}
-            rows={4}
-            maxLength={10000}
-            aria-label={`New HR comment for ${selectedStageLabel}`}
-          />
-          <div className="hr-comment-footer">
-            <button
-              type="button"
-              className="hr-comment-save-btn"
-              onClick={() => void handleAddHrStageComment()}
-              disabled={commentSaving || !newCommentText.trim()}
-            >
-              {commentSaving ? 'Adding…' : 'Add comment'}
-            </button>
-            {commentError && (
-              <span className="hr-comment-error" role="alert">
-                {commentError}
-              </span>
-            )}
-          </div>
+          {canWrite ? (
+            <>
+              <label className="hr-comment-add-label" htmlFor="hr-comment-textarea">
+                Add a comment
+              </label>
+              <textarea
+                id="hr-comment-textarea"
+                className="hr-comment-textarea"
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
+                placeholder={`Add an update for ${selectedStageLabel}…`}
+                rows={4}
+                maxLength={10000}
+                aria-label={`New HR comment for ${selectedStageLabel}`}
+              />
+              <div className="hr-comment-footer">
+                <button
+                  type="button"
+                  className="hr-comment-save-btn"
+                  onClick={() => void handleAddHrStageComment()}
+                  disabled={commentSaving || !newCommentText.trim()}
+                >
+                  {commentSaving ? 'Adding…' : 'Add comment'}
+                </button>
+                {commentError && (
+                  <span className="hr-comment-error" role="alert">
+                    {commentError}
+                  </span>
+                )}
+              </div>
+            </>
+          ) : null}
         </div>
+
+        {/* Resume / CV — Parsed Info (always visible when resume exists) */}
+        {resume && (
+          <div className="detail-card detail-card-resume-panel">
+            <h2>Resume / CV — Parsed Info</h2>
+
+            {(() => {
+              const ri = resume.resume_info;
+              const hasData = ri && (
+                ri.summary ||
+                (ri.skills && ri.skills.length > 0) ||
+                (ri.languages && ri.languages.length > 0) ||
+                (ri.work_experience && ri.work_experience.length > 0) ||
+                (ri.education && ri.education.length > 0) ||
+                (ri.certifications && ri.certifications.length > 0)
+              );
+
+              if (!hasData) {
+                return (
+                  <p className="resume-empty-info">
+                    No parsed data available. The CV was uploaded but automatic extraction did not
+                    produce results. This can happen if the server lacks PyMuPDF or if the PDF
+                    format could not be read. You can still view the original PDF using "View CV".
+                  </p>
+                );
+              }
+
+              return (
+                <div className="resume-info-grid">
+                  {ri.summary && (
+                    <div className="resume-info-section">
+                      <h3>Summary</h3>
+                      <p>{ri.summary}</p>
+                    </div>
+                  )}
+
+                  {ri.skills && ri.skills.length > 0 && (
+                    <div className="resume-info-section">
+                      <h3>Skills</h3>
+                      <div className="resume-tags">
+                        {ri.skills.map((s, i) => (
+                          <span key={i} className="resume-tag">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {ri.languages && ri.languages.length > 0 && (
+                    <div className="resume-info-section">
+                      <h3>Languages</h3>
+                      <div className="resume-tags">
+                        {ri.languages.map((l, i) => (
+                          <span key={i} className="resume-tag">{l}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {ri.work_experience && ri.work_experience.length > 0 && (
+                    <div className="resume-info-section">
+                      <h3>Work Experience</h3>
+                      <ul className="resume-timeline">
+                        {ri.work_experience.map((w, i) => (
+                          <li key={i} className="resume-timeline-item">
+                            <strong>{w.title || 'Untitled'}</strong>
+                            {w.company && <span className="resume-company"> at {w.company}</span>}
+                            {(w.start_date || w.end_date) && (
+                              <span className="resume-dates">
+                                {' '}({w.start_date || '?'} – {w.end_date || 'Present'})
+                              </span>
+                            )}
+                            {w.description && <p className="resume-desc">{w.description}</p>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {ri.education && ri.education.length > 0 && (
+                    <div className="resume-info-section">
+                      <h3>Education</h3>
+                      <ul className="resume-timeline">
+                        {ri.education.map((e, i) => (
+                          <li key={i} className="resume-timeline-item">
+                            <strong>{e.degree || 'Degree'}</strong>
+                            {e.field_of_study && <span> in {e.field_of_study}</span>}
+                            {e.institution && <span className="resume-company"> — {e.institution}</span>}
+                            {(e.start_date || e.end_date) && (
+                              <span className="resume-dates">
+                                {' '}({e.start_date || '?'} – {e.end_date || 'Present'})
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {ri.certifications && ri.certifications.length > 0 && (
+                    <div className="resume-info-section">
+                      <h3>Certifications</h3>
+                      <div className="resume-tags">
+                        {ri.certifications.map((c, i) => (
+                          <span key={i} className="resume-tag">{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        )}
 
         {/* Metadata */}
         <div className="detail-card">
@@ -654,6 +921,25 @@ export default function CandidateDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* PDF Viewer Modal */}
+      {pdfViewerUrl && (
+        <div className="pdf-viewer-overlay" onClick={closePdfViewer}>
+          <div className="pdf-viewer-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pdf-viewer-header">
+              <span className="pdf-viewer-title">{resume?.filename ?? 'Resume'}</span>
+              <button type="button" className="pdf-viewer-close" onClick={closePdfViewer}>
+                ✕
+              </button>
+            </div>
+            <iframe
+              className="pdf-viewer-iframe"
+              src={pdfViewerUrl}
+              title="Resume PDF"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -173,9 +173,9 @@ def _to_bool_or_none(value: Any) -> Optional[bool]:
     if isinstance(value, bool):
         return value
     text = str(value).strip().lower()
-    if text in ("true", "yes", "1", "y", "oui", "employed"):
+    if text in ("true", "yes", "y", "employed"):
         return True
-    if text in ("false", "no", "0", "n", "non", "unemployed", "not employed"):
+    if text in ("false", "no", "n", "unemployed", "not employed"):
         return False
     return None
 
@@ -192,9 +192,9 @@ def _to_relocation_openness_or_none(value: Any) -> Optional[RelocationOpenness]:
     # Third option (Google Forms / HR wording)
     if "mission" in text:
         return RelocationOpenness.for_missions_only
-    if text in ("true", "yes", "1", "y", "oui"):
+    if text in ("true", "yes","y"):
         return RelocationOpenness.yes
-    if text in ("false", "no", "0", "n", "non"):
+    if text in ("false", "no", "n"):
         return RelocationOpenness.no
     # Try enum value / name
     for member in RelocationOpenness:
@@ -217,9 +217,9 @@ def _to_transportation_availability_or_none(
     for member in TransportationAvailability:
         if text == member.value or text == member.name.lower():
             return member
-    if text in ("true", "yes", "1", "y", "oui", "has transportation", "has car", "own vehicle"):
+    if text in ("true", "yes", "has transportation", "has car", "own vehicle"):
         return TransportationAvailability.yes
-    if text in ("false", "no", "0", "n", "non", "no transportation"):
+    if text in ("false", "no","no transportation"):
         return TransportationAvailability.no
     if "only" in text and "remote" in text:
         return TransportationAvailability.only_open_for_remote_opportunities

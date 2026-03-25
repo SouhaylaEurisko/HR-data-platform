@@ -30,6 +30,7 @@ def rows_to_display(rows: List[Dict[str, Any]], max_rows: int = 10) -> str:
             parts.append(f"Salary: ${float(row['current_salary']):,.0f}")
         if row.get("current_address"):
             parts.append(f"Location: {row['current_address']}")
+
         lines.append(f"{i+1}. " + " | ".join(parts))
 
     text = "\n".join(lines)

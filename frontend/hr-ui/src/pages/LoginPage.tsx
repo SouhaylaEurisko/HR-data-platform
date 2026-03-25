@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../utils/errorHandler';
 import './AuthPage.css';
@@ -108,8 +108,7 @@ export default function LoginPage() {
           </form>
 
           <div className="auth-meta">
-            Don&apos;t have an account?{' '}
-            <Link to="/auth/signup">Create an account</Link>
+            Accounts are created by HR managers.
           </div>
         </div>
       </main>

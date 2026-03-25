@@ -87,8 +87,10 @@ class FilterAggregationAgent:
         if "ORDER BY YEARS_OF_EXPERIENCE" in filter_upper:
             safe_rows = filter_empty_rows(safe_rows, required_field="years_of_experience")
         elif "ORDER BY CURRENT_SALARY" in filter_upper:
-            safe_rows = filter_empty_rows(safe_rows, required_field="current_salary")
-            descending = "DESC" in filter_upper.split("ORDER BY CURRENT_SALARY")[1].split("LIMIT")[0]
+            # Do not drop NULL current_salary — many valid candidates lack it; stats still use FILTER on aggregates
+            safe_rows = filter_empty_rows(safe_rows, required_field=None)
+            tail = filter_upper.split("ORDER BY CURRENT_SALARY", 1)[1]
+            descending = "DESC" in tail.split("LIMIT")[0]
             safe_rows = resort_by_salary(safe_rows, descending=descending)
 
         total = len(safe_rows)

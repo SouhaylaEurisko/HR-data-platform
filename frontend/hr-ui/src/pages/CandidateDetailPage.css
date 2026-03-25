@@ -5,6 +5,17 @@
   margin: 0 auto;
 }
 
+.read-only-banner {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--eurisko-radius-lg);
+  border: 1px solid var(--eurisko-border);
+  background: rgba(139, 92, 246, 0.08);
+  color: var(--eurisko-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .detail-header {
   margin-bottom: 2rem;
 }
@@ -13,15 +24,140 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem 1rem;
   margin-top: 1rem;
+}
+
+.detail-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .detail-header-title-row h1 {
   margin: 0;
   color: var(--eurisko-text-primary);
-  flex: 1 1 auto;
   min-width: 0;
+}
+
+/* ── CV header button group ── */
+
+.detail-header-cv {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.cv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--eurisko-radius-md);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  background: rgba(168, 85, 247, 0.1);
+  color: var(--eurisko-accent-light);
+  transition: background 0.2s, border-color 0.2s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.cv-btn:hover {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: rgba(168, 85, 247, 0.5);
+}
+
+.cv-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cv-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.cv-btn-upload {
+  background: rgba(168, 85, 247, 0.18);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.cv-btn-view {
+  background: rgba(168, 85, 247, 0.14);
+}
+
+.cv-btn-download {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+.cv-btn-download:hover {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.cv-btn-replace {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.cv-btn-replace:hover {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.cv-btn-delete {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.cv-btn-delete:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.cv-btn-none {
+  cursor: default;
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.cv-btn-none:hover {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.cv-btn-loading {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.cv-error {
+  font-size: 0.78rem;
+  color: #f87171;
+}
+
+.detail-card-resume-panel {
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  background: rgba(168, 85, 247, 0.04);
+}
+
+.resume-empty-info {
+  color: var(--eurisko-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  padding: 0.5rem 0;
 }
 
 .application-context-banner {
@@ -644,4 +780,174 @@
     align-items: flex-start;
     gap: 1rem;
   }
+}
+
+/* ═══════════════ RESUME / CV CARD ═══════════════ */
+
+.resume-file-input {
+  display: none;
+}
+
+.resume-info-grid {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.resume-info-section h3 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--eurisko-text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.resume-info-section p {
+  margin: 0;
+  color: var(--eurisko-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.resume-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.resume-tag {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 100px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: rgba(168, 85, 247, 0.1);
+  color: var(--eurisko-accent-light);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.resume-timeline {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.resume-timeline-item {
+  color: var(--eurisko-text-primary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.resume-company {
+  color: var(--eurisko-text-secondary);
+}
+
+.resume-dates {
+  color: var(--eurisko-text-muted);
+  font-size: 0.82rem;
+}
+
+.resume-desc {
+  margin: 0.3rem 0 0;
+  color: var(--eurisko-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+/* ═══════════════ PDF VIEWER MODAL ═══════════════ */
+
+.pdf-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pdfFadeIn 0.2s ease;
+}
+
+@keyframes pdfFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pdf-viewer-modal {
+  width: min(92vw, 900px);
+  height: min(92vh, 850px);
+  background: var(--eurisko-bg-card, #1e1e2e);
+  border: 1px solid var(--eurisko-border, #333);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.pdf-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--eurisko-border, #333);
+  background: var(--eurisko-bg-surface, #16161e);
+  flex-shrink: 0;
+}
+
+.pdf-viewer-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--eurisko-text-primary, #f0f0f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pdf-viewer-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pdf-viewer-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.pdf-viewer-close:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.pdf-viewer-iframe {
+  flex: 1;
+  border: none;
+  background: #fff;
+}
+
+.cv-btn-info {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.cv-btn-info:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
 }

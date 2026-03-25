@@ -10,7 +10,7 @@ const LABELS: Record<TransportationAvailability, string> = {
 export function transportationAvailabilityLabel(
   value: TransportationAvailability | string | null | undefined,
 ): string {
-  if (value == null || value === '') return '—';
+  if (value == null || value === '') return '-';
   if (value in LABELS) return LABELS[value as TransportationAvailability];
   return String(value);
 }

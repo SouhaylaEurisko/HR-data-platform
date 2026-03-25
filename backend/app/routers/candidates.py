@@ -4,12 +4,14 @@ Router: Candidate listing and detail endpoints.
 List query params: search by full name, position filter, sort/pagination.
 """
 
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..config import get_db
+from ..models.user import UserAccount
+from ..routers.auth import get_current_user, require_hr_manager
 from ..models import (
     CandidateApplicationStatusUpdate,
     CandidateHrStageCommentCreate,
@@ -60,9 +62,11 @@ def list_candidates_endpoint(
 def post_candidate_hr_stage_comment(
     candidate_id: int,
     body: CandidateHrStageCommentCreate,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
     db: Session = Depends(get_db),
 ) -> CandidateRead:
+    require_hr_manager(current_user)
     result = append_candidate_hr_stage_comment(db, candidate_id, org_id=org_id, body=body)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
@@ -73,9 +77,11 @@ def post_candidate_hr_stage_comment(
 def patch_candidate_application_status(
     candidate_id: int,
     body: CandidateApplicationStatusUpdate,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
     db: Session = Depends(get_db),
 ) -> CandidateRead:
+    require_hr_manager(current_user)
     result = update_candidate_application_status(db, candidate_id, org_id=org_id, body=body)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")

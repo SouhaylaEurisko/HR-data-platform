@@ -430,6 +430,82 @@
   .option-card.card-disabled:hover {
     transform: translateY(-3px);
   }
+
+  /* Upload card — hr_viewer: dimmed, darker on hover, tooltip explains viewer mode */
+  .option-card.option-card-upload.option-card-upload-viewer {
+    cursor: not-allowed;
+    position: relative;
+    isolation: isolate;
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 0;
+    pointer-events: none;
+    transition: background 0.35s ease;
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer:hover::after,
+  .option-card.option-card-upload.option-card-upload-viewer:focus-within::after {
+    background: rgba(0, 0, 0, 0.62);
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer .card-tooltip {
+    z-index: 20;
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    width: min(88%, 320px);
+    transform: translate(-50%, -42%);
+    background: rgba(10, 12, 20, 0.96);
+    color: #f8fafc;
+    border: 1px solid rgba(168, 85, 247, 0.45);
+    box-shadow:
+      0 12px 28px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    font-weight: 500;
+    line-height: 1.45;
+    text-wrap: balance;
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer:hover,
+  .option-card.option-card-upload.option-card-upload-viewer:focus-within {
+    transform: translateY(-2px);
+    border-color: rgba(100, 100, 120, 0.55);
+    box-shadow:
+      0 14px 32px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer:hover .card-glow,
+  .option-card.option-card-upload.option-card-upload-viewer:focus-within .card-glow {
+    opacity: 0.12;
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer:focus-within .card-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%);
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer .card-tooltip::after {
+    display: none;
+  }
+
+  .option-card.option-card-upload.option-card-upload-viewer:hover .card-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%);
+  }
   
   /* Card glow effect */
   .card-glow {

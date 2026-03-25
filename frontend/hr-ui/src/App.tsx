@@ -5,6 +5,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
+import HrManagerRoute from './components/HrManagerRoute';
+import HrWriteRoute from './components/HrWriteRoute';
 import UploadPage from './pages/UploadPage';
 import CandidatesPage from './pages/CandidatesPage';
 import CandidateDetailPage from './pages/CandidateDetailPage';
@@ -18,7 +21,16 @@ export default function App() {
         <Routes>
           {/* Public auth routes - no layout */}
           <Route path="/auth/login" element={<LoginPage />} />
-          <Route path="/auth/signup" element={<SignupPage />} />
+          <Route
+            path="/auth/signup"
+            element={
+              <ProtectedRoute>
+                <HrManagerRoute>
+                  <SignupPage />
+                </HrManagerRoute>
+              </ProtectedRoute>
+            }
+          />
           
           {/* Protected routes with layout */}
           <Route
@@ -36,7 +48,9 @@ export default function App() {
             element={
               <Layout>
                 <ProtectedRoute>
-                  <UploadPage />
+                  <HrWriteRoute>
+                    <UploadPage />
+                  </HrWriteRoute>
                 </ProtectedRoute>
               </Layout>
             }
@@ -71,7 +85,17 @@ export default function App() {
               </Layout>
             }
           />
-          
+          <Route
+            path="/settings/change-password"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <ChangePasswordPage />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+
           {/* Redirect unknown routes to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

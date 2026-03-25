@@ -85,10 +85,24 @@ def create_user(db: Session, user_create: UserCreate) -> UserAccount:
         hashed_password=get_password_hash(user_create.password),
         first_name=user_create.first_name.strip(),
         last_name=user_create.last_name.strip(),
-        role=user_create.role or "hr_viewer",
+        role=user_create.role or "hr_manager",
         is_active=True,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
+
+
+def change_user_password(
+    db: Session,
+    user: UserAccount,
+    *,
+    current_password: str,
+    new_password: str,
+) -> None:
+    if not verify_password(current_password, user.hashed_password):
+        raise ValueError("Current password is incorrect")
+    user.hashed_password = get_password_hash(new_password)
+    db.commit()
+    db.refresh(user)

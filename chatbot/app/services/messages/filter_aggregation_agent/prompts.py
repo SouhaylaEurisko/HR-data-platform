@@ -40,6 +40,20 @@ CRITICAL CONSISTENCY RULE
 
 - The WHERE clause MUST be IDENTICAL in both queries
 - DO NOT modify, simplify, or rephrase it
+- Exception (salary statistics): see SALARY + ROLE FILTERS below — the shared WHERE must NOT exclude rows just because current_salary is NULL
+
+--------------------------------------
+SALARY + ROLE FILTERS (IMPORTANT)
+--------------------------------------
+
+- Many candidates have NULL current_salary (e.g. only expected salary filled). Do NOT add
+  `c.current_salary IS NOT NULL` to the shared WHERE for questions like highest/lowest/average salary,
+  "salary among developers", etc.
+- Put non-null salary only inside aggregates, e.g.:
+  MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)
+  ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2)
+- COUNT(*) AS total_candidates counts everyone matching role/demographics (including NULL salary).
+- Filter query sample rows: ORDER BY c.current_salary DESC NULLS LAST (or ASC NULLS LAST) so people with salary rank first when relevant.
 
 --------------------------------------
 FILTER QUERY RULES
@@ -49,8 +63,8 @@ FILTER QUERY RULES
   SELECT c.*
 
 - ORDER BY:
-  - highest salary → c.current_salary DESC
-  - lowest salary → c.current_salary ASC
+  - highest salary → c.current_salary DESC NULLS LAST
+  - lowest salary → c.current_salary ASC NULLS LAST
   - most experience → c.years_of_experience DESC
   - least experience → c.years_of_experience ASC
   - otherwise → c.created_at DESC
@@ -71,7 +85,7 @@ AGGREGATION QUERY RULES
   COUNT(*) AS total_candidates
 
 - Include relevant metrics ONLY:
-  - Salary → ROUND(AVG(c.current_salary)::NUMERIC, 2), MIN/MAX with FILTER if needed
+  - Salary → use FILTER (WHERE c.current_salary IS NOT NULL) on AVG/MIN/MAX; never rely on WHERE ... IS NOT NULL for salary unless the user explicitly wants only candidates with salary on file
   - Experience → ROUND(AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
 
 --------------------------------------
@@ -82,15 +96,34 @@ FILTERING RULES
 - Numbers → >=, <=, BETWEEN
 
 --------------------------------------
-ROLE MATCHING (IMPORTANT)
+ROLE / POSITION MATCHING (CRITICAL)
 --------------------------------------
 
-- Use ONLY c.applied_position
+PRIMARY column for roles/positions: c.applied_position (VARCHAR)
+SECONDARY column for skills/tools:  c.tech_stack (JSONB array of strings)
 
-- Multi-word:
-  ILIKE '%data scientist%'
+DECISION LOGIC:
 
-- Short abbreviations:
+1. User asks for a ROLE or POSITION (e.g. "backend developers", "react native candidates"):
+   → Search ONLY c.applied_position with ILIKE.
+     c.applied_position ILIKE '%backend%'
+     c.applied_position ILIKE '%react native%'
+
+2. User asks about SKILLS they "know" / "use" (e.g. "candidates who know Python"):
+   → Search c.tech_stack::text ILIKE '%python%'
+   → Also include c.applied_position ILIKE for the inferred role as fallback.
+
+3. User names BOTH role AND skill:
+   → c.applied_position ILIKE '%role%' AND c.tech_stack::text ILIKE '%skill%'
+
+FORBIDDEN OPERATORS on tech_stack:
+  NEVER use @>, jsonb_array_elements, jsonb_array_elements_text, or ANY().
+  ALWAYS use:  c.tech_stack::text ILIKE '%value%'
+
+Short abbreviations (BA, PM, QA):
+  c.applied_position ~* '\\mBA\\M'
+
+Combine synonyms:
   (c.applied_position ~* '\\mBA\\M' OR c.applied_position ILIKE '%business analyst%')
 
 --------------------------------------
@@ -103,11 +136,12 @@ Use LEFT JOIN lookup_option when needed
 DATA QUALITY RULES
 --------------------------------------
 
-- Experience:
+- Experience (in WHERE only when filtering by experience thresholds):
   c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50
 
 - Salary:
-  c.current_salary IS NOT NULL
+  Do NOT add c.current_salary IS NOT NULL to the shared WHERE for aggregate salary questions.
+  Use ... FILTER (WHERE c.current_salary IS NOT NULL) inside each salary aggregate.
 
 --------------------------------------
 CONTEXT HANDLING
@@ -133,9 +167,18 @@ User: "Average salary of backend developers"
 
 Output:
 {{
-  "filter_sql": "SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%backend%' AND c.current_salary IS NOT NULL ORDER BY c.current_salary DESC LIMIT 5",
-  "aggregation_sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.applied_position ILIKE '%backend%' AND c.current_salary IS NOT NULL",
-  "explanation": "Filters backend developers and computes salary statistics"
+  "filter_sql": "SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%backend%' ORDER BY c.current_salary DESC NULLS LAST, c.created_at DESC LIMIT 5",
+  "aggregation_sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.applied_position ILIKE '%backend%'",
+  "explanation": "Backend developers; avg salary over non-null current_salary only"
+}}
+
+User: "Highest salary among backend developers"
+
+Output:
+{{
+  "filter_sql": "SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%backend%' ORDER BY c.current_salary DESC NULLS LAST, c.created_at DESC LIMIT 5",
+  "aggregation_sql": "SELECT COUNT(*) AS total_candidates, MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary FROM candidate c WHERE c.applied_position ILIKE '%backend%'",
+  "explanation": "Backend cohort; max current salary among those with salary on file"
 }}
 
 User: "How many candidates with more than 5 years experience?"
@@ -151,9 +194,27 @@ User: "Average salary of Lebanese frontend developers"
 
 Output:
 {{
-  "filter_sql": "SELECT c.* FROM candidate c WHERE c.nationality ILIKE '%lebanese%' AND c.applied_position ILIKE '%frontend%' AND c.current_salary IS NOT NULL ORDER BY c.current_salary DESC LIMIT 5",
-  "aggregation_sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.nationality ILIKE '%lebanese%' AND c.applied_position ILIKE '%frontend%' AND c.current_salary IS NOT NULL",
-  "explanation": "Filters Lebanese frontend candidates and computes salary statistics"
+  "filter_sql": "SELECT c.* FROM candidate c WHERE c.nationality ILIKE '%lebanese%' AND c.applied_position ILIKE '%frontend%' ORDER BY c.current_salary DESC NULLS LAST, c.created_at DESC LIMIT 5",
+  "aggregation_sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.nationality ILIKE '%lebanese%' AND c.applied_position ILIKE '%frontend%'",
+  "explanation": "Lebanese frontend cohort; average salary over non-null current_salary"
+}}
+
+User: "Average salary of react native developers"
+
+Output:
+{{
+  "filter_sql": "SELECT c.* FROM candidate c WHERE c.applied_position ILIKE '%react native%' ORDER BY c.current_salary DESC NULLS LAST, c.created_at DESC LIMIT 5",
+  "aggregation_sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.applied_position ILIKE '%react native%'",
+  "explanation": "Position query: filters applied_position for react native role"
+}}
+
+User: "Average salary of candidates who know python and fastapi"
+
+Output:
+{{
+  "filter_sql": "SELECT c.* FROM candidate c WHERE (c.applied_position ILIKE '%backend%' OR c.tech_stack::text ILIKE '%python%' OR c.tech_stack::text ILIKE '%fastapi%') ORDER BY c.current_salary DESC NULLS LAST, c.created_at DESC LIMIT 5",
+  "aggregation_sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE (c.applied_position ILIKE '%backend%' OR c.tech_stack::text ILIKE '%python%' OR c.tech_stack::text ILIKE '%fastapi%')",
+  "explanation": "Skills query: searches position for inferred role and tech_stack for skills"
 }}
 """
 

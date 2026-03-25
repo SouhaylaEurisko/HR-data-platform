@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCandidates } from '../api/candidates';
+import { useAuth } from '../contexts/AuthContext';
 import './HomePage.css';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { canWrite } = useAuth();
   const [candidateCount, setCandidateCount] = useState<number | null>(null);
   const [loadingCandidates, setLoadingCandidates] = useState(true);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -109,10 +111,13 @@ export default function HomePage() {
         <div className="options-grid">
           {/* Card 1 — Upload */}
           <div
-            className={`option-card option-card-upload ${hoveredCard === 1 ? 'hovered' : ''}`}
+            className={`option-card option-card-upload ${hoveredCard === 1 ? 'hovered' : ''} ${!canWrite ? 'card-disabled option-card-upload-viewer' : ''}`}
             onMouseEnter={() => setHoveredCard(1)}
             onMouseLeave={() => setHoveredCard(null)}
-            onClick={() => navigate('/upload')}
+            onClick={() => canWrite && navigate('/upload')}
+            tabIndex={!canWrite ? 0 : undefined}
+            aria-disabled={!canWrite}
+            aria-describedby={!canWrite ? 'upload-viewer-hint' : undefined}
           >
             <div className="card-glow card-glow-purple" />
             <div className="card-icon-wrapper">
@@ -128,16 +133,23 @@ export default function HomePage() {
             <div className="card-content">
               <h3 className="card-title">Upload Data</h3>
               <p className="card-description">
-                Import your Excel spreadsheets to populate the candidate database with structured data.
+                {canWrite
+                  ? 'Import your Excel spreadsheets to populate the candidate database with structured data.'
+                  : 'Your role is read-only. Ask an HR manager to upload or import data.'}
               </p>
             </div>
             <div className="card-action">
-              <span className="card-action-text">Upload Excel file</span>
+              <span className="card-action-text">{canWrite ? 'Upload Excel file' : 'View only'}</span>
               <svg className="card-arrow" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="card-number">01</div>
+            {!canWrite && (
+              <div id="upload-viewer-hint" className="card-tooltip" role="tooltip">
+                You are in viewer mode. Upload is available to HR managers only.
+              </div>
+            )}
           </div>
 
           {/* Card 2 — Candidates */}
@@ -189,7 +201,9 @@ export default function HomePage() {
                   ? `Browse, filter, and sort through ${candidateCount} candidate${candidateCount !== 1 ? 's' : ''} in the database.`
                   : loadingCandidates
                   ? 'Checking database for candidate records...'
-                  : 'No candidates in the database yet. Upload an Excel file first to get started.'}
+                  : canWrite
+                  ? 'No candidates in the database yet. Upload an Excel file first to get started.'
+                  : 'No candidates in the database yet. An HR manager needs to upload data before you can explore.'}
               </p>
             </div>
             <div className="card-actions-group">
@@ -208,7 +222,7 @@ export default function HomePage() {
                   <span>No data available</span>
                 </div>
               ) : null}
-              {(!hasCandidates && !loadingCandidates) && (
+              {(!hasCandidates && !loadingCandidates) && canWrite && (
                 <button
                   className="card-secondary-action"
                   onClick={(e) => {
@@ -228,7 +242,9 @@ export default function HomePage() {
             {/* Tooltip for disabled state */}
             {!hasCandidates && !loadingCandidates && (
               <div className="card-tooltip">
-                No candidates found in the database. Please upload an Excel file to import candidate data.
+                {canWrite
+                  ? 'No candidates found in the database. Please upload an Excel file to import candidate data.'
+                  : 'No candidates yet. Ask an HR manager to import candidate data.'}
               </div>
             )}
           </div>

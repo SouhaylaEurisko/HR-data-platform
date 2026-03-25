@@ -13,8 +13,9 @@ export const API_ENDPOINTS = {
   // Authentication endpoints
   auth: {
     login: `${API_BASE_URL}/api/auth/login`,
-    signup: `${API_BASE_URL}/api/auth/signup`,
     me: `${API_BASE_URL}/api/auth/me`,
+    users: `${API_BASE_URL}/api/auth/users`,
+    changePassword: `${API_BASE_URL}/api/auth/change-password`,
   },
   
   // Import endpoints (two-phase: preview → analyze → confirm)
@@ -36,6 +37,8 @@ export const API_ENDPOINTS = {
     `${API_BASE_URL}/api/candidates/${id}/hr-stage-comments`,
   candidateApplicationStatus: (id: number) =>
     `${API_BASE_URL}/api/candidates/${id}/application-status`,
+  candidateResume: (id: number) => `${API_BASE_URL}/api/candidates/${id}/resume`,
+  candidateResumeDownload: (id: number) => `${API_BASE_URL}/api/candidates/${id}/resume/download`,
   
   // Chat endpoint
   chat: `${API_BASE_URL}/api/chat`,

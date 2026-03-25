@@ -1,6 +1,7 @@
 """
 Message service — processes chat messages through the agent pipeline.
 """
+import json
 import logging
 from typing import Optional, Dict, Any, List, Union
 
@@ -54,8 +55,6 @@ def _build_conversation_history(
             role = "assistant" if msg.sender == "assistant" else "user"
             content = msg.content or ""
 
-            # For assistant messages, enrich with the SQL / intent from
-            # response_data so follow-up SQL generation has full context.
             if role == "assistant" and msg.response_data:
                 extras = []
                 if msg.response_data.get("intent"):
@@ -64,6 +63,23 @@ def _build_conversation_history(
                     extras.append(f"[sql used: {msg.response_data['sql']}]")
                 if extras:
                     content = f"{content}\n{'  '.join(extras)}"
+
+                # Append condensed candidate data so follow-up questions
+                # like "tell me more about the first candidate" have context.
+                if msg.response_data.get("candidates"):
+                    toon_entries = []
+                    for c in msg.response_data["candidates"][:10]:
+                        toon_entries.append({
+                            "name": c.get("full_name"),
+                            "position": c.get("applied_position"),
+                            "experience": c.get("years_of_experience"),
+                            "skills": c.get("tech_stack"),
+                            "salary": c.get("current_salary"),
+                        })
+                    content += f"\n[retrieved_candidates: {json.dumps(toon_entries, default=str)}]"
+
+                if msg.response_data.get("stats"):
+                    content += f"\n[stats: {json.dumps(msg.response_data['stats'], default=str)}]"
 
             history.append({"role": role, "content": content})
 

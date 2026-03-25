@@ -21,7 +21,7 @@ export default function UserMenu() {
         .join('')
     : user.email[0]?.toUpperCase();
 
-  const handleAction = () => {
+  const handleLogout = () => {
     logout();
     navigate('/auth/login', { replace: true });
   };
@@ -42,11 +42,18 @@ export default function UserMenu() {
       {open && (
         <div className="user-menu-dropdown">
           <div className="user-menu-email">{user.email}</div>
-          <button type="button" className="user-menu-item" onClick={handleAction}>
-            Log out
+          <button
+            type="button"
+            className="user-menu-item"
+            onClick={() => {
+              setOpen(false);
+              navigate('/settings/change-password');
+            }}
+          >
+            Change password
           </button>
-          <button type="button" className="user-menu-item" onClick={handleAction}>
-            Change account
+          <button type="button" className="user-menu-item" onClick={handleLogout}>
+            Log out
           </button>
         </div>
       )}

@@ -2,13 +2,12 @@ import apiClient from './client';
 import { API_ENDPOINTS } from '../config';
 import type { AuthResponse, User } from '../types/api';
 
-export interface SignupRequest {
+export interface CreateUserAdminRequest {
   email: string;
   password: string;
   first_name: string;
   last_name: string;
-  organization_id?: number;
-  role?: string;
+  role: 'hr_manager' | 'hr_viewer';
 }
 
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
@@ -31,12 +30,22 @@ export const login = async (email: string, password: string): Promise<AuthRespon
   return response.data;
 };
 
-export const signup = async (payload: SignupRequest): Promise<AuthResponse> => {
-  const response = await apiClient.post<AuthResponse>(
-    API_ENDPOINTS.auth.signup,
-    payload
-  );
+/** HR manager creates another user in the same org; does not issue a login token. */
+export const createUserAsAdmin = async (
+  payload: CreateUserAdminRequest
+): Promise<User> => {
+  const response = await apiClient.post<User>(API_ENDPOINTS.auth.users, payload);
   return response.data;
+};
+
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<void> => {
+  await apiClient.post(API_ENDPOINTS.auth.changePassword, {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
 };
 
 export const getCurrentUser = async (): Promise<User> => {

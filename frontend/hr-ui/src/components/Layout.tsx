@@ -11,7 +11,8 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const canAddUser = user?.role === 'hr_manager';
   const isHome = location.pathname === '/';
   const isChat = location.pathname === '/chat';
   const isAuthPage = location.pathname.startsWith('/auth/');
@@ -48,7 +49,17 @@ export default function Layout({ children }: LayoutProps) {
                 </svg>
               </button>
             )}
-            
+
+            {isAuthenticated && canAddUser && isHome && (
+              <button
+                type="button"
+                className="nav-add-user-btn"
+                onClick={() => navigate('/auth/signup')}
+              >
+                Add user
+              </button>
+            )}
+
             {/* User menu for authenticated users */}
             {isAuthenticated && <UserMenu />}
             

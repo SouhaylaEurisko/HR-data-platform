@@ -17,6 +17,15 @@ from ....config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
 
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return False
+
+
 _MAX_CANDIDATES = 18
 _FETCH_SQL_TEMPLATE = """
 SELECT
@@ -97,6 +106,9 @@ class CandidateComparisonAgent:
         if scope not in ("named_only", "best_for_position"):
             scope = "named_only"
 
+        comparison_criteria = str(ext.get("comparison_criteria") or "").strip()
+        use_agent_default_criteria = _coerce_bool(ext.get("use_agent_default_criteria"))
+
         if scope == "named_only" and not names:
             return {
                 "reply": "Please name the candidates to compare, or ask who is the best applicant for a specific job title.",
@@ -129,6 +141,30 @@ class CandidateComparisonAgent:
                 "rows": [],
                 "total_found": 0,
                 "explanation": "best_for_position without position",
+            }
+
+        comparison_ready = (scope == "named_only" and bool(names)) or (
+            scope == "best_for_position" and bool(position)
+        )
+        if comparison_ready and not use_agent_default_criteria and not comparison_criteria:
+            if position:
+                criteria_reply = (
+                    f"To identify the best fit for **{position}**, I can weigh experience, "
+                    "expected salary, and role-relevant qualifications. Please specify your key criteria "
+                    "or preferences—or say **use your judgment** for a balanced default."
+                )
+            else:
+                criteria_reply = (
+                    "I can compare them on experience, role fit, and relevant qualifications. "
+                    "Please specify your key criteria—or say **use your judgment** for a balanced default."
+                )
+            return {
+                "reply": criteria_reply,
+                "summary": None,
+                "sql": None,
+                "rows": [],
+                "total_found": 0,
+                "explanation": "awaiting comparison criteria",
             }
 
         where_clause = " AND ".join(where_parts)
@@ -191,8 +227,22 @@ class CandidateComparisonAgent:
                 }
             )
 
+        if use_agent_default_criteria:
+            mode_block = (
+                "Comparison mode: DEFAULT CRITERIA (agent standard weighting).\n"
+                "Apply the STANDARD EVALUATION CRITERIA priority order from your instructions.\n\n"
+            )
+        else:
+            mode_block = (
+                "Comparison mode: USER-SPECIFIED CRITERIA.\n"
+                f"The user asked to prioritize: {comparison_criteria}\n"
+                "Structure your comparison and recommendation around these criteria; "
+                "note missing data where a criterion cannot be assessed.\n\n"
+            )
+
         user_payload = (
-            "User question:\n"
+            mode_block
+            + "User question:\n"
             + message
             + "\n\nCandidate profiles (JSON):\n"
             + json.dumps(profiles, default=str, indent=2)

@@ -25,7 +25,7 @@ class UserAccount(Base):
     hashed_password = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
-    role = Column(String(50), default="hr_viewer", nullable=False)
+    role = Column(String(50), default="hr_manager", nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
@@ -49,13 +49,13 @@ class UserBase(BaseModel):
 
 
 class UserCreate(BaseModel):
-    """Signup body: distinct first and last name."""
+    """Internal / service layer: create user with explicit org (used by admin invite)."""
     email: EmailStr
     password: str = Field(..., min_length=6)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     organization_id: int = 1
-    role: Optional[str] = "hr_viewer"
+    role: Optional[str] = "hr_manager"
 
     @field_validator("first_name", "last_name", mode="before")
     @classmethod
@@ -63,6 +63,35 @@ class UserCreate(BaseModel):
         if v is None or (isinstance(v, str) and not v.strip()):
             raise ValueError("First and last name are required")
         return str(v).strip()
+
+
+class AdminUserCreate(BaseModel):
+    """HR manager creates a user in their organization (no organization_id in body)."""
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    role: str = Field(default="hr_manager", description="hr_manager or hr_viewer")
+
+    @field_validator("first_name", "last_name", mode="before")
+    @classmethod
+    def strip_names(cls, v: object) -> str:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            raise ValueError("First and last name are required")
+        return str(v).strip()
+
+    @field_validator("role")
+    @classmethod
+    def role_must_be_allowed(cls, v: str) -> str:
+        allowed = frozenset({"hr_manager", "hr_viewer"})
+        if v not in allowed:
+            raise ValueError(f"role must be one of: {', '.join(sorted(allowed))}")
+        return v
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=6)
 
 
 class UserRead(UserBase):

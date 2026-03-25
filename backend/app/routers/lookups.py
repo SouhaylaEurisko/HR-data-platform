@@ -2,7 +2,7 @@
 Router: Lookup endpoints for fetching and creating dropdown options.
 """
 
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 
 from ..config import get_db
 from ..models.lookup import LookupCategory, LookupOption
+from ..models.user import UserAccount
+from ..routers.auth import get_current_user, require_hr_manager
 from ..services.lookup_service import get_options_by_category
 
 router = APIRouter(prefix="/api/lookups", tags=["lookups"])
@@ -70,9 +72,11 @@ def get_category_options(
 def create_option(
     category_code: str,
     body: CreateLookupOptionRequest,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(..., description="Organization ID"),
     db: Session = Depends(get_db),
 ) -> LookupOptionOut:
+    require_hr_manager(current_user)
     cat = db.query(LookupCategory).filter_by(code=category_code).first()
     if not cat:
         raise HTTPException(

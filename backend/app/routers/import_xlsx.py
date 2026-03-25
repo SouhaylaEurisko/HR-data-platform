@@ -2,13 +2,15 @@
 Router: XLSX upload — preview, analyze, and confirm (two-phase import).
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..config import get_db
+from ..models.user import UserAccount
+from ..routers.auth import get_current_user, require_hr_manager
 from ..services.import_service import (
     analyze_workbook,
     confirm_and_import,
@@ -37,7 +39,11 @@ class ConfirmImportRequest(BaseModel):
 # ──────────────────────────────────────────────
 
 @router.post("/xlsx/preview", summary="Preview XLSX file structure")
-async def preview_xlsx(file: UploadFile = File(...)) -> dict:
+async def preview_xlsx(
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
+    file: UploadFile = File(...),
+):
+    require_hr_manager(current_user)
     try:
         workbook, _ = await load_workbook_from_file(file)
     except ValueError as exc:
@@ -47,6 +53,7 @@ async def preview_xlsx(file: UploadFile = File(...)) -> dict:
 
 @router.post("/xlsx/analyze", summary="Analyze XLSX and suggest column mappings")
 async def analyze_xlsx(
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
     file: UploadFile = File(...),
     sheet_names: Optional[List[str]] = Query(None),
     import_all_sheets: bool = Query(False),
@@ -59,6 +66,7 @@ async def analyze_xlsx(
     Parses the file, runs column normalization (programmatic + LLM),
     and returns matched / suggested / unmatched columns for HR review.
     """
+    require_hr_manager(current_user)
     try:
         workbook, contents = await load_workbook_from_file(file)
     except ValueError as exc:
@@ -78,12 +86,14 @@ async def analyze_xlsx(
 @router.post("/xlsx/confirm", summary="Confirm column mappings and import")
 def confirm_xlsx(
     body: ConfirmImportRequest,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
     db: Session = Depends(get_db),
 ) -> dict:
     """
     Phase B of two-phase import.
     Receives confirmed column mappings from HR and imports the data.
     """
+    require_hr_manager(current_user)
     try:
         return confirm_and_import(
             session_id=body.session_id,

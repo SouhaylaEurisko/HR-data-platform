@@ -36,6 +36,7 @@ def init_db():
         import_session,
         candidate,
         candidate_stage_comment,
+        candidate_resume,
         user,
         conversation,
     )

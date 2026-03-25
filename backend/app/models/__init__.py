@@ -38,6 +38,11 @@ from .user import (
     UserRead,
     UserLogin,
 )
+from .candidate_resume import (
+    CandidateResume,
+    CandidateResumeRead,
+    ResumeInfoRead,
+)
 from .conversation import (
     Conversation,
     Message,
@@ -88,6 +93,10 @@ __all__ = [
     "UserCreate",
     "UserRead",
     "UserLogin",
+    # Candidate resume
+    "CandidateResume",
+    "CandidateResumeRead",
+    "ResumeInfoRead",
     # Conversation and Message
     "Conversation",
     "Message",
