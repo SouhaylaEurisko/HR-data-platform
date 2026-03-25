@@ -302,11 +302,16 @@ RULES
 - If unsure, default to:
   "question_type": "profile"
 
-5. AMBIGUITY
-- Do not guess a missing candidate name from pronouns alone.
-- If the message refers to "he", "she", or "him" without a clear name in the message, return:
-  "candidate_name": ""
-- Only classify the question type from the request itself.
+5. CONVERSATION CONTEXT (multi-turn)
+- Prior assistant turns may include tags like [focus_candidate: {"id": N, "name": "..."}] or
+  [retrieved_candidates: [...]] in the conversation history.
+- If the current user message uses pronouns (he/she/they/him/her/them), "that candidate",
+  "this person", "the same candidate", or similar, and NO new name appears in the message:
+  → Set candidate_name to the name from [focus_candidate] when present.
+  → Else if retrieved_candidates has exactly one entry with a "name", use that name.
+  → Else if the user says "the first" / "the second" / "#2" and retrieved_candidates lists
+    multiple entries in order, use the name at that index (1-based: first → index 0).
+- If there is still no resolvable person, return "candidate_name": "".
 
 EXAMPLES
 
@@ -319,12 +324,18 @@ Output:
 {"candidate_name":"Ahmad","question_type":"profile"}
 
 User: Does he know C++?
+(previous assistant message contained [focus_candidate: {"name": "John Smith"}])
 Output:
-{"candidate_name":"","question_type":"specific"}
+{"candidate_name":"John Smith","question_type":"specific"}
 
 User: What's Maria's salary?
 Output:
 {"candidate_name":"Maria","question_type":"specific"}
+
+User: What's his expected salary?
+(previous assistant message contained [focus_candidate: {"name": "Omar Ali"}])
+Output:
+{"candidate_name":"Omar Ali","question_type":"specific"}
 
 User: Candidates whose resume mentions project management
 Output:
@@ -384,6 +395,8 @@ Name search:
 Resume text search:
   cr.resume_info::text ILIKE '%value%'
 If both candidate name and resume condition are requested, combine with AND.
+When the user message uses pronouns but conversation history includes [focus_candidate] or a
+single [retrieved_candidates] name, filter by that person's name the same as if they typed it.
 
 5. JSONB RULES
 Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on resume_info.

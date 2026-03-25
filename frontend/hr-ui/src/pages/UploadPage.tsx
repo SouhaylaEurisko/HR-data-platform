@@ -143,9 +143,9 @@ export default function UploadPage() {
     <div className="upload-page">
       <div className="page-top-bar">
         <div>
-          <h1>Upload XLSX File</h1>
+          <h1>Upload Excel File</h1>
           <p className="upload-description">
-            Upload an Excel file (.xlsx) to import candidate data. The system will
+            Upload an Excel file to import candidate data. The system will
             analyze column headers and suggest mappings before importing.
           </p>
         </div>
@@ -168,7 +168,7 @@ export default function UploadPage() {
         <form onSubmit={handleAnalyze} className="upload-form">
           <div className="file-input-wrapper">
             <label htmlFor="file-input" className="file-label">
-              {file ? file.name : 'Choose XLSX file...'}
+              {file ? file.name : 'Choose file...'}
             </label>
             <input
               id="file-input"

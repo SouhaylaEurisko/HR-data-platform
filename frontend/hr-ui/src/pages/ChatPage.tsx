@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     listConversations,
@@ -31,6 +31,26 @@ interface ChatMessage {
 function shouldShowResponseSummary(intent: string | undefined): boolean {
   if (!intent) return true;
   return intent !== 'candidate_comparison';
+}
+
+/** Renders `**bold**` segments as <strong>; safe plain text elsewhere. */
+function renderTextWithBoldSegments(text: string): ReactNode {
+  const nodes: ReactNode[] = [];
+  let last = 0;
+  const re = /\*\*([\s\S]+?)\*\*/g;
+  let m: RegExpExecArray | null;
+  let k = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      nodes.push(<span key={`t${k++}`}>{text.slice(last, m.index)}</span>);
+    }
+    nodes.push(<strong key={`b${k++}`}>{m[1]}</strong>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) {
+    nodes.push(<span key={`t${k++}`}>{text.slice(last)}</span>);
+  }
+  return nodes.length > 0 ? <>{nodes}</> : text;
 }
 
 // Helper functions for localStorage persistence
@@ -73,13 +93,20 @@ export default function ChatPage() {
     const stored = localStorage.getItem(CHAT_ACTIVE_CONVERSATION_KEY);
     return stored ? Number(stored) : null;
   });
-  const [confirmDialog, setConfirmDialog] = useState<{
+  const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
-    type: 'clear' | 'delete' | null;
     conversationId?: number;
-  }>({ isOpen: false, type: null });
+  }>({ isOpen: false });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prevLoadingRef = useRef(false);
+
+  const focusChatInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    });
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -118,6 +145,17 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    focusChatInput();
+  }, [focusChatInput]);
+
+  useEffect(() => {
+    if (prevLoadingRef.current && !isLoading) {
+      focusChatInput();
+    }
+    prevLoadingRef.current = isLoading;
+  }, [isLoading, focusChatInput]);
+
   const handleSelectConversation = async (conversationId: number) => {
     if (conversationId === activeConversationId) return;
     setIsLoading(true);
@@ -139,6 +177,7 @@ export default function ChatPage() {
       );
     } finally {
       setIsLoading(false);
+      focusChatInput();
     }
   };
 
@@ -146,46 +185,36 @@ export default function ChatPage() {
     setActiveConversationId(null);
     setMessages([]);
     localStorage.removeItem(CHAT_MESSAGES_KEY);
-  };
-
-  const handleClearChat = () => {
-    setConfirmDialog({ isOpen: true, type: 'clear' });
-  };
-
-  const confirmClearChat = () => {
-    setMessages([]);
-    localStorage.removeItem(CHAT_MESSAGES_KEY);
-    setConfirmDialog({ isOpen: false, type: null });
+    queueMicrotask(() => focusChatInput());
   };
 
   const handleDeleteConversation = (conversationId: number, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent selecting the conversation when clicking delete
-    setConfirmDialog({ isOpen: true, type: 'delete', conversationId });
+    setDeleteConfirm({ isOpen: true, conversationId });
   };
 
   const confirmDeleteConversation = async () => {
-    if (!confirmDialog.conversationId) return;
+    const id = deleteConfirm.conversationId;
+    if (!id) return;
 
     try {
-      await deleteConversation(confirmDialog.conversationId);
-      
-      // If this was the active conversation, clear it
-      if (confirmDialog.conversationId === activeConversationId) {
+      await deleteConversation(id);
+
+      if (id === activeConversationId) {
         setActiveConversationId(null);
         setMessages([]);
         localStorage.removeItem(CHAT_MESSAGES_KEY);
       }
-      
-      // Refresh conversations list
+
       const updatedConversations = await listConversations();
       setConversations(updatedConversations);
-      setConfirmDialog({ isOpen: false, type: null });
+      setDeleteConfirm({ isOpen: false });
     } catch (err: any) {
       console.error('Failed to delete conversation', err);
       setError(
         err.response?.data?.detail || err.message || 'Failed to delete conversation. Please try again.'
       );
-      setConfirmDialog({ isOpen: false, type: null });
+      setDeleteConfirm({ isOpen: false });
     }
   };
 
@@ -238,7 +267,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
-      inputRef.current?.focus();
+      focusChatInput();
     }
   };
 
@@ -253,96 +282,126 @@ export default function ChatPage() {
 
   return (
     <div className="chat-page">
-      <div className="chat-header">
-        <div className="chat-header-top">
-          <div>
-            <h1>AI Candidate Search</h1>
-            <p className="chat-subtitle">
-              Ask questions in natural language to find candidates.
-            </p>
-          </div>
-          {messages.length > 0 && (
-            <button onClick={handleClearChat} className="clear-chat-button">
-              Clear Chat
-            </button>
+      <div className={`chat-page-body${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
+      {/* Slim sidebar */}
+      <aside id="chat-conversations-sidebar" className="chat-sidebar">
+        <div className="chat-sidebar-header">
+          <button
+            type="button"
+            className="new-chat-button"
+            onClick={handleNewChat}
+            disabled={isLoading}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" /></svg>
+            New chat
+          </button>
+          <button
+            type="button"
+            className="sidebar-toggle-btn"
+            onClick={() => setSidebarOpen((o) => !o)}
+            aria-expanded={sidebarOpen}
+            aria-controls="chat-conversations-sidebar"
+            title={sidebarOpen ? 'Collapse conversation list' : 'Expand conversation list'}
+            aria-label={sidebarOpen ? 'Collapse conversation list' : 'Expand conversation list'}
+          >
+            <svg
+              className="sidebar-toggle-icon"
+              viewBox="0 0 20 20"
+              width="18"
+              height="18"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <rect
+                x="3.5"
+                y="3.5"
+                width="13"
+                height="13"
+                rx="3.25"
+                ry="3.25"
+                stroke="currentColor"
+                strokeWidth="1.15"
+              />
+              {sidebarOpen && (
+                <line
+                  x1="7.83"
+                  y1="3.5"
+                  x2="7.83"
+                  y2="16.5"
+                  stroke="currentColor"
+                  strokeWidth="1.15"
+                />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        <div className="conversations-list" aria-hidden={!sidebarOpen}>
+          {conversations.length === 0 ? (
+            <div className="sidebar-empty">No conversations yet</div>
+          ) : (
+            conversations.map((conv) => (
+              <div
+                key={conv.id}
+                className={`conversation-item-wrapper ${
+                  conv.id === activeConversationId ? 'active' : ''
+                }`}
+              >
+                <button
+                  type="button"
+                  className="conversation-item"
+                  onClick={() => handleSelectConversation(conv.id)}
+                >
+                  <span className="conversation-title">
+                    {conv.title || `Conversation ${conv.id}`}
+                  </span>
+                  <span className="conversation-timestamp">
+                    {new Date(conv.updated_at || conv.created_at).toLocaleString([], {
+                      month: 'short',
+                      day: '2-digit',
+                    })}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="conversation-delete-button"
+                  onClick={(e) => handleDeleteConversation(conv.id, e)}
+                  title="Delete conversation"
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                    <path
+                      fillRule="evenodd"
+                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))
           )}
         </div>
-      </div>
+      </aside>
 
-      <div className="chat-container">
-        <aside className="chat-sidebar">
-          <div className="chat-sidebar-header">
-            <span className="chat-sidebar-title">Conversations</span>
-            <button
-              type="button"
-              className="new-chat-button"
-              onClick={handleNewChat}
-              disabled={isLoading}
-            >
-              New chat
-            </button>
-          </div>
-
-          <div className="conversations-list">
-            {conversations.length === 0 ? (
-              <div className="empty-state">
-                <p>No conversations yet</p>
-              </div>
-            ) : (
-              conversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  className={`conversation-item-wrapper ${
-                    conv.id === activeConversationId ? 'active' : ''
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className="conversation-item"
-                    onClick={() => handleSelectConversation(conv.id)}
-                  >
-                    <div className="conversation-item-content">
-                      <span className="conversation-title">
-                        {conv.title || `Conversation ${conv.id}`}
-                      </span>
-                      <span className="conversation-timestamp">
-                        {new Date(conv.updated_at || conv.created_at).toLocaleString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          month: 'short',
-                          day: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    className="conversation-delete-button"
-                    onClick={(e) => handleDeleteConversation(conv.id, e)}
-                    title="Delete conversation"
-                  >
-                    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                      <path
-                        fillRule="evenodd"
-                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </aside>
-
+      {/* Main area — clicking neutral surface returns focus to the text box */}
+      <div
+        className="chat-main"
+        onPointerDown={(e) => {
+          const t = e.target as HTMLElement;
+          if (t.closest('button, a, textarea, input, label, [role="button"]')) return;
+          if (t.closest('.candidate-card')) return;
+          focusChatInput();
+        }}
+      >
         <div className="messages-container">
           {messages.length === 0 ? (
             <div className="empty-state">
-              <div className="empty-icon">💬</div>
+              <div className="empty-logo">
+                <img src={chatbotLogo} alt="AI" className="empty-logo-img" />
+              </div>
               <h2>Start a conversation</h2>
               <p>
-                Search candidates, ask for stats, compare applicants for a role, or request HR stage feedback
-                for someone by name.
+                Ask about candidates, salaries, comparisons, or what&apos;s on someone&apos;s resume.
               </p>
             </div>
           ) : (
@@ -363,7 +422,7 @@ export default function ChatPage() {
                     </div>
                   )}
                   <div className="message-content">
-                    <div className="message-text">{message.content}</div>
+                    <div className="message-text">{renderTextWithBoldSegments(message.content)}</div>
                       <span className="message-time">
                         {message.timestamp.toLocaleTimeString([], {
                           hour: '2-digit',
@@ -375,7 +434,9 @@ export default function ChatPage() {
                       <div className="response-details">
                         {message.response.summary && shouldShowResponseSummary(message.response.intent) && (
                           <div className="summary-section">
-                            <p className="summary-text">{message.response.summary}</p>
+                            <p className="summary-text">
+                              {renderTextWithBoldSegments(message.response.summary)}
+                            </p>
                           </div>
                         )}
 
@@ -503,48 +564,45 @@ export default function ChatPage() {
           )}
 
           <div className="input-container">
-            <textarea
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask about candidates... (Press Enter to send, Shift+Enter for new line)"
-              className="chat-input"
-              rows={3}
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!inputValue.trim() || isLoading}
-              className="send-button"
-            >
-              {isLoading ? 'Sending...' : 'Send'}
-            </button>
+            <div className="input-inner">
+              <textarea
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Ask anything about candidates..."
+                className="chat-input"
+                rows={1}
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!inputValue.trim() || isLoading}
+                className="send-button"
+                aria-label="Send"
+              >
+                {isLoading ? (
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="30" strokeDashoffset="10"><animateTransform attributeName="transform" type="rotate" from="0 10 10" to="360 10 10" dur="0.8s" repeatCount="indefinite"/></circle></svg>
+                ) : (
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+                )}
+              </button>
+            </div>
+            <span className="input-hint">Press Enter to send, Shift+Enter for new line</span>
           </div>
         </div>
       </div>
-
-      {/* Confirmation Dialogs */}
-      <ConfirmationDialog
-        isOpen={confirmDialog.isOpen && confirmDialog.type === 'clear'}
-        title="Clear Chat History"
-        message="Are you sure you want to clear the chat history?"
-        confirmText="Clear"
-        cancelText="Cancel"
-        variant="warning"
-        onConfirm={confirmClearChat}
-        onCancel={() => setConfirmDialog({ isOpen: false, type: null })}
-      />
+      </div>
 
       <ConfirmationDialog
-        isOpen={confirmDialog.isOpen && confirmDialog.type === 'delete'}
+        isOpen={deleteConfirm.isOpen}
         title="Delete Conversation"
         message="Are you sure you want to delete this conversation?"
         confirmText="Delete"
         cancelText="Cancel"
         variant="danger"
         onConfirm={confirmDeleteConversation}
-        onCancel={() => setConfirmDialog({ isOpen: false, type: null })}
+        onCancel={() => setDeleteConfirm({ isOpen: false })}
       />
     </div>
   );

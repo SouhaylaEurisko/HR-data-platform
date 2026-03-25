@@ -65,18 +65,37 @@ def _build_conversation_history(
                     content = f"{content}\n{'  '.join(extras)}"
 
                 # Append condensed candidate data so follow-up questions
-                # like "tell me more about the first candidate" have context.
+                # (pronouns, "that candidate", salary/skills) keep the same person in scope.
                 if msg.response_data.get("candidates"):
                     toon_entries = []
                     for c in msg.response_data["candidates"][:10]:
                         toon_entries.append({
+                            "id": c.get("id"),
                             "name": c.get("full_name"),
                             "position": c.get("applied_position"),
                             "experience": c.get("years_of_experience"),
                             "skills": c.get("tech_stack"),
-                            "salary": c.get("current_salary"),
+                            "current_salary": c.get("current_salary"),
+                            "expected_remote": c.get("expected_salary_remote"),
+                            "expected_onsite": c.get("expected_salary_onsite"),
                         })
                     content += f"\n[retrieved_candidates: {json.dumps(toon_entries, default=str)}]"
+                    cands = msg.response_data["candidates"]
+                    if len(cands) == 1:
+                        pc = cands[0]
+                        content += f"\n[focus_candidate: {json.dumps({'id': pc.get('id'), 'name': pc.get('full_name')}, default=str)}]"
+                    elif len(cands) > 1:
+                        content += (
+                            "\n[note: multiple candidates above; follow-ups with "
+                            "'the first', 'the second', or a name should resolve to one row.]"
+                        )
+
+                summ = msg.response_data.get("summary")
+                if summ and isinstance(summ, str) and summ.strip():
+                    excerpt = summ.strip()[:800]
+                    if len(summ) > 800:
+                        excerpt += "…"
+                    content += f"\n[assistant_summary_excerpt: {excerpt}]"
 
                 if msg.response_data.get("stats"):
                     content += f"\n[stats: {json.dumps(msg.response_data['stats'], default=str)}]"

@@ -7,6 +7,52 @@
   background-color: var(--eurisko-bg-primary);
 }
 
+/* Chat route: same shell as Candidates / Detail (navbar visible); wide main, no footer scroll */
+.layout.layout-chat {
+  min-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.layout.layout-chat .footer {
+  display: none;
+}
+
+.layout.layout-chat .main-content {
+  flex: 1 1 0;
+  min-height: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  /* Flush under navbar + flush left so sidebar meets top bar and screen edge */
+  padding: 0 2rem 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Navbar spans full width like the chat surface; brand/actions share same horizontal gutters */
+.layout.layout-chat .nav-container {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+@media (max-width: 768px) {
+  .layout.layout-chat .main-content {
+    padding: 0 1rem 1rem 0;
+  }
+
+  .layout.layout-chat .nav-container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
 /* ——— Navbar ——— */
 .navbar {
   background-color: rgba(15, 21, 36, 0.92);
@@ -242,7 +288,7 @@
 /* ——— Floating Chat Button ——— */
 .floating-chat-btn {
   position: fixed;
-  bottom: 2rem;
+  bottom: 4.35rem;
   right: 2rem;
   width: 64px;
   height: 64px;
@@ -411,7 +457,7 @@
   .floating-chat-btn {
     width: 56px;
     height: 56px;
-    bottom: 1.25rem;
+    bottom: 2.35rem;
     right: 1.25rem;
   }
 

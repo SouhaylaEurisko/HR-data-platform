@@ -25,7 +25,7 @@ class ChitChatAgent:
             CHITCHAT_PROMPT,
             message,
             context="Chit-chat",
-            temperature=0.7,
+            temperature=0.88,
             conversation_history=conversation_history,
         )
         result = ChitChatResult.model_validate(data)

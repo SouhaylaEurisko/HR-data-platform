@@ -11,7 +11,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const isHome = location.pathname === '/';
   const isChat = location.pathname === '/chat';
   const isAuthPage = location.pathname.startsWith('/auth/');
@@ -22,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="layout">
+    <div className={`layout${isChat ? ' layout-chat' : ''}`}>
       <nav className="navbar">
         <div className="nav-container">
           <Link to="/" className="nav-brand">

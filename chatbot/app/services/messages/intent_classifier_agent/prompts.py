@@ -93,6 +93,12 @@ CONTEXT HANDLING
 Use previous conversation if provided:
 - Words like "them", "those", "these" refer to previous results
 - Follow-up statistical questions → "filter_and_aggregation"
+- If the assistant recently returned [focus_candidate] or a single person in [retrieved_candidates],
+  and the user asks about **that same person** without naming them (pronouns: he/she/they/him/her,
+  "that candidate", "this person", "their salary", "how much does she make", "his experience",
+  "what's her background") → **cv_info** (resolve using IDs/names from context; do NOT classify as chitchat)
+- If multiple candidates were listed and the user says "the first one", "the second", "number 2" in
+  reference to the list → **cv_info** or **filter** depending on whether they want detail vs list
 
 --------------------------------------
 OUTPUT FORMAT (STRICT)
@@ -168,4 +174,24 @@ User: "Show me that candidate"
 (previous context: aggregation results)
 Output:
 {"intent":"filter","confidence":"high","reasoning":"Follow-up requesting specific candidate details"}
+
+User: "What's his expected salary?"
+(previous context: assistant showed details for candidate John Smith, focus_candidate John Smith)
+Output:
+{"intent":"cv_info","confidence":"high","reasoning":"Follow-up about same candidate using pronoun"}
+
+User: "How many years has she worked?"
+(previous context: single female candidate in retrieved_candidates)
+Output:
+{"intent":"cv_info","confidence":"high","reasoning":"Follow-up experience question for prior candidate"}
+
+User: "And what's on her resume?"
+(previous context: discussion about Maria)
+Output:
+{"intent":"cv_info","confidence":"high","reasoning":"Resume follow-up for same person"}
+
+User: "Tell me more about his tech stack"
+(previous context: focus_candidate present)
+Output:
+{"intent":"cv_info","confidence":"high","reasoning":"Skills/detail follow-up for same candidate"}
 """
