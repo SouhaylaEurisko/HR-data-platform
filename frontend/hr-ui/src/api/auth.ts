@@ -52,3 +52,15 @@ export const getCurrentUser = async (): Promise<User> => {
   const response = await apiClient.get<User>(API_ENDPOINTS.auth.me);
   return response.data;
 };
+
+export const listUsers = async (): Promise<User[]> => {
+  const response = await apiClient.get<User[]>(API_ENDPOINTS.auth.users);
+  return response.data;
+};
+
+export const setUserActive = async (userId: number, isActive: boolean): Promise<User> => {
+  const response = await apiClient.patch<User>(API_ENDPOINTS.auth.userStatus(userId), {
+    is_active: isActive,
+  });
+  return response.data;
+};

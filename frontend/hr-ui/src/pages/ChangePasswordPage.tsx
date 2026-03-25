@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { changePassword } from '../api/auth';
 import { getErrorMessage } from '../utils/errorHandler';
 import './AuthPage.css';
 
 export default function ChangePasswordPage() {
-  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -97,19 +95,9 @@ export default function ChangePasswordPage() {
             autoComplete="new-password"
           />
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button type="submit" className="auth-button" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Update password'}
-          </button>
-          <button
-            type="button"
-            className="auth-button"
-            style={{ background: 'transparent', border: '1px solid var(--border, #e2e8f0)', color: 'inherit' }}
-            onClick={() => navigate('/')}
-          >
-            Back to home
-          </button>
-        </div>
+        <button type="submit" className="auth-button" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving...' : 'Update password'}
+        </button>
       </form>
     </div>
   );

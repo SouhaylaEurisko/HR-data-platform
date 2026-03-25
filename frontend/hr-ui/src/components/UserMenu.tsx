@@ -42,6 +42,30 @@ export default function UserMenu() {
       {open && (
         <div className="user-menu-dropdown">
           <div className="user-menu-email">{user.email}</div>
+          {user.role === 'hr_manager' && (
+            <>
+              <button
+                type="button"
+                className="user-menu-item"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/auth/signup');
+                }}
+              >
+                Add user
+              </button>
+              <button
+                type="button"
+                className="user-menu-item"
+                onClick={() => {
+                  setOpen(false);
+                  navigate('/settings/users');
+                }}
+              >
+                Manage users
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="user-menu-item"

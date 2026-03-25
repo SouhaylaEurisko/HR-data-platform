@@ -15,6 +15,7 @@ export const API_ENDPOINTS = {
     login: `${API_BASE_URL}/api/auth/login`,
     me: `${API_BASE_URL}/api/auth/me`,
     users: `${API_BASE_URL}/api/auth/users`,
+    userStatus: (id: number) => `${API_BASE_URL}/api/auth/users/${id}/status`,
     changePassword: `${API_BASE_URL}/api/auth/change-password`,
   },
   

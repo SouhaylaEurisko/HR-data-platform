@@ -64,10 +64,16 @@ def get_user_id_from_token(token: str) -> int:
         raise ValueError("Invalid subject") from exc
 
 
+class AccountDeactivatedError(Exception):
+    """User account exists but is_active=False."""
+
+
 def authenticate_user(db: Session, email: str, password: str) -> Optional[UserAccount]:
     user = db.query(UserAccount).filter(UserAccount.email == email).first()
     if user is None or not verify_password(password, user.hashed_password):
         return None
+    if not user.is_active:
+        raise AccountDeactivatedError()
     return user
 
 
@@ -89,6 +95,29 @@ def create_user(db: Session, user_create: UserCreate) -> UserAccount:
         is_active=True,
     )
     db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def list_users(db: Session, org_id: int) -> list[UserAccount]:
+    return (
+        db.query(UserAccount)
+        .filter(UserAccount.organization_id == org_id)
+        .order_by(UserAccount.created_at.desc())
+        .all()
+    )
+
+
+def set_user_active(db: Session, user_id: int, org_id: int, *, active: bool) -> Optional[UserAccount]:
+    user = (
+        db.query(UserAccount)
+        .filter(UserAccount.id == user_id, UserAccount.organization_id == org_id)
+        .first()
+    )
+    if user is None:
+        return None
+    user.is_active = active
     db.commit()
     db.refresh(user)
     return user

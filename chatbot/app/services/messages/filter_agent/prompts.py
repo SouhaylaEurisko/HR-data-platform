@@ -107,6 +107,29 @@ highest expected salary -> ORDER BY COALESCE(c.expected_salary_remote, c.expecte
 most experienced -> ORDER BY c.years_of_experience DESC
 otherwise -> ORDER BY c.created_at DESC
 
+LIMIT rules (CRITICAL):
+- Default: LIMIT 20
+- When user asks for "top 5", "top 3", etc.: use that number as LIMIT.
+- When user asks to "show all", "give me all", "list all" with a sort:
+  → use LIMIT 20 (the default).
+- When user asks for "the highest", "the max", "the most", "the top", "the best",
+  "the lowest", "the least" of a numeric field:
+  → Use a subquery to return ALL candidates who share the extreme value.
+  Example for "react native candidate with max experience":
+    WHERE c.applied_position ILIKE '%react native%'
+      AND c.years_of_experience
+          = (SELECT MAX(c2.years_of_experience)
+             FROM candidate c2
+             WHERE c2.applied_position ILIKE '%react native%'
+               AND c2.years_of_experience <= 50)
+  Example for "highest expected salary for backend":
+    WHERE c.applied_position ILIKE '%backend%'
+      AND COALESCE(c.expected_salary_remote, c.expected_salary_onsite)
+          = (SELECT MAX(COALESCE(c2.expected_salary_remote, c2.expected_salary_onsite))
+             FROM candidate c2
+             WHERE c2.applied_position ILIKE '%backend%')
+  This returns ONLY candidates who actually hold the max/min value, not a sorted list.
+
 Fallback:
 If the request is vague, return a broad candidate query with default sort and limit.
 Reuse previous filters only when previous filters are explicitly provided in the input context.

@@ -1,10 +1,11 @@
 """
 Authentication router — login, user provisioning (HR manager), password change, and /me.
 """
-from typing import Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..config import get_db
@@ -16,6 +17,7 @@ from ..models.user import (
     UserRead,
 )
 from ..services.auth_service import (
+    AccountDeactivatedError,
     TokenExpiredError,
     authenticate_user,
     change_user_password,
@@ -23,6 +25,8 @@ from ..services.auth_service import (
     create_user,
     get_user_by_id,
     get_user_id_from_token,
+    list_users,
+    set_user_active,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -53,6 +57,11 @@ def get_current_user(
     user = get_user_by_id(db, user_id)
     if user is None:
         raise credentials_exception
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been deactivated. Contact an HR manager.",
+        )
     return user
 
 
@@ -72,7 +81,13 @@ async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db),
 ):
-    user = authenticate_user(db, form_data.username, form_data.password)
+    try:
+        user = authenticate_user(db, form_data.username, form_data.password)
+    except AccountDeactivatedError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been deactivated. Contact an HR manager.",
+        )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -142,3 +157,41 @@ async def get_current_user_info(
     current_user: Annotated[UserAccount, Depends(get_current_user)],
 ):
     return UserRead.model_validate(current_user)
+
+
+@router.get("/users", response_model=List[UserRead])
+async def list_org_users(
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """List all users in the caller's organization. HR managers only."""
+    require_hr_manager(current_user)
+    users = list_users(db, current_user.organization_id)
+    return [UserRead.model_validate(u) for u in users]
+
+
+class SetActiveBody(BaseModel):
+    is_active: bool
+
+
+@router.patch("/users/{user_id}/status", response_model=UserRead)
+async def toggle_user_status(
+    user_id: int,
+    body: SetActiveBody,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    """Activate or deactivate a user. HR managers only. Cannot deactivate yourself."""
+    require_hr_manager(current_user)
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot deactivate your own account.",
+        )
+    user = set_user_active(db, user_id, current_user.organization_id, active=body.is_active)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found in your organization.",
+        )
+    return UserRead.model_validate(user)

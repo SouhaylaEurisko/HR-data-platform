@@ -43,20 +43,22 @@
 }
 
 .clear-filters-btn {
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.85rem;
   background-color: transparent;
   color: var(--eurisko-error);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: var(--eurisko-radius-sm);
-  font-size: 0.875rem;
-  font-weight: 500;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 100px;
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  font-family: inherit;
+  white-space: nowrap;
 }
 
 .clear-filters-btn:hover {
-  background-color: var(--eurisko-error-bg);
-  border-color: var(--eurisko-error);
+  background-color: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
 }
 
 .filters-grid {

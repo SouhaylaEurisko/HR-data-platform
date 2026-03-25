@@ -75,7 +75,8 @@ IMPORTANT DECISION RULES
 
 - ALWAYS choose ONE intent only
 - If both filtering and statistics are present → "filter_and_aggregation"
-- If the message depends on previous filters → "filter_and_aggregation"
+- If the message depends on previous filters AND asks for statistics → "filter_and_aggregation"
+- If the message depends on previous filters but asks "who" or wants to see specific candidates → "filter"
 - If a PERSON NAME is mentioned with "feedback", "comments", "notes", "HR", "interview", "stage" → "hr_feedback"
 - If a PERSON NAME is mentioned with "more about", "details", "resume", "CV", "info", "profile" → "cv_info"
 - If the user asks about resume content or CV data (even without a name) → "cv_info"
@@ -157,4 +158,14 @@ Output:
 User: "Find Lebanese backend developers"
 Output:
 {"intent":"filter","confidence":"high","reasoning":"Filter candidates by nationality and role"}
+
+User: "Who is the candidate with the highest salary?"
+(previous context: aggregation results)
+Output:
+{"intent":"filter","confidence":"high","reasoning":"Follow-up asking to identify a specific candidate"}
+
+User: "Show me that candidate"
+(previous context: aggregation results)
+Output:
+{"intent":"filter","confidence":"high","reasoning":"Follow-up requesting specific candidate details"}
 """

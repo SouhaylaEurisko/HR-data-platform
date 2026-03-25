@@ -379,8 +379,10 @@ export default function ChatPage() {
                           </div>
                         )}
 
-                        {/* Total found (hidden for comparison — single recommended card uses its own heading) */}
+                        {/* Total found — hidden for comparison and aggregation intents */}
                         {message.response.intent !== 'candidate_comparison' &&
+                          message.response.intent !== 'aggregation' &&
+                          !(message.response.intent === 'filter_and_aggregation' && message.response.stats && message.response.stats.length > 0) &&
                           message.response.total_found != null &&
                           message.response.total_found > 0 && (
                           <div className="matches-info">
@@ -412,16 +414,22 @@ export default function ChatPage() {
                           </div>
                         )}
 
-                        {/* Candidate rows */}
-                        {message.response.candidates && message.response.candidates.length > 0 && (
+                        {/* Candidate rows — for aggregation with stats, show only the top result */}
+                        {message.response.candidates && message.response.candidates.length > 0 &&
+                          !(message.response.intent === 'aggregation') && (
                           <div className="candidates-preview">
                             <h3>
                               {message.response.intent === 'candidate_comparison'
                                 ? 'Recommended candidate'
+                                : (message.response.intent === 'filter_and_aggregation' && message.response.stats && message.response.stats.length > 0)
+                                ? 'Top match:'
                                 : 'Candidates:'}
                             </h3>
                             <div className="candidates-grid">
-                              {message.response.candidates.map((candidate: any, ci: number) => (
+                              {((message.response.intent === 'filter_and_aggregation' && message.response.stats && message.response.stats.length > 0)
+                                ? message.response.candidates.slice(0, 1)
+                                : message.response.candidates
+                              ).map((candidate: any, ci: number) => (
                                 <div
                                   key={candidate.id || ci}
                                   className="candidate-card"

@@ -12,6 +12,7 @@ import UploadPage from './pages/UploadPage';
 import CandidatesPage from './pages/CandidatesPage';
 import CandidateDetailPage from './pages/CandidateDetailPage';
 import ChatPage from './pages/ChatPage';
+import ManageUsersPage from './pages/ManageUsersPage';
 import './App.css';
 
 export default function App() {
@@ -81,6 +82,18 @@ export default function App() {
               <Layout>
                 <ProtectedRoute>
                   <ChatPage />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/settings/users"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <HrManagerRoute>
+                    <ManageUsersPage />
+                  </HrManagerRoute>
                 </ProtectedRoute>
               </Layout>
             }
