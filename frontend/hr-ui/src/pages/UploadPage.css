@@ -5,6 +5,11 @@
   margin: 0 auto;
 }
 
+/* Mapping review needs more width for header → field → badge rows */
+.upload-page:has(.column-mapping-review) {
+  max-width: min(960px, 100%);
+}
+
 .upload-page h1 {
   margin-bottom: 0.5rem;
   color: var(--eurisko-text-primary);
@@ -437,6 +442,10 @@
   border-radius: var(--eurisko-radius-lg);
   padding: 2rem;
   box-shadow: var(--eurisko-shadow-md);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .column-mapping-review h2 {
@@ -519,34 +528,47 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .mapping-row {
-  display: flex;
+  display: grid;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   padding: 0.65rem 1rem;
   background: var(--eurisko-bg-surface);
   border: 1px solid var(--eurisko-border);
   border-radius: var(--eurisko-radius-md);
   font-size: 0.875rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+/* Excel header | arrow | target controls | badge */
+.mapping-row:not(.mapping-row-unmatched) {
+  grid-template-columns: minmax(0, 1.15fr) auto minmax(0, 1.4fr) auto;
 }
 
 .mapping-row-unmatched {
-  flex-wrap: wrap;
+  grid-template-columns: minmax(0, 1.15fr) auto minmax(0, 1.75fr);
 }
 
 .mapping-header {
   font-weight: 600;
-  min-width: 180px;
-  max-width: 220px;
+  min-width: 0;
   color: var(--eurisko-text-primary);
   word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .mapping-arrow {
   color: var(--eurisko-text-muted);
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .mapping-target {
@@ -556,14 +578,16 @@
 }
 
 .mapping-dropdown {
-  flex: 1;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--eurisko-border);
   border-radius: var(--eurisko-radius-md);
   font-size: 0.85rem;
   background: var(--eurisko-bg-card);
   color: var(--eurisko-text-primary);
-  min-width: 180px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
   cursor: pointer;
   transition: border-color 0.2s;
 }
@@ -575,13 +599,15 @@
 }
 
 .mapping-badge {
-  margin-left: auto;
+  margin-left: 0;
+  justify-self: end;
   font-size: 0.7rem;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
+  max-width: 100%;
 }
 
 .badge-auto {
@@ -597,11 +623,30 @@
 }
 
 .unmatched-controls {
-  flex: 1;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.unmatched-controls .mapping-dropdown,
+.unmatched-controls .mapping-input,
+.unmatched-controls .mapping-decision-select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.unmatched-controls .mapping-dropdown {
+  flex: 1 1 10rem;
+  width: auto;
+}
+
+.unmatched-controls .mapping-input {
+  flex: 1 1 10rem;
 }
 
 .mapping-decision-select {
@@ -613,6 +658,9 @@
   color: var(--eurisko-text-primary);
   cursor: pointer;
   font-weight: 500;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .mapping-decision-select:hover,
@@ -622,14 +670,15 @@
 }
 
 .mapping-input {
-  flex: 1;
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--eurisko-border);
   border-radius: var(--eurisko-radius-md);
   font-size: 0.85rem;
   background: var(--eurisko-bg-card);
   color: var(--eurisko-text-primary);
-  min-width: 140px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   transition: border-color 0.2s;
 }
 
@@ -690,4 +739,22 @@
 .btn-cancel:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .mapping-row:not(.mapping-row-unmatched) {
+    grid-template-columns: 1fr;
+  }
+
+  .mapping-row-unmatched {
+    grid-template-columns: 1fr;
+  }
+
+  .mapping-arrow {
+    display: none;
+  }
+
+  .mapping-badge {
+    justify-self: start;
+  }
 }
