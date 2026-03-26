@@ -12,6 +12,14 @@ class NamedCount(BaseModel):
     count: int = Field(ge=0)
 
 
+class PositionAverageMetric(BaseModel):
+    """Average of a numeric field grouped by applied_position."""
+
+    name: str = Field(description="applied_position label")
+    average: float
+    sample_count: int = Field(ge=0, description="Candidates included in the average")
+
+
 class AnalyticsOverviewResponse(BaseModel):
     """KPI snapshot for one organization."""
 
@@ -19,6 +27,8 @@ class AnalyticsOverviewResponse(BaseModel):
     by_application_status: List[NamedCount]
     top_applied_positions: List[NamedCount]
     top_locations: List[NamedCount]
+    avg_expected_salary_by_position: List[PositionAverageMetric]
+    avg_years_experience_by_position: List[PositionAverageMetric]
     candidates_with_resume: int = Field(ge=0)
     resume_coverage_percent: float = Field(ge=0, le=100)
     recent_applications_30d: int = Field(ge=0, description="created_at in last 30 days")

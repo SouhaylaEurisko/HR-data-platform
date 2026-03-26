@@ -501,6 +501,18 @@
   align-items: stretch;
 }
 
+.analytics-columns--split + .analytics-columns--split,
+.analytics-columns--split + .analytics-vcharts-stack {
+  margin-top: 1.35rem;
+}
+
+/* Stacked full-width chart panels (e.g. salary then experience) */
+.analytics-vcharts-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
 @media (max-width: 900px) {
   .analytics-columns {
     grid-template-columns: 1fr;
@@ -532,6 +544,14 @@
   border-color: rgba(20, 184, 166, 0.28);
 }
 
+.analytics-panel--accent-amber:hover {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.analytics-panel--accent-sky:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
 .analytics-panel-head h2 {
   margin: 0 0 0.25rem;
   font-size: 1.05rem;
@@ -545,6 +565,127 @@
   font-size: 0.82rem;
   color: var(--eurisko-text-muted);
   line-height: 1.45;
+}
+
+/* Vertical column charts (e.g. avg salary / experience by position) */
+.analytics-panel--vchart {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.analytics-panel--vchart:hover {
+  border-color: rgba(100, 116, 139, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.analytics-panel--vchart .analytics-panel-head h2 {
+  font-size: 1.14rem;
+}
+
+.analytics-panel--vchart .analytics-panel-sub {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.analytics-panel--vchart .analytics-metric-footnote {
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.analytics-panel--vchart .analytics-chart-empty {
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.analytics-vbar-chart {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0.4rem 0.55rem;
+  min-height: 248px;
+  padding: 0.15rem 0.1rem 0;
+  overflow-x: auto;
+  scrollbar-gutter: stable;
+}
+
+.analytics-vbar-col {
+  flex: 1 1 0;
+  min-width: 68px;
+  max-width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.analytics-vbar-value-top {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--eurisko-text-primary);
+  line-height: 1.2;
+  min-height: 2.85rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0.2rem 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-vbar-bar-wrap {
+  flex: 1;
+  width: 100%;
+  min-height: 152px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0.12rem 0.2rem;
+  border-radius: var(--eurisko-radius-md);
+  background: linear-gradient(180deg, transparent 0%, rgba(100, 116, 139, 0.07) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.analytics-vbar-bar {
+  width: 72%;
+  max-width: 44px;
+  min-height: 3px;
+  border-radius: 8px 8px 3px 3px;
+  transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.analytics-vbar-col:hover .analytics-vbar-bar {
+  filter: brightness(1.09);
+}
+
+.analytics-vbar-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--eurisko-text-secondary);
+  margin-top: 0.5rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  hyphens: auto;
+  max-width: 100%;
+}
+
+.analytics-vbar-n {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--eurisko-text-muted);
+  margin-top: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-panel--accent-amber .analytics-vbar-bar {
+  background: linear-gradient(180deg, rgba(253, 224, 71, 0.95) 0%, rgba(217, 119, 6, 0.92) 55%, rgba(180, 83, 9, 0.9) 100%);
+  box-shadow: 0 -3px 16px rgba(245, 158, 11, 0.28);
+}
+
+.analytics-panel--accent-sky .analytics-vbar-bar {
+  background: linear-gradient(180deg, rgba(186, 230, 253, 0.95) 0%, rgba(14, 165, 233, 0.9) 55%, rgba(3, 105, 161, 0.92) 100%);
+  box-shadow: 0 -3px 16px rgba(14, 165, 233, 0.24);
 }
 
 .analytics-bar-list {
@@ -608,6 +749,13 @@
   background: linear-gradient(90deg, rgba(13, 148, 136, 0.95), rgba(45, 212, 191, 0.7));
   box-shadow: 0 0 12px rgba(20, 184, 166, 0.2);
   transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.analytics-metric-footnote {
+  margin: 0.85rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--eurisko-text-muted);
 }
 
 .analytics-bar-count {

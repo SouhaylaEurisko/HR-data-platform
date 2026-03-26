@@ -171,11 +171,19 @@ export interface AnalyticsNamedCount {
   count: number;
 }
 
+export interface AnalyticsPositionAverage {
+  name: string;
+  average: number;
+  sample_count: number;
+}
+
 export interface AnalyticsOverview {
   total_candidates: number;
   by_application_status: AnalyticsNamedCount[];
   top_applied_positions: AnalyticsNamedCount[];
   top_locations: AnalyticsNamedCount[];
+  avg_expected_salary_by_position: AnalyticsPositionAverage[];
+  avg_years_experience_by_position: AnalyticsPositionAverage[];
   candidates_with_resume: number;
   resume_coverage_percent: number;
   recent_applications_30d: number;

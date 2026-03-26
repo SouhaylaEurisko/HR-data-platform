@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react';
 import { getAnalyticsOverview } from '../api/analytics';
 import { applicationStatusLabel, parseApplicationStatus } from '../constants/applicationStatus';
-import type { AnalyticsNamedCount, AnalyticsOverview } from '../types/api';
+import type { AnalyticsNamedCount, AnalyticsOverview, AnalyticsPositionAverage } from '../types/api';
 import './AnalyticsPage.css';
 
 function formatInt(n: number): string {
@@ -17,6 +17,8 @@ function normalizeAnalyticsOverview(raw: AnalyticsOverview): AnalyticsOverview {
     by_application_status: raw.by_application_status ?? [],
     top_applied_positions: raw.top_applied_positions ?? [],
     top_locations: raw.top_locations ?? [],
+    avg_expected_salary_by_position: raw.avg_expected_salary_by_position ?? [],
+    avg_years_experience_by_position: raw.avg_years_experience_by_position ?? [],
   };
 }
 
@@ -196,6 +198,70 @@ function PipelineLegend({ items = [], total }: { items?: AnalyticsNamedCount[]; 
         );
       })}
     </ul>
+  );
+}
+
+function formatAvgSalary(n: number): string {
+  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0, minimumFractionDigits: 0 })}`;
+}
+
+function formatAvgYears(n: number): string {
+  return `${n.toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 })} yrs`;
+}
+
+function AverageByPositionBars({
+  title,
+  subtitle,
+  items = [],
+  accent,
+  formatValue,
+  valueHint,
+  emptyMessage,
+}: {
+  title: string;
+  subtitle?: string;
+  items?: AnalyticsPositionAverage[];
+  accent: 'amber' | 'sky';
+  formatValue: (n: number) => string;
+  valueHint: string;
+  emptyMessage: string;
+}) {
+  const maxAvg = Math.max(1e-9, ...items.map((i) => i.average));
+  return (
+    <div className={`analytics-panel analytics-panel--vchart analytics-panel--accent-${accent}`}>
+      <div className="analytics-panel-head">
+        <h2>{title}</h2>
+        {subtitle ? <p className="analytics-panel-sub">{subtitle}</p> : null}
+      </div>
+      {items.length === 0 ? (
+        <p className="analytics-chart-empty">{emptyMessage}</p>
+      ) : (
+        <div className="analytics-vbar-chart" role="img" aria-label={title}>
+          {items.map((row, idx) => {
+            const pct = Math.min(100, (100 * row.average) / maxAvg);
+            const tip = `${row.sample_count} candidate${row.sample_count === 1 ? '' : 's'} in average`;
+            return (
+              <div key={`${title}-${idx}-${row.name}`} className="analytics-vbar-col" title={tip}>
+                <div className="analytics-vbar-value-top">{formatValue(row.average)}</div>
+                <div className="analytics-vbar-bar-wrap">
+                  <div
+                    className="analytics-vbar-bar"
+                    style={{ height: `${Math.max(pct, row.average > 0 ? 6 : 0)}%` }}
+                  />
+                </div>
+                <div className="analytics-vbar-label" title={row.name}>
+                  {row.name}
+                </div>
+                <div className="analytics-vbar-n">n={formatInt(row.sample_count)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {items.length > 0 && (
+        <p className="analytics-metric-footnote">{valueHint}</p>
+      )}
+    </div>
   );
 }
 
@@ -380,6 +446,27 @@ export default function AnalyticsPage() {
               subtitle="Where candidates said they applied from"
               items={data.top_locations}
               accent="teal"
+            />
+          </section>
+
+          <section className="analytics-vcharts-stack" aria-label="Averages by role">
+            <AverageByPositionBars
+              title="Avg expected salary by position"
+              subtitle="Top roles by headcount — bar height is relative to the largest average in this chart"
+              items={data.avg_expected_salary_by_position}
+              accent="amber"
+              formatValue={formatAvgSalary}
+              emptyMessage="No candidates with both a role and at least one expected salary (remote or onsite) yet."
+              valueHint="Per candidate we use remote expected salary if set, otherwise onsite."
+            />
+            <AverageByPositionBars
+              title="Avg years of experience by position"
+              subtitle="Among candidates who reported experience — bar height vs max average shown here"
+              items={data.avg_years_experience_by_position}
+              accent="sky"
+              formatValue={formatAvgYears}
+              emptyMessage="No candidates with both a role and years of experience filled in yet."
+              valueHint="Average is taken over candidates with non-null experience for each position."
             />
           </section>
         </>
