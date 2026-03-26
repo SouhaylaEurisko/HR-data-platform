@@ -29,6 +29,8 @@ function entriesForStage(c: Candidate, key: HrStageKey): HrStageCommentEntry[] {
 type CandidateDetailLocationState = {
   fromChat?: boolean;
   focusHrComment?: boolean;
+  /** Query string from candidates list (no leading `?`) — restores page & filters when leaving detail. */
+  candidatesListSearch?: string;
 };
 
 export default function CandidateDetailPage() {
@@ -42,6 +44,11 @@ export default function CandidateDetailPage() {
   const goBack = () => {
     if (fromChat) {
       navigate('/chat');
+      return;
+    }
+    const qs = (location.state as CandidateDetailLocationState | null)?.candidatesListSearch?.trim();
+    if (qs) {
+      navigate({ pathname: '/candidates', search: `?${qs}` });
     } else {
       navigate('/candidates');
     }
@@ -223,7 +230,10 @@ export default function CandidateDetailPage() {
     requestAnimationFrame(() => setTimeout(run, 50));
     navigate(location.pathname, {
       replace: true,
-      state: { fromChat: st.fromChat },
+      state: {
+        fromChat: st.fromChat,
+        candidatesListSearch: st.candidatesListSearch,
+      },
     });
   }, [candidate, location.pathname, location.state, navigate, canWrite]);
 
@@ -414,7 +424,9 @@ export default function CandidateDetailPage() {
                             <button
                               type="button"
                               className="application-context-link"
-                              onClick={() => navigate(`/candidates/${r.id}`)}
+                              onClick={() =>
+                                navigate(`/candidates/${r.id}`, { state: location.state ?? undefined })
+                              }
                             >
                               {r.applied_position || 'Unknown role'}
                               {r.applied_at

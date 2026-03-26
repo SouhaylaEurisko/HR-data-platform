@@ -38,6 +38,7 @@ export default function CandidatesPage() {
   const navigate = useNavigate();
   const { canWrite } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const listSearchSnapshot = searchParams.toString();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -215,7 +216,11 @@ export default function CandidatesPage() {
                 return (
                   <tr
                     key={candidate.id}
-                    onClick={() => navigate(`/candidates/${candidate.id}`)}
+                    onClick={() =>
+                      navigate(`/candidates/${candidate.id}`, {
+                        state: { candidatesListSearch: listSearchSnapshot },
+                      })
+                    }
                     className="table-row-clickable"
                   >
                     <td>{displayName(candidate)}</td>
@@ -239,7 +244,10 @@ export default function CandidatesPage() {
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/candidates/${candidate.id}`, {
-                              state: { focusHrComment: true },
+                              state: {
+                                focusHrComment: true,
+                                candidatesListSearch: listSearchSnapshot,
+                              },
                             });
                           }}
                         >
