@@ -9,6 +9,8 @@ interface ConfirmationDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   variant?: 'danger' | 'warning' | 'info';
+  /** If true, only the confirm button is shown (e.g. alert-style popups). */
+  singleButton?: boolean;
 }
 
 export default function ConfirmationDialog({
@@ -20,6 +22,7 @@ export default function ConfirmationDialog({
   onConfirm,
   onCancel,
   variant = 'info',
+  singleButton = false,
 }: ConfirmationDialogProps) {
   if (!isOpen) return null;
 
@@ -34,14 +37,18 @@ export default function ConfirmationDialog({
         <div className="confirmation-dialog-body">
           <p className="confirmation-dialog-message">{message}</p>
         </div>
-        <div className="confirmation-dialog-actions">
-          <button
-            type="button"
-            className="confirmation-dialog-button confirmation-dialog-button-cancel"
-            onClick={onCancel}
-          >
-            {cancelText}
-          </button>
+        <div
+          className={`confirmation-dialog-actions${singleButton ? ' confirmation-dialog-actions-single' : ''}`}
+        >
+          {!singleButton && (
+            <button
+              type="button"
+              className="confirmation-dialog-button confirmation-dialog-button-cancel"
+              onClick={onCancel}
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             type="button"
             className={`confirmation-dialog-button confirmation-dialog-button-confirm confirmation-dialog-button-${variant}`}

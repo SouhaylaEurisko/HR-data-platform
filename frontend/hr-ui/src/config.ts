@@ -31,6 +31,9 @@ export const API_ENDPOINTS = {
   // Custom field definitions (for filter UI)
   customFields: `${API_BASE_URL}/api/custom-fields`,
 
+  // Analytics (org from JWT)
+  analyticsOverview: `${API_BASE_URL}/api/analytics/overview`,
+
   // Candidate endpoints
   candidates: `${API_BASE_URL}/api/candidates`,
   candidateById: (id: number) => `${API_BASE_URL}/api/candidates/${id}`,

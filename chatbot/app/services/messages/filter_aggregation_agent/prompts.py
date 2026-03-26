@@ -387,6 +387,25 @@ Text filters use ILIKE '%value%'
 Numeric filters use >=, <=, or BETWEEN
 Combine filters with AND unless the user explicitly asks for OR
 
+Nationality / country / "living in" (CRITICAL):
+  The candidate table has c.nationality (VARCHAR) and c.current_address (TEXT). There is NO c.country column — never use c.country.
+  Users often mean origin OR residence. For Lebanese, Jordanian, "from Lebanon", "living in lebanon", etc., match candidates if EITHER field suggests that place:
+    Define a reusable predicate (same in filter_sql, aggregation_sql, and any subquery alias c2/c3):
+    (COALESCE(c.nationality, '') ILIKE '%lebanese%' OR COALESCE(c.nationality, '') ILIKE '%lebanon%'
+     OR COALESCE(c.current_address, '') ILIKE '%lebanon%' OR COALESCE(c.current_address, '') ILIKE '%lebanese%')
+  For other countries, mirror the pattern (nationality demonym OR country name OR same tokens in current_address).
+  Apply the identical geographic predicate on c2 in subqueries (replace c. with c2.).
+
+Example — highest current salary among people living in Lebanon / Lebanese (same WHERE shape in both queries; use c2 in subquery):
+  Let geo_c be:
+    (COALESCE(c.nationality, '') ILIKE '%lebanese%' OR COALESCE(c.nationality, '') ILIKE '%lebanon%'
+     OR COALESCE(c.current_address, '') ILIKE '%lebanon%' OR COALESCE(c.current_address, '') ILIKE '%lebanese%')
+  filter_sql WHERE:
+    <geo_c> AND c.current_salary = (SELECT MAX(c2.current_salary) FROM candidate c2
+      WHERE (same predicate with c2 instead of c) AND c2.current_salary IS NOT NULL)
+  aggregation_sql WHERE:
+    <geo_c>
+
 9. ROLE AND SKILL MATCHING
 Role or position requests search only:
   c.applied_position
@@ -411,6 +430,10 @@ PM
 
 QA
   (c.applied_position ~* '\\\\mQA\\\\M' OR c.applied_position ILIKE '%quality assurance%' OR c.applied_position ILIKE '%test engineer%' OR c.applied_position ILIKE '%software tester%')
+
+HR
+  (c.applied_position ~* '\\\\mHR\\\\M' OR c.applied_position ILIKE '%human resource%')
+  Use '%human resource%' not only '%human resources%' so singular titles (e.g. Human Resource Manager) match.
 
 11. LOOKUP JOINS
 Use LEFT JOIN lookup_option lo ON <foreign_key_column> = lo.id only when the schema clearly shows the requested field is a lookup id.

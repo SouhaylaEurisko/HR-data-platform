@@ -392,16 +392,34 @@ In unsupported cases, return:
 4. FILTERING
 Name search:
   c.full_name ILIKE '%value%'
-Resume text search:
-  cr.resume_info::text ILIKE '%value%'
-If both candidate name and resume condition are requested, combine with AND.
+
+Resume AND profile keyword search (CRITICAL):
+  Parsed CV text lives in cr.resume_info (JSONB). Structured skills on the candidate profile live in
+  c.tech_stack (JSONB array of strings). Many candidates have skills in tech_stack only (import,
+  manual entry) with empty or sparse resume_info — searching resume_info alone misses them.
+  When the user asks for skills, technologies, tools, frameworks, languages, or phrases like
+  "on their resume", "profile", "CV", or "background", search BOTH sources for each keyword:
+    (COALESCE(cr.resume_info::text, '') ILIKE '%keyword%'
+     OR COALESCE(c.tech_stack::text, '') ILIKE '%keyword%')
+  If the user requires multiple keywords (e.g. "Python and FastAPI"), AND separate predicates:
+    (...python...) AND (...fastapi...)
+  If they use "or" between skills, OR those predicates instead.
+  For purely narrative phrases unlikely to appear in tech_stack (e.g. long job descriptions),
+  you may still use only resume_info — but default to the combined form for skills/tools.
+
+Narrow resume-only search:
+  If the user clearly restricts to wording only inside the uploaded CV text and not profile fields,
+  you may use only COALESCE(cr.resume_info::text, '') ILIKE '%value%'.
+
+If both candidate name and content condition are requested, combine with AND.
 When the user message uses pronouns but conversation history includes [focus_candidate] or a
 single [retrieved_candidates] name, filter by that person's name the same as if they typed it.
 
 5. JSONB RULES
-Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on resume_info.
+Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on resume_info or tech_stack.
 Use only:
-  - cr.resume_info::text ILIKE '%value%'
+  - COALESCE(cr.resume_info::text, '') ILIKE '%value%'
+  - c.tech_stack::text ILIKE '%value%' (always inside COALESCE(c.tech_stack::text, '') when OR-ing with resume)
   - cr.resume_info->>'field' when a direct top-level text field is explicitly needed
 
 6. SORTING AND LIMIT
@@ -431,8 +449,15 @@ Output:
 User: Candidates whose resume mentions project management
 Output:
 {
-  "sql": "SELECT c.*, cr.resume_info FROM candidate c LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE cr.resume_info::text ILIKE '%project management%' ORDER BY c.created_at DESC LIMIT 20",
-  "explanation": "Searches resume text for matching candidates"
+  "sql": "SELECT c.*, cr.resume_info FROM candidate c LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%project management%' OR COALESCE(c.tech_stack::text, '') ILIKE '%project management%') ORDER BY c.created_at DESC LIMIT 20",
+  "explanation": "Searches parsed resume and profile tech_stack for the phrase"
+}
+
+User: Who has Python and FastAPI on their resume or profile
+Output:
+{
+  "sql": "SELECT c.*, cr.resume_info FROM candidate c LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%python%' OR COALESCE(c.tech_stack::text, '') ILIKE '%python%') AND (COALESCE(cr.resume_info::text, '') ILIKE '%fastapi%' OR COALESCE(c.tech_stack::text, '') ILIKE '%fastapi%') ORDER BY c.created_at DESC LIMIT 20",
+  "explanation": "Requires both skills in resume JSON or candidate tech_stack"
 }
 """
 CV_INFO_SUMMARY_PROMPT = """

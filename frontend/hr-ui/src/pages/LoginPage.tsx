@@ -37,7 +37,6 @@ export default function LoginPage() {
             alt="Eurisko"
             className="auth-header-logo"
           />
-          <span className="auth-header-title">HR Analytics Platform</span>
         </div>
       </header>
 

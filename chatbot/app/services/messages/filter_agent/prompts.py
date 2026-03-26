@@ -32,6 +32,7 @@ Mapping:
 Name search -> c.full_name ILIKE '%value%'
 Text filters -> ILIKE
 Numeric filters -> =, >=, <=, BETWEEN
+Nationality / country / "living in" -> There is NO c.country. Use c.nationality ILIKE and/or c.current_address ILIKE (OR together) so origin and residence both count, e.g. Lebanon: nationality lebanese/lebanon OR address contains lebanon/lebanese.
 
 Position vs tech_stack (CRITICAL — choose correctly):
 The PRIMARY column for finding candidates is c.applied_position.
@@ -64,20 +65,22 @@ ALWAYS use: c.tech_stack::text ILIKE '%value%'
 Short titles / abbreviations (CRITICAL):
 Short role abbreviations (2-3 letters) are common substrings in unrelated words.
 NEVER use ILIKE '%XX%' for short abbreviations — it matches false positives.
-ALWAYS use regex word boundaries: c.applied_position ~* '\\mABBR\\M'
+ALWAYS use regex word boundaries: start with \\m and end with \\M (uppercase M ends the word — never use \\m twice).
 ALWAYS OR the expanded phrase(s) so both forms match.
 
 Common abbreviation mappings (use these expansions):
   IT  -> information technology
   BA  -> business analyst
+  BE  -> backend engineer
+  FE  -> frontend engineer
   PM  -> project manager
   QA  -> quality assurance
-  HR  -> human resources
+  HR  -> human resource / human resources (see HR rule below)
   UI  -> user interface (or UI designer, UI developer)
   UX  -> user experience (or UX designer, UX researcher)
+  PO  -> product owner
   ML  -> machine learning
   AI  -> artificial intelligence
-  DB  -> database
   SA  -> system administrator (or solutions architect)
   BI  -> business intelligence
   SE  -> software engineer

@@ -249,10 +249,71 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Card 3 — AI Chat */}
+          {/* Card 3 — Analytics */}
           <div
-            className={`option-card option-card-chat ${hoveredCard === 3 ? 'hovered' : ''}`}
+            className={`option-card option-card-analytics ${hoveredCard === 3 ? 'hovered' : ''} ${!hasCandidates && !loadingCandidates ? 'card-disabled' : ''}`}
             onMouseEnter={() => setHoveredCard(3)}
+            onMouseLeave={() => setHoveredCard(null)}
+            onClick={() => (hasCandidates ? navigate('/analytics') : undefined)}
+          >
+            <div className="card-glow card-glow-teal" />
+            <div className="card-icon-wrapper">
+              <div className="card-icon card-icon-analytics">
+                <svg viewBox="0 0 48 48" fill="none" aria-hidden>
+                  <path d="M8 36V20h8v16H8z" fill="currentColor" opacity="0.45" />
+                  <path d="M20 28V12h8v24H20z" fill="currentColor" opacity="0.7" />
+                  <path d="M32 32V8h8v28H32z" fill="currentColor" opacity="0.95" />
+                </svg>
+              </div>
+              <div className="card-icon-ring" />
+            </div>
+            <div className="card-content">
+              <h3 className="card-title">Analytics</h3>
+              <p className="card-description">
+                {hasCandidates
+                  ? 'KPIs, pipeline breakdown, top roles and locations, resume coverage, and salary hints — all from your live data.'
+                  : loadingCandidates
+                  ? 'Checking database for records…'
+                  : 'Once you have candidates, open dashboards built from the same fields you use in search and filters.'}
+              </p>
+            </div>
+            <div className="card-actions-group">
+              {hasCandidates ? (
+                <div className="card-action">
+                  <span className="card-action-text">View analytics</span>
+                  <svg className="card-arrow" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+              ) : !loadingCandidates ? (
+                <div className="card-action-disabled">
+                  <svg className="card-lock" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <span>No data yet</span>
+                </div>
+              ) : null}
+            </div>
+            <div className="card-number">03</div>
+            {!hasCandidates && !loadingCandidates && (
+              <div className="card-tooltip">
+                Import candidate data first — analytics are computed from your organization's records.
+              </div>
+            )}
+          </div>
+
+          {/* Card 4 — AI Chat */}
+          <div
+            className={`option-card option-card-chat ${hoveredCard === 4 ? 'hovered' : ''}`}
+            onMouseEnter={() => setHoveredCard(4)}
             onMouseLeave={() => setHoveredCard(null)}
             onClick={() => navigate('/chat')}
           >
@@ -278,7 +339,7 @@ export default function HomePage() {
                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             </div>
-            <div className="card-number">03</div>
+            <div className="card-number">04</div>
           </div>
         </div>
       </section>

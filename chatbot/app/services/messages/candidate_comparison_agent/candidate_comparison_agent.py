@@ -61,6 +61,11 @@ def _applied_position_where(position: str, params: Dict[str, Any]) -> str:
         params["pos_ba_re"] = r"\mBA\M"
         params["pos_ba_txt"] = "%business analyst%"
         return "(c.applied_position ~* :pos_ba_re OR c.applied_position ILIKE :pos_ba_txt)"
+    hr_intent = pl == "hr" or pl.startswith("human resource")
+    if hr_intent:
+        params["pos_hr_re"] = r"\mHR\M"
+        params["pos_hr_txt"] = "%human resource%"
+        return "(c.applied_position ~* :pos_hr_re OR c.applied_position ILIKE :pos_hr_txt)"
     params["pos"] = f"%{p}%"
     return "c.applied_position ILIKE :pos"
 
@@ -149,14 +154,13 @@ class CandidateComparisonAgent:
         if comparison_ready and not use_agent_default_criteria and not comparison_criteria:
             if position:
                 criteria_reply = (
-                    f"To identify the best fit for **{position}**, I can weigh experience, "
-                    "expected salary, and role-relevant qualifications. Please specify your key criteria "
-                    "or preferences—or say **use your judgment** for a balanced default."
+                    f"What would you like me to compare for **{position}** roles? For example, I can look at things like experience, salary, notice period, or tech stack. "
+                    "Or, if you prefer, I can give you a general comparison."
                 )
             else:
                 criteria_reply = (
-                    "I can compare them on experience, role fit, and relevant qualifications. "
-                    "Please specify your key criteria—or say **use your judgment** for a balanced default."
+                    f"What would you like me to compare for **{position}** roles? For example, I can look at things like experience, salary, notice period, or tech stack. "
+                    "Or, if you prefer, I can give you a general comparison."
                 )
             return {
                 "reply": criteria_reply,

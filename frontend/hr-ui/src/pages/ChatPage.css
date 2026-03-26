@@ -304,6 +304,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  /* Allow highlighting / copy-paste of conversation text */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .message {
@@ -315,6 +318,8 @@
   margin: 0 auto;
   box-sizing: border-box;
   animation: msgIn 0.2s ease;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 @keyframes msgIn {
@@ -375,6 +380,8 @@
   flex: 1;
   min-width: 0;
   max-width: min(820px, 100%);
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .message.user .message-content {
@@ -391,6 +398,8 @@
   line-height: 1.55;
   white-space: pre-wrap;
   word-wrap: break-word;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .message-text strong,
@@ -468,6 +477,8 @@
   flex-direction: column;
   gap: 0.6rem;
   max-width: 100%;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* Summary */
@@ -592,6 +603,8 @@
   cursor: pointer;
   transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
   position: relative;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .candidate-card:hover {

@@ -142,13 +142,14 @@ RULES
   "candidate_name": ""
 
 3. STAGE
-- Return a stage only if the user explicitly mentions a stage or a clear synonym.
+- Return a stage only if the user explicitly names a **pipeline interview stage** or a clear synonym (e.g. "technical interview", "HR interview", "offer stage").
+- Colloquial **"HR comments"**, **"HR feedback"**, **"HR notes"**, or **"comments for X"** mean general human-resources / recruiter notes — they do **NOT** mean the `hr_interview` stage unless the user also says **interview**, **round**, or **stage** in a pipeline sense (e.g. "HR interview", "after the HR round").
 - Allowed values are exactly:
   - "pre_screening"
   - "technical_interview"
   - "hr_interview"
   - "offer_stage"
-- If the user does not explicitly mention a stage, return:
+- If the user does not explicitly mention a pipeline stage, return:
   "stage": ""
 
 4. STAGE NORMALIZATION
@@ -209,4 +210,12 @@ Output:
 User: What is the feedback?
 Output:
 {"candidate_name":"","stage":""}
+
+User: What are the HR comments for Ahmad Aoun?
+Output:
+{"candidate_name":"Ahmad Aoun","stage":""}
+
+User: HR interview write-up for Ahmad Aoun
+Output:
+{"candidate_name":"Ahmad Aoun","stage":"hr_interview"}
 """

@@ -14,15 +14,18 @@ export default function Layout({ children }: LayoutProps) {
   const { isAuthenticated } = useAuth();
   const isHome = location.pathname === '/';
   const isChat = location.pathname === '/chat';
-  const isAuthPage = location.pathname.startsWith('/auth/');
+  const isSignupPage = location.pathname === '/auth/signup';
+  // Login is a minimal page without chrome. Add user (/auth/signup) uses the same shell as Manage users / Change password.
+  const isBareAuthPage = location.pathname === '/auth/login';
 
-  // Don't show layout on auth pages
-  if (isAuthPage) {
+  if (isBareAuthPage) {
     return <>{children}</>;
   }
 
   return (
-    <div className={`layout${isChat ? ' layout-chat' : ''}`}>
+    <div
+      className={`layout${isChat ? ' layout-chat' : ''}${isSignupPage ? ' layout-signup' : ''}`}
+    >
       <nav className="navbar">
         <div className="nav-container">
           <Link to="/" className="nav-brand">
@@ -67,8 +70,8 @@ export default function Layout({ children }: LayoutProps) {
 
       <main className="main-content">{children}</main>
 
-      {/* Floating chat bubble — visible on all pages except Chat & Home */}
-      {!isChat && !isHome && isAuthenticated && (
+      {/* Floating chat bubble — hidden on Chat, Home, and Add user */}
+      {!isChat && !isHome && !isSignupPage && isAuthenticated && (
         <button
           className="floating-chat-btn"
           onClick={() => navigate('/chat')}

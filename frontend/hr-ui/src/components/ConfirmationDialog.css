@@ -79,6 +79,7 @@
     color: var(--eurisko-text-secondary);
     line-height: 1.6;
     font-size: 0.95rem;
+    white-space: pre-line;
   }
   
   .confirmation-dialog-actions {
@@ -86,6 +87,10 @@
     gap: 0.75rem;
     padding: 1rem 1.5rem 1.5rem;
     justify-content: flex-end;
+  }
+
+  .confirmation-dialog-actions-single {
+    justify-content: center;
   }
   
   .confirmation-dialog-button {

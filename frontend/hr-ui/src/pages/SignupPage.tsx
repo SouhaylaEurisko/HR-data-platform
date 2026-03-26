@@ -1,12 +1,10 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getErrorMessage } from '../utils/errorHandler';
 import './AuthPage.css';
 
 export default function SignupPage() {
   const { createUserAsAdmin } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -39,18 +37,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="auth-page">
-      <header className="auth-header">
-        <div className="auth-header-inner">
-          <img
-            src="/eurisko-logo.webp"
-            alt="Eurisko"
-            className="auth-header-logo"
-          />
-          <span className="auth-header-title">HR Analytics Platform</span>
-        </div>
-      </header>
-
+    <div className="auth-page auth-page--in-layout">
       <main className="auth-main">
         <div className="auth-card auth-card-centered">
           <div className="auth-card-header">
@@ -173,9 +160,6 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <div className="auth-meta">
-            <Link to="/">Back to home</Link>
-          </div>
         </div>
       </main>
     </div>

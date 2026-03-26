@@ -14,6 +14,7 @@ class ChitChatAgent:
     async def respond(
         self,
         message: str,
+        user_first_name: Optional[str] = None,
         chatbot_logger: Optional[ChatBotLogger] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> ChitChatResult:
@@ -21,9 +22,15 @@ class ChitChatAgent:
         if chatbot_logger:
             chatbot_logger.log_section("CHIT CHAT", user_message=message)
 
+        # Pass first-name context so greetings can be personalized.
+        llm_input = (
+            f"USER_FIRST_NAME: {user_first_name or ''}\n"
+            f"USER_MESSAGE: {message}"
+        )
+
         data = await self.llm.call(
             CHITCHAT_PROMPT,
-            message,
+            llm_input,
             context="Chit-chat",
             temperature=0.88,
             conversation_history=conversation_history,

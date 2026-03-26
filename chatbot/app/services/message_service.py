@@ -5,6 +5,7 @@ import json
 import logging
 from typing import Optional, Dict, Any, List, Union
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..services.messages.flow_agent import FlowAgent
@@ -25,6 +26,29 @@ _title_agent = TitleAgent()
 
 # Maximum number of previous messages to include as context
 _MAX_HISTORY_MESSAGES = 10
+
+
+def _get_user_first_name(db: Session, user_id: Optional[Union[int, str]]) -> Optional[str]:
+    """Fetch first_name from user_account for greeting personalization."""
+    if db is None or user_id is None:
+        return None
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return None
+
+    try:
+        row = db.execute(
+            text("SELECT first_name FROM user_account WHERE id = :uid LIMIT 1"),
+            {"uid": uid},
+        ).mappings().first()
+        if not row:
+            return None
+        first = (row.get("first_name") or "").strip()
+        return first or None
+    except Exception as exc:
+        logger.warning(f"Could not load user first_name: {exc}")
+        return None
 
 
 def _build_conversation_history(
@@ -144,6 +168,7 @@ async def process_chat_message(
 
     # ── Build conversation history for multi-turn context ──
     conversation_history = _build_conversation_history(db, conversation_id)
+    user_first_name = _get_user_first_name(db, user_id)
 
     # ── Create per-request chatbot logger ──
     chatbot_logger = ChatBotLogger(
@@ -162,6 +187,7 @@ async def process_chat_message(
         result = await _flow_agent.process(
             message,
             db,
+            user_first_name=user_first_name,
             chatbot_logger=chatbot_logger,
             conversation_history=conversation_history,
         )

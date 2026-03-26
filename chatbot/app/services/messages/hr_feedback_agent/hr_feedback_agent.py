@@ -179,6 +179,56 @@ class HrFeedbackAgent:
                     ).mappings()
                 )
                 if not rows:
+                    # Stage may have been mis-inferred (e.g. "HR comments" ≠ HR interview stage).
+                    all_rows = list(
+                        db.execute(
+                            text(_SQL_ALL_STAGES_FOR_NAME),
+                            {"pat": pat},
+                        ).mappings()
+                    )
+                    if all_rows:
+                        fb_by_id: Dict[int, List[Any]] = {}
+                        for r in all_rows:
+                            cid = int(r["id"])
+                            fb_by_id.setdefault(cid, []).append(r)
+                        if len(fb_by_id) > 1:
+                            names = list({r["full_name"] or "—" for r in all_rows})
+                            return {
+                                "reply": (
+                                    f"Several candidates matched “{name}”: {', '.join(names[:5])}. "
+                                    "Please use a more specific name so I can pick the right person."
+                                ),
+                                "summary": None,
+                                "sql": _SQL_ALL_STAGES_FOR_NAME,
+                                "rows": sanitize_rows([dict(r) for r in all_rows]),
+                                "total_found": len(all_rows),
+                                "explanation": "ambiguous match",
+                            }
+                        if len(fb_by_id) == 1:
+                            cand_rows = next(iter(fb_by_id.values()))
+                            picked = _pick_row_latest_comment_stage(cand_rows)
+                            if picked is not None:
+                                row = picked
+                                stage = str(picked["stage_key"])
+                                full_name = row["full_name"] or name
+                                entries = _entries_as_list(row.get("entries"))
+                                latest = _latest_nonempty_entry_dict(entries)
+                                if latest:
+                                    comment_text = str(latest.get("text") or "").strip()
+                                    created = latest.get("created_at")
+                                    date_str = _format_comment_date(created)
+                                    label = _STAGE_LABELS[stage]
+                                    return {
+                                        "reply": (
+                                            f"**Latest {label} feedback for {full_name}** ({date_str}) "
+                                            f"(no entry in **{_STAGE_LABELS[stage_explicit]}**; showing most recent comment across stages)"
+                                        ),
+                                        "summary": comment_text,
+                                        "sql": _SQL_ALL_STAGES_FOR_NAME,
+                                        "rows": None,
+                                        "total_found": 0,
+                                        "explanation": "fallback_all_stages_after_empty_stage",
+                                    }
                     label = _STAGE_LABELS[stage_explicit]
                     return {
                         "reply": (

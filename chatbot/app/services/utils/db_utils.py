@@ -237,32 +237,40 @@ def fetch_experience_stats_for_query(
 
 # ── Salary-aware filter execution ────────────────────────────────────────────
 
+# Match current_salary as a filter column, excluding alias.c2 / t2 style (digit before dot → c2.current_salary).
+# Also exclude bare matches that are really "c2.current_salary" via (?<!\d)\. only matching .current_salary when the dot is not after a digit.
+_CS_COL = r"(?:(?<!\d)\.current_salary|(?:^|[^\w.])(?:c\.)?current_salary)"
+
 _SALARY_SIMPLE_RE = re.compile(
-    r"""current_salary\s*(=|>=|<=|>|<|!=)\s*([\d\.]+)""",
+    _CS_COL + r"""\s*(=|>=|<=|>|<|!=)\s*([\d\.]+)""",
     re.IGNORECASE,
 )
 
 _SALARY_BETWEEN_RE = re.compile(
-    r"""current_salary\s+BETWEEN\s+([\d\.]+)\s+AND\s+([\d\.]+)""",
+    _CS_COL + r"""\s+BETWEEN\s+([\d\.]+)\s+AND\s+([\d\.]+)""",
     re.IGNORECASE,
 )
 
-_SALARY_SUBQUERY_RE = re.compile(
-    r"""current_salary\s*(=|>=|<=|>|<)\s*\(\s*SELECT\s+(?:MAX|MIN)\s*\(\s*current_salary\s*\)\s+FROM\s+candidate[^)]*\)""",
+# Detect cohort max/min: c.current_salary = (SELECT MAX( ... current_salary ...) ... ) — never strip these in Python.
+_SALARY_COHORT_SUBQUERY_RE = re.compile(
+    _CS_COL + r"""\s*=\s*\(\s*SELECT\s+(?:MAX|MIN)\s*\(""",
     re.IGNORECASE,
 )
+
+_SALARY_SUBQUERY_RE = _SALARY_COHORT_SUBQUERY_RE
 
 _SALARY_IS_NOT_NULL_RE = re.compile(
-    r"current_salary\s+IS\s+NOT\s+NULL",
+    _CS_COL + r"\s+IS\s+NOT\s+NULL",
     re.IGNORECASE,
 )
 
+# Only strip simple numeric comparisons; never strip "= (SELECT ...)" (regex cannot safely span nested parens).
 _SALARY_CONDITION_RE = re.compile(
     r"""(?:AND\s+)?"""
-    r"""current_salary\s*"""
+    + _CS_COL
+    + r"""\s*"""
     r"""(?:"""
-    r"""(?:=|>=|<=|>|<|!=)\s*"""
-    r"""(?:\(\s*SELECT[^)]+\)|[\d\.]+)"""
+    r"""(?:=|>=|<=|>|<|!=)\s*[\d\.]+"""
     r"""|"""
     r"""BETWEEN\s+[\d\.]+\s+AND\s+[\d\.]+"""
     r"""|"""
@@ -345,6 +353,10 @@ def execute_salary_aware_query(
     sql: str,
 ) -> Tuple[List[Dict[str, Any]], bool]:
     if not _has_salary_filter(sql):
+        return execute_safe_query(db, sql), False
+
+    # Subquery max/min cohort queries must run verbatim — stripping salary breaks nested parentheses.
+    if _SALARY_COHORT_SUBQUERY_RE.search(sql):
         return execute_safe_query(db, sql), False
 
     matcher = _build_salary_matcher(sql)

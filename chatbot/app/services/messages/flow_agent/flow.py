@@ -40,6 +40,7 @@ class FlowAgent:
         self,
         message: str,
         db: Session,
+        user_first_name: Optional[str] = None,
         chatbot_logger: Optional[ChatBotLogger] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> FlowResult:
@@ -75,6 +76,7 @@ class FlowAgent:
         if intent == "chitchat":
             result = await self.chitchat.respond(
                 message,
+                user_first_name=user_first_name,
                 chatbot_logger=chatbot_logger,
                 conversation_history=history,
             )
@@ -183,6 +185,7 @@ class FlowAgent:
             logger.warning(f"Unknown intent '{intent}', falling back to chitchat")
             result = await self.chitchat.respond(
                 message,
+                user_first_name=user_first_name,
                 chatbot_logger=chatbot_logger,
                 conversation_history=history,
             )

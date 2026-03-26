@@ -100,7 +100,6 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const prevLoadingRef = useRef(false);
 
   const focusChatInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -145,16 +144,14 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
+  // Focus input once on first paint only when there is no history (avoid stealing focus while selecting message text).
   useEffect(() => {
-    focusChatInput();
-  }, [focusChatInput]);
-
-  useEffect(() => {
-    if (prevLoadingRef.current && !isLoading) {
-      focusChatInput();
-    }
-    prevLoadingRef.current = isLoading;
-  }, [isLoading, focusChatInput]);
+    const t = window.setTimeout(() => {
+      if (messages.length === 0) focusChatInput();
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run once on mount
+  }, []);
 
   const handleSelectConversation = async (conversationId: number) => {
     if (conversationId === activeConversationId) return;
@@ -177,7 +174,7 @@ export default function ChatPage() {
       );
     } finally {
       setIsLoading(false);
-      focusChatInput();
+      // Do not focus input here — it clears text selection when the user highlights messages after switching chats.
     }
   };
 
@@ -383,13 +380,14 @@ export default function ChatPage() {
         </div>
       </aside>
 
-      {/* Main area — clicking neutral surface returns focus to the text box */}
+      {/* Main area — clicking neutral chrome focuses the input; never on transcript (would break text selection). */}
       <div
         className="chat-main"
         onPointerDown={(e) => {
           const t = e.target as HTMLElement;
           if (t.closest('button, a, textarea, input, label, [role="button"]')) return;
-          if (t.closest('.candidate-card')) return;
+          // Transcript: focusing the textarea on mousedown clears drag-to-select / copy.
+          if (t.closest('.messages-list, .empty-state, .error-banner')) return;
           focusChatInput();
         }}
       >

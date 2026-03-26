@@ -336,6 +336,7 @@ Important:
 - Text filters use ILIKE '%value%'
 - Numeric filters use >=, <=, or BETWEEN
 - Combine multiple filters with AND unless the user explicitly asks for OR
+- Nationality / country / living in: NO c.country. Combine c.nationality ILIKE with c.current_address ILIKE using OR when the user asks about origin, nationality, or where someone lives (e.g. Lebanon: match lebanese/lebanon in nationality OR lebanon/lebanese in current_address).
 
 6. ROLE AND SKILL MATCHING
 - If the user asks for a role or position, search only:
@@ -366,6 +367,10 @@ When relevant, use these exact mappings:
 
 - QA:
   (c.applied_position ~* '\\\\mQA\\\\M' OR c.applied_position ILIKE '%quality assurance%' OR c.applied_position ILIKE '%test engineer%' OR c.applied_position ILIKE '%software tester%')
+
+- HR:
+  (c.applied_position ~* '\\\\mHR\\\\M' OR c.applied_position ILIKE '%human resource%')
+  Prefer '%human resource%' over only '%human resources%' so singular job titles match.
 
 8. GROUPING RULES
 - Use GROUP BY only when the user asks for "by", "per", "grouped by", or equivalent grouped breakdown wording.

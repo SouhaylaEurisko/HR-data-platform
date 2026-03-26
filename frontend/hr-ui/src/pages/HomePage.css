@@ -392,11 +392,18 @@
   
   .options-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
-    max-width: 1200px;
+    max-width: 1280px;
     margin: 0 auto;
     padding: 0 1rem;
+  }
+
+  @media (max-width: 1100px) {
+    .options-grid {
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 820px;
+    }
   }
   
   /* ═══════════════ OPTION CARDS ═══════════════ */
@@ -534,6 +541,10 @@
   .card-glow-indigo {
     background: radial-gradient(circle at 70% 30%, rgba(99, 102, 241, 0.06) 0%, transparent 50%);
   }
+
+  .card-glow-teal {
+    background: radial-gradient(circle at 40% 40%, rgba(20, 184, 166, 0.08) 0%, transparent 52%);
+  }
   
   /* Card number watermark */
   .card-number {
@@ -592,6 +603,13 @@
     background: linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(124, 58, 237, 0.08) 100%);
     color: #A78BFA;
     border: 1px solid rgba(124, 58, 237, 0.2);
+  }
+
+  /* Same treatment as upload / candidates: rounded square + gradient + light glyph */
+  .card-icon-analytics {
+    background: linear-gradient(135deg, rgba(147, 51, 234, 0.22) 0%, rgba(124, 58, 237, 0.08) 100%);
+    color: #C4B5FD;
+    border: 1px solid rgba(139, 92, 246, 0.22);
   }
   
   .card-icon-chat {

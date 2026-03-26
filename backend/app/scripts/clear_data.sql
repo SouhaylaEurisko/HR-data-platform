@@ -11,6 +11,7 @@ TRUNCATE TABLE
   conversation,
   candidate_stage_comment,
   candidate,
+  candidate_resume,
   import_session,
   custom_field_definition,
 RESTART IDENTITY

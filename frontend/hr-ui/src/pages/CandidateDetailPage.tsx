@@ -14,6 +14,11 @@ import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import { transportationAvailabilityLabel } from '../utils/transportationAvailability';
 import { useAuth } from '../contexts/AuthContext';
+import ConfirmationDialog from '../components/ConfirmationDialog';
+import {
+  formatResumeMismatchMessage,
+  getResumeCandidateIdentityMismatch,
+} from '../utils/resumeIdentityMatch';
 import './CandidateDetailPage.css';
 
 function entriesForStage(c: Candidate, key: HrStageKey): HrStageCommentEntry[] {
@@ -58,8 +63,9 @@ export default function CandidateDetailPage() {
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeUploading, setResumeUploading] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
-  const [showResumePanel, setShowResumePanel] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
+  const [resumeMismatchOpen, setResumeMismatchOpen] = useState(false);
+  const [resumeMismatchMessage, setResumeMismatchMessage] = useState('');
   const resumeFileRef = useRef<HTMLInputElement>(null);
   const didScrollToHrComment = useRef(false);
   const hrStageSelectRef = useRef<HTMLDivElement>(null);
@@ -144,6 +150,11 @@ export default function CandidateDetailPage() {
     try {
       const r = await uploadResume(candidate.id, file);
       setResume(r);
+      const mismatch = getResumeCandidateIdentityMismatch(candidate, r.resume_info);
+      if (mismatch) {
+        setResumeMismatchMessage(formatResumeMismatchMessage(mismatch));
+        setResumeMismatchOpen(true);
+      }
     } catch (err: unknown) {
       setResumeError(apiErrorMessage(err, 'Failed to upload resume'));
     } finally {
@@ -792,7 +803,7 @@ export default function CandidateDetailPage() {
         {/* Resume / CV — Parsed Info (always visible when resume exists) */}
         {resume && (
           <div className="detail-card detail-card-resume-panel">
-            <h2>Resume / CV — Parsed Info</h2>
+            <h2>Resume / CV — Info</h2>
 
             {(() => {
               const ri = resume.resume_info;
@@ -940,6 +951,17 @@ export default function CandidateDetailPage() {
           </div>
         </div>
       )}
+
+      <ConfirmationDialog
+        isOpen={resumeMismatchOpen}
+        title="CV may not match this candidate"
+        message={resumeMismatchMessage}
+        variant="warning"
+        singleButton
+        confirmText="OK"
+        onConfirm={() => setResumeMismatchOpen(false)}
+        onCancel={() => setResumeMismatchOpen(false)}
+      />
     </div>
   );
 }

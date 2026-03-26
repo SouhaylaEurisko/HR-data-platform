@@ -165,6 +165,22 @@ export interface CandidateListParams {
   sort_order?: 'asc' | 'desc';
 }
 
+/** Matches GET /api/analytics/overview (org from JWT). */
+export interface AnalyticsNamedCount {
+  name: string;
+  count: number;
+}
+
+export interface AnalyticsOverview {
+  total_candidates: number;
+  by_application_status: AnalyticsNamedCount[];
+  top_applied_positions: AnalyticsNamedCount[];
+  top_locations: AnalyticsNamedCount[];
+  candidates_with_resume: number;
+  resume_coverage_percent: number;
+  recent_applications_30d: number;
+}
+
 export interface CustomFieldDefinition {
   id: number;
   field_key: string;
