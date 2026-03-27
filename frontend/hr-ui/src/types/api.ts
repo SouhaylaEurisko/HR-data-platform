@@ -171,6 +171,30 @@ export interface AnalyticsNamedCount {
   count: number;
 }
 
+export interface AnalyticsFilterOption {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface AnalyticsFilterOptions {
+  statuses: AnalyticsFilterOption[];
+  positions: AnalyticsFilterOption[];
+  locations: AnalyticsFilterOption[];
+}
+
+export interface AnalyticsAppliedFilters {
+  status: string | null;
+  position: string | null;
+  location: string | null;
+}
+
+export interface AnalyticsOverviewParams {
+  status?: string;
+  position?: string;
+  location?: string;
+}
+
 export interface AnalyticsPositionAverage {
   name: string;
   average: number;
@@ -187,6 +211,8 @@ export interface AnalyticsOverview {
   candidates_with_resume: number;
   resume_coverage_percent: number;
   recent_applications_30d: number;
+  filter_options: AnalyticsFilterOptions;
+  applied_filters: AnalyticsAppliedFilters;
 }
 
 export interface CustomFieldDefinition {

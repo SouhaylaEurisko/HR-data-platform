@@ -1,8 +1,25 @@
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { getAnalyticsOverview } from '../api/analytics';
 import { applicationStatusLabel, parseApplicationStatus } from '../constants/applicationStatus';
-import type { AnalyticsNamedCount, AnalyticsOverview, AnalyticsPositionAverage } from '../types/api';
+import type {
+  AnalyticsFilterOption,
+  AnalyticsNamedCount,
+  AnalyticsOverview,
+  AnalyticsPositionAverage,
+} from '../types/api';
 import './AnalyticsPage.css';
+
+type AnalyticsPageFilters = {
+  status: string;
+  position: string;
+  location: string;
+};
+
+const EMPTY_FILTERS: AnalyticsPageFilters = {
+  status: '',
+  position: '',
+  location: '',
+};
 
 function formatInt(n: number): string {
   return n.toLocaleString();
@@ -19,6 +36,16 @@ function normalizeAnalyticsOverview(raw: AnalyticsOverview): AnalyticsOverview {
     top_locations: raw.top_locations ?? [],
     avg_expected_salary_by_position: raw.avg_expected_salary_by_position ?? [],
     avg_years_experience_by_position: raw.avg_years_experience_by_position ?? [],
+    filter_options: {
+      statuses: raw.filter_options?.statuses ?? [],
+      positions: raw.filter_options?.positions ?? [],
+      locations: raw.filter_options?.locations ?? [],
+    },
+    applied_filters: {
+      status: raw.applied_filters?.status ?? null,
+      position: raw.applied_filters?.position ?? null,
+      location: raw.applied_filters?.location ?? null,
+    },
   };
 }
 
@@ -209,6 +236,117 @@ function formatAvgYears(n: number): string {
   return `${n.toLocaleString(undefined, { maximumFractionDigits: 1, minimumFractionDigits: 1 })} yrs`;
 }
 
+function filterOptionLabel(option: AnalyticsFilterOption): string {
+  return option.label;
+}
+
+function countActiveFilters(filters: AnalyticsPageFilters): number {
+  return Object.values(filters).filter(Boolean).length;
+}
+
+function AnalyticsFilterDropdown({
+  label,
+  value,
+  allLabel,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  allLabel: string;
+  options: AnalyticsFilterOption[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const labelId = useId().replace(/:/g, '');
+
+  const selectedOption = options.find((option) => option.value === value);
+  const displayLabel = selectedOption?.label ?? allLabel;
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
+
+  const selectValue = (nextValue: string) => {
+    onChange(nextValue);
+    setOpen(false);
+  };
+
+  return (
+    <label className="analytics-filter-field">
+      <span id={labelId}>{label}</span>
+      <div className="analytics-select-wrapper" ref={wrapperRef}>
+        <button
+          type="button"
+          className={`analytics-select-trigger${open ? ' is-open' : ''}`}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-labelledby={labelId}
+          onClick={() => setOpen((prev) => !prev)}
+        >
+          <span className="analytics-select-trigger-text">{displayLabel}</span>
+          <span className={`analytics-select-chevron${open ? ' is-open' : ''}`} aria-hidden>
+            ▼
+          </span>
+        </button>
+
+        {open && (
+          <ul className="analytics-select-menu" role="listbox" aria-labelledby={labelId}>
+            <li role="presentation">
+              <button
+                type="button"
+                role="option"
+                aria-selected={value === ''}
+                className={value === '' ? 'analytics-select-option is-selected' : 'analytics-select-option'}
+                onClick={() => selectValue('')}
+              >
+                {allLabel}
+              </button>
+            </li>
+            {options.map((option) => (
+              <li key={`${label}-${option.value}`} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={value === option.value}
+                  className={
+                    value === option.value
+                      ? 'analytics-select-option is-selected'
+                      : 'analytics-select-option'
+                  }
+                  onClick={() => selectValue(option.value)}
+                >
+                  {filterOptionLabel(option)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </label>
+  );
+}
+
 function AverageByPositionBars({
   title,
   subtitle,
@@ -346,8 +484,10 @@ function KpiIconResume() {
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsOverview | null>(null);
+  const [filters, setFilters] = useState<AnalyticsPageFilters>(EMPTY_FILTERS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activeFilterCount = countActiveFilters(filters);
 
   useEffect(() => {
     let cancelled = false;
@@ -355,7 +495,11 @@ export default function AnalyticsPage() {
       setLoading(true);
       setError(null);
       try {
-        const overview = await getAnalyticsOverview();
+        const overview = await getAnalyticsOverview({
+          status: filters.status || undefined,
+          position: filters.position || undefined,
+          location: filters.location || undefined,
+        });
         if (!cancelled) setData(normalizeAnalyticsOverview(overview));
       } catch {
         if (!cancelled) {
@@ -369,7 +513,15 @@ export default function AnalyticsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [filters]);
+
+  const handleFilterChange = (key: keyof AnalyticsPageFilters, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+  };
 
   return (
     <div className="analytics-page">
@@ -381,6 +533,62 @@ export default function AnalyticsPage() {
           Live summaries from your candidate pool.
         </p>
       </header>
+
+      {data && (
+        <section className="analytics-filters-section" aria-label="Analytics filters">
+          <div className="analytics-filters-card">
+            <div className="analytics-filters-head">
+              <div>
+                <h2>Filter analytics</h2>
+                <p>Every KPI and chart below updates dynamically from the selected status, position, and location.</p>
+              </div>
+              <div className="analytics-filters-actions">
+                {loading ? <span className="analytics-filters-status">Updating metrics…</span> : null}
+                <button
+                  type="button"
+                  className="analytics-clear-btn"
+                  onClick={handleClearFilters}
+                  disabled={activeFilterCount === 0}
+                >
+                  Clear filters
+                </button>
+              </div>
+            </div>
+
+            <div className="analytics-filters-grid">
+              <AnalyticsFilterDropdown
+                label="Status"
+                value={filters.status}
+                allLabel="All statuses"
+                options={data.filter_options.statuses}
+                onChange={(value) => handleFilterChange('status', value)}
+              />
+
+              <AnalyticsFilterDropdown
+                label="Position"
+                value={filters.position}
+                allLabel="All positions"
+                options={data.filter_options.positions}
+                onChange={(value) => handleFilterChange('position', value)}
+              />
+
+              <AnalyticsFilterDropdown
+                label="Location"
+                value={filters.location}
+                allLabel="All locations"
+                options={data.filter_options.locations}
+                onChange={(value) => handleFilterChange('location', value)}
+              />
+            </div>
+
+            <p className="analytics-filter-summary">
+              {activeFilterCount > 0
+                ? `${formatInt(data.total_candidates)} candidate${data.total_candidates === 1 ? '' : 's'} match the active filters.`
+                : 'Showing the full organization candidate pool.'}
+            </p>
+          </div>
+        </section>
+      )}
 
       {error && <div className="analytics-error">{error}</div>}
 

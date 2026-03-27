@@ -112,12 +112,11 @@ class Config:
         if not origins_str:
             # Default origins if not set
             return [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:3000",
+                "*",
             ]
         # Support both comma and space separation
-        origins = origins_str.replace(",", " ").split()
+        # origins = origins_str.replace(",", " ").split()
+        origins = ["*"]
         return [origin.strip() for origin in origins if origin.strip()]
 
 
