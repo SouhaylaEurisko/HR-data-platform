@@ -13,6 +13,7 @@ from ..models.user import UserAccount
 from ..routers.auth import get_current_user, require_hr_manager
 from ..services.import_service import (
     analyze_workbook,
+    check_import_name_conflicts,
     confirm_and_import,
     load_workbook_from_file,
     preview_workbook,
@@ -32,6 +33,12 @@ class ConfirmImportRequest(BaseModel):
     skip_columns: List[str] = []
     sheet_names: List[str]
     org_id: int
+
+
+class DuplicateCheckRequest(BaseModel):
+    filename: str
+    sheet_names: List[str]
+    org_id: int = 1
 
 
 # ──────────────────────────────────────────────
@@ -81,6 +88,21 @@ async def analyze_xlsx(
         )
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.post("/xlsx/duplicate-check", summary="Check duplicate file/sheet names before import")
+def check_xlsx_duplicate_names(
+    body: DuplicateCheckRequest,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+) -> dict:
+    require_hr_manager(current_user)
+    return check_import_name_conflicts(
+        db=db,
+        org_id=body.org_id,
+        filename=body.filename,
+        sheet_names=body.sheet_names,
+    )
 
 
 @router.post("/xlsx/confirm", summary="Confirm column mappings and import")

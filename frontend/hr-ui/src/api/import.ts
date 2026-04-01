@@ -3,6 +3,8 @@ import { API_ENDPOINTS } from '../config';
 import type {
   XlsxPreviewResponse,
   AnalyzeResponse,
+  DuplicateImportCheckRequest,
+  DuplicateImportCheckResponse,
   ConfirmImportRequest,
   ImportResult,
 } from '../types/api';
@@ -50,6 +52,19 @@ export const analyzeXlsx = async (
     url,
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return response.data;
+};
+
+/**
+ * Check whether file/sheet names were already imported.
+ */
+export const checkImportDuplicates = async (
+  body: DuplicateImportCheckRequest,
+): Promise<DuplicateImportCheckResponse> => {
+  const response = await apiClient.post<DuplicateImportCheckResponse>(
+    API_ENDPOINTS.duplicateCheckXlsx,
+    body,
   );
   return response.data;
 };

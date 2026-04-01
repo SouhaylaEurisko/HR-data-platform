@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { analyzeXlsx, previewXlsx } from '../api/import';
-import type { AnalyzeResponse, ImportResult, XlsxPreviewResponse } from '../types/api';
+import { analyzeXlsx, checkImportDuplicates, previewXlsx } from '../api/import';
+import type {
+  AnalyzeResponse,
+  DuplicateImportCheckResponse,
+  ImportResult,
+  XlsxPreviewResponse,
+} from '../types/api';
 import ColumnMappingReview from '../components/ColumnMappingReview';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 import './UploadPage.css';
 
 type Phase = 'select' | 'analyzing' | 'review' | 'done';
@@ -18,6 +24,39 @@ export default function UploadPage() {
   const [importAll, setImportAll] = useState(false);
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<DuplicateImportCheckResponse | null>(null);
+  const [pendingAnalyze, setPendingAnalyze] = useState<{ file: File; sheetNames?: string[]; importAll: boolean } | null>(null);
+
+  const runAnalyze = async (selectedFile: File, sheetNames: string[] | undefined, importAllSheets: boolean) => {
+    setPhase('analyzing');
+    setError(null);
+    setAnalysis(null);
+
+    try {
+      const result = await analyzeXlsx(selectedFile, sheetNames, importAllSheets);
+      setAnalysis(result);
+      setPhase('review');
+    } catch (err: any) {
+      setError(
+        err.response?.data?.detail ||
+          err.message ||
+          'Failed to analyze file. Please try again.'
+      );
+      setPhase('select');
+    }
+  };
+
+  const buildDuplicateWarningMessage = (check: DuplicateImportCheckResponse) => {
+    const lines: string[] = [];
+    if (check.filename_exists) {
+      lines.push('A file with the same name has already been imported.');
+    }
+    if (check.duplicate_sheets.length > 0) {
+      lines.push(`These sheet names already exist: ${check.duplicate_sheets.join(', ')}`);
+    }
+    lines.push('Proceeding may create duplicate candidate entries.');
+    return lines.join(' ');
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -93,22 +132,32 @@ export default function UploadPage() {
       }
     }
 
-    setPhase('analyzing');
-    setError(null);
-    setAnalysis(null);
-
     try {
-      const sheetNames = importAll ? undefined : Array.from(selectedSheets);
-      const result = await analyzeXlsx(file, sheetNames, importAll);
-      setAnalysis(result);
-      setPhase('review');
+      const explicitSheetNames = importAll
+        ? (preview?.sheets.map((s) => s.name) ?? [])
+        : Array.from(selectedSheets);
+      const sheetNamesForAnalyze = importAll ? undefined : explicitSheetNames;
+      const duplicateCheck = await checkImportDuplicates({
+        filename: file.name,
+        sheet_names: explicitSheetNames,
+        org_id: 1,
+      });
+      if (duplicateCheck.has_duplicates) {
+        setDuplicateWarning(duplicateCheck);
+        setPendingAnalyze({
+          file,
+          sheetNames: sheetNamesForAnalyze,
+          importAll,
+        });
+        return;
+      }
+      await runAnalyze(file, sheetNamesForAnalyze, importAll);
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
         err.message ||
-        'Failed to analyze file. Please try again.'
+          'Failed to validate file import. Please try again.'
       );
-      setPhase('select');
     }
   };
 
@@ -361,6 +410,30 @@ export default function UploadPage() {
           </button>
         </div>
       )}
+
+      <ConfirmationDialog
+        isOpen={!!duplicateWarning}
+        title="Potential Duplicate Import"
+        message={
+          duplicateWarning
+            ? buildDuplicateWarningMessage(duplicateWarning)
+            : ''
+        }
+        confirmText="Proceed Anyway"
+        cancelText="Cancel"
+        variant="warning"
+        onConfirm={() => {
+          if (!pendingAnalyze) return;
+          const payload = pendingAnalyze;
+          setDuplicateWarning(null);
+          setPendingAnalyze(null);
+          void runAnalyze(payload.file, payload.sheetNames, payload.importAll);
+        }}
+        onCancel={() => {
+          setDuplicateWarning(null);
+          setPendingAnalyze(null);
+        }}
+      />
     </div>
   );
 }

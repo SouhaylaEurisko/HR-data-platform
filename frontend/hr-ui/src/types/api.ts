@@ -247,6 +247,18 @@ export interface AnalyzeResponse {
   already_mapped: string[];
 }
 
+export interface DuplicateImportCheckRequest {
+  filename: string;
+  sheet_names: string[];
+  org_id: number;
+}
+
+export interface DuplicateImportCheckResponse {
+  filename_exists: boolean;
+  duplicate_sheets: string[];
+  has_duplicates: boolean;
+}
+
 export interface ConfirmImportRequest {
   session_id: number;
   confirmed_mappings: Record<string, string>;

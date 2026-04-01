@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import type { AnalyzeResponse, AvailableColumn, ConfirmImportRequest } from '../types/api';
+  import { useMemo, useState } from 'react';
+import type { AnalyzeResponse, ConfirmImportRequest } from '../types/api';
 import { confirmImport } from '../api/import';
 import type { ImportResult } from '../types/api';
 
@@ -59,23 +59,27 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const usedColumns = useMemo(() => {
-    const used = new Set<string>();
-    for (const v of Object.values(matchedOverrides)) if (v) used.add(v);
-    for (const v of Object.values(suggestedOverrides)) {
-      if (v && v !== MAP_AS_CUSTOM_FIELD) used.add(v);
-    }
-    for (const ud of unmatchedDecisions) {
-      if (ud.decision === 'map' && ud.targetColumn) used.add(ud.targetColumn);
-    }
-    return used;
-  }, [matchedOverrides, suggestedOverrides, unmatchedDecisions]);
+  const allOptions = useMemo(() => {
+    const byValue = new Map<string, { value: string; label: string }>();
 
-  const getFilteredOptions = (currentValue: string): AvailableColumn[] => {
-    return analysis.available_columns.filter(
-      col => col.value === currentValue || !usedColumns.has(col.value)
-    );
-  };
+    for (const col of analysis.available_columns) {
+      if (!col?.value) continue;
+      byValue.set(col.value, { value: col.value, label: col.label || col.value });
+    }
+
+    const ensureValue = (value?: string | null) => {
+      if (!value || value === MAP_AS_CUSTOM_FIELD) return;
+      if (!byValue.has(value)) {
+        byValue.set(value, { value, label: value });
+      }
+    };
+
+    for (const v of Object.values(matchedOverrides)) ensureValue(v);
+    for (const v of Object.values(suggestedOverrides)) ensureValue(v);
+    for (const ud of unmatchedDecisions) ensureValue(ud.targetColumn);
+
+    return Array.from(byValue.values());
+  }, [analysis.available_columns, matchedOverrides, suggestedOverrides, unmatchedDecisions]);
 
   const handleConfirm = async () => {
     setIsSubmitting(true);
@@ -179,7 +183,7 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
                   }
                 >
                   <option value="">-- Skip this column --</option>
-                  {getFilteredOptions(matchedOverrides[col.excel_header] || '').map(opt => (
+                  {allOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
@@ -230,7 +234,7 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
                     >
                       <option value="">-- Skip this column --</option>
                       <option value={MAP_AS_CUSTOM_FIELD}>Create custom field</option>
-                      {getFilteredOptions(isCustom ? '' : sel).map(opt => (
+                      {allOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
                         </option>
@@ -302,7 +306,7 @@ export default function ColumnMappingReview({ analysis, orgId, onComplete, onErr
                       }}
                     >
                       <option value="">-- Select a field --</option>
-                      {getFilteredOptions(ud.targetColumn).map(opt => (
+                      {allOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>

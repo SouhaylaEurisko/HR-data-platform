@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from fastapi import UploadFile
 from openpyxl import load_workbook
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models.candidate import Candidate
@@ -537,6 +538,67 @@ def _extract_all_headers(workbook, sheet_names: List[str]) -> List[str]:
                 seen.add(h.lower())
                 ordered.append(h)
     return ordered
+
+
+def check_import_name_conflicts(
+    *,
+    db: Session,
+    org_id: int,
+    filename: str,
+    sheet_names: List[str],
+) -> dict:
+    """Check duplicate risk for same file + same sheet imports within an org."""
+    normalized_filename = str(filename or "").strip()
+    normalized_sheets = [str(s).strip() for s in (sheet_names or []) if str(s).strip()]
+
+    filename_exists = False
+    if normalized_filename:
+        filename_exists = (
+            db.query(ImportSession.id)
+            .filter(
+                ImportSession.organization_id == org_id,
+                func.lower(ImportSession.original_filename) == normalized_filename.lower(),
+            )
+            .first()
+            is not None
+        )
+
+    # Duplicate means same filename AND same sheet name were already imported.
+    # A sheet existing under a different file should not trigger this warning.
+    existing_sheet_rows = []
+    if normalized_filename:
+        existing_sheet_rows = (
+            db.query(Candidate.import_sheet)
+            .join(ImportSession, Candidate.import_session_id == ImportSession.id)
+            .filter(
+                Candidate.organization_id == org_id,
+                Candidate.import_sheet.isnot(None),
+                ImportSession.organization_id == org_id,
+                func.lower(ImportSession.original_filename) == normalized_filename.lower(),
+            )
+            .distinct()
+            .all()
+        )
+    existing_sheets_map = {
+        str(row[0]).strip().lower(): str(row[0]).strip()
+        for row in existing_sheet_rows
+        if row and row[0] and str(row[0]).strip()
+    }
+
+    duplicate_sheets: List[str] = []
+    for sheet in normalized_sheets:
+        match = existing_sheets_map.get(sheet.lower())
+        if match:
+            duplicate_sheets.append(match)
+
+    # Keep deterministic order and remove duplicates while preserving first occurrence.
+    duplicate_sheets = list(dict.fromkeys(duplicate_sheets))
+
+    return {
+        "filename_exists": filename_exists,
+        "duplicate_sheets": duplicate_sheets,
+        "has_duplicates": bool(duplicate_sheets),
+    }
 
 
 # ──────────────────────────────────────────────

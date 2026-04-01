@@ -22,6 +22,7 @@ export const API_ENDPOINTS = {
   // Import endpoints (two-phase: preview → analyze → confirm)
   previewXlsx: `${API_BASE_URL}/api/import/xlsx/preview`,
   analyzeXlsx: `${API_BASE_URL}/api/import/xlsx/analyze`,
+  duplicateCheckXlsx: `${API_BASE_URL}/api/import/xlsx/duplicate-check`,
   confirmImport: `${API_BASE_URL}/api/import/xlsx/confirm`,
 
   // Lookup endpoints
