@@ -23,6 +23,6 @@ class Organization(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     users = relationship("UserAccount", back_populates="organization")
-    candidates = relationship("Candidate", back_populates="organization")
+    candidates = relationship("CandidateProfile", back_populates="organization")
     import_sessions = relationship("ImportSession", back_populates="organization")
     custom_field_definitions = relationship("CustomFieldDefinition", back_populates="organization")

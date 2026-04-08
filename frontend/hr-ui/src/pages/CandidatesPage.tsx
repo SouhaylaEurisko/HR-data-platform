@@ -5,11 +5,14 @@ import { getCandidates } from '../api/candidates';
 import { useAuth } from '../contexts/AuthContext';
 import { parseApplicationStatus } from '../constants/applicationStatus';
 import { HR_STAGE_DEFS, emptyHrStageCommentLists, latestStageComment } from '../constants/hrStages';
-import type { Candidate, CandidateListParams } from '../types/api';
+import type { CandidateListParams, CandidateProfileListItem } from '../types/api';
 import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import './CandidatesPage.css';
 
-function hrCommentsListSummary(candidate: Candidate): { full: string; short: string } {
+function hrCommentsListSummary(candidate: Pick<CandidateProfileListItem, 'hr_stage_comments'>): {
+  full: string;
+  short: string;
+} {
   const hc = candidate.hr_stage_comments ?? emptyHrStageCommentLists();
   const parts: string[] = [];
   for (const { key, label } of HR_STAGE_DEFS) {
@@ -39,7 +42,7 @@ export default function CandidatesPage() {
   const { canWrite } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const listSearchSnapshot = searchParams.toString();
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [candidates, setCandidates] = useState<CandidateProfileListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
@@ -117,9 +120,9 @@ export default function CandidatesPage() {
 
   const totalPages = Math.ceil(total / pageSize);
 
-  const displayName = (c: Candidate) => c.full_name || 'N/A';
+  const displayName = (c: CandidateProfileListItem) => c.full_name || 'N/A';
 
-  const willingToRelocate = (c: Candidate) =>
+  const willingToRelocate = (c: CandidateProfileListItem) =>
     relocationOpennessLabel(c.is_open_for_relocation);
 
   return (
@@ -224,7 +227,7 @@ export default function CandidatesPage() {
                     className="table-row-clickable"
                   >
                     <td>{displayName(candidate)}</td>
-                    <td>{candidate.applied_position || '—'}</td>
+                    <td>{candidate.applied_position || '-'}</td>
                     <td>{willingToRelocate(candidate)}</td>
                     <td className="td-application-status" onClick={(e) => e.stopPropagation()}>
                       {appStatus ? (

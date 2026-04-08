@@ -11,6 +11,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..config.database import Base
+from pydantic import BaseModel
+from typing import Optional
 
 
 class LookupCategory(Base):
@@ -45,3 +47,32 @@ class LookupOption(Base):
     )
 
     category = relationship("LookupCategory", back_populates="options")
+
+
+
+class LookupOptionOut(BaseModel):
+    id: int
+    code: str
+    label: str
+    display_order: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class LookupCategoryOut(BaseModel):
+    id: int
+    code: str
+    label: str
+    description: Optional[str] = None
+    is_system: bool
+
+    class Config:
+        from_attributes = True
+
+
+class CreateLookupOptionRequest(BaseModel):
+    code: str
+    label: str
+    display_order: int = 0

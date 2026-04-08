@@ -51,7 +51,7 @@ class UserBase(BaseModel):
 class UserCreate(BaseModel):
     """Internal / service layer: create user with explicit org (used by admin invite)."""
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=6, max_length=100)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     organization_id: int = 1
@@ -68,7 +68,7 @@ class UserCreate(BaseModel):
 class AdminUserCreate(BaseModel):
     """HR manager creates a user in their organization (no organization_id in body)."""
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=6, max_length=100)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
     role: str = Field(default="hr_manager", description="hr_manager or hr_viewer")
@@ -91,7 +91,7 @@ class AdminUserCreate(BaseModel):
 
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=1)
-    new_password: str = Field(..., min_length=6)
+    new_password: str = Field(..., min_length=6, max_length=100)
 
 
 class UserRead(UserBase):
@@ -106,6 +106,10 @@ class UserRead(UserBase):
         from_attributes = True
 
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=1, max_length=72)
+
+class LoginResponse(BaseModel):
+    access_token: str
+    expires_in: int

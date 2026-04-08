@@ -1,7 +1,7 @@
 """
-Load candidate HR stage comments (one DB row per stage; entries in JSONB).
+HR stage comments — map repository rows to read models (JSONB entries per stage).
 
-Append is implemented in candidate_service to avoid circular imports.
+Append / update flows stay in candidate_service to avoid circular imports.
 """
 
 from __future__ import annotations
@@ -11,10 +11,13 @@ from typing import Dict, List
 from sqlalchemy.orm import Session
 
 from ..models.candidate_stage_comment import (
-    CandidateStageComment,
     HrStageCommentsRead,
     hr_stage_comments_latest_only,
     json_rows_to_hr_stage_comments_read,
+)
+from ..repository.candidate_stage_comments_repository import (
+    list_comments_for_candidate,
+    list_comments_for_candidates,
 )
 
 
@@ -24,14 +27,7 @@ def fetch_hr_stage_comments_for_candidate(
     org_id: int,
     candidate_id: int,
 ) -> HrStageCommentsRead:
-    rows = (
-        db.query(CandidateStageComment)
-        .filter(
-            CandidateStageComment.candidate_id == candidate_id,
-            CandidateStageComment.organization_id == org_id,
-        )
-        .all()
-    )
+    rows = list_comments_for_candidate(db, org_id=org_id, candidate_id=candidate_id)
     return json_rows_to_hr_stage_comments_read(rows)
 
 
@@ -45,14 +41,7 @@ def fetch_hr_stage_comments_for_candidate_ids(
     """Bulk load for list (optionally strip to latest entry per stage)."""
     if not candidate_ids:
         return {}
-    rows = (
-        db.query(CandidateStageComment)
-        .filter(
-            CandidateStageComment.organization_id == org_id,
-            CandidateStageComment.candidate_id.in_(candidate_ids),
-        )
-        .all()
-    )
+    rows = list_comments_for_candidates(db, org_id=org_id, candidate_ids=candidate_ids)
     by_cand: Dict[int, list] = {}
     for r in rows:
         by_cand.setdefault(r.candidate_id, []).append(r)

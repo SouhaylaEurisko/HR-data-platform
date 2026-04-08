@@ -11,21 +11,10 @@ export interface CreateUserAdminRequest {
 }
 
 export const login = async (email: string, password: string): Promise<AuthResponse> => {
-  const formData = new FormData();
-  // FastAPI OAuth2PasswordRequestForm expects "username" field
-  formData.append('username', email);
-  formData.append('password', password);
-
-  const response = await apiClient.post<AuthResponse>(
-    API_ENDPOINTS.auth.login,
-    formData,
-    {
-      headers: {
-        // Let the browser set appropriate multipart headers
-        'Content-Type': 'multipart/form-data',
-      },
-    }
-  );
+  const response = await apiClient.post<AuthResponse>(API_ENDPOINTS.auth.login, {
+    email,
+    password,
+  });
 
   return response.data;
 };

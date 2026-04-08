@@ -1,6 +1,12 @@
 import apiClient from './client';
 import { API_ENDPOINTS } from '../config';
-import type { ApplicationStatus, Candidate, CandidateListResponse, CandidateListParams, CandidateResume } from '../types/api';
+import type {
+  ApplicationStatus,
+  Candidate,
+  CandidateListParams,
+  CandidateProfileListResponse,
+  CandidateResume,
+} from '../types/api';
 import type { HrStageKey } from '../constants/hrStages';
 
 /**
@@ -8,8 +14,8 @@ import type { HrStageKey } from '../constants/hrStages';
  */
 export const getCandidates = async (
   params?: CandidateListParams
-): Promise<CandidateListResponse> => {
-  const response = await apiClient.get<CandidateListResponse>(
+): Promise<CandidateProfileListResponse> => {
+  const response = await apiClient.get<CandidateProfileListResponse>(
     API_ENDPOINTS.candidates,
     { params: params ?? {} }
   );

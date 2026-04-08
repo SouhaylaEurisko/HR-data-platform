@@ -17,6 +17,7 @@ from sqlalchemy.sql import func
 
 from ..config.database import Base
 from ..data.hr_stage_comments import HR_STAGE_KEYS
+from .enums import ApplicationStatus
 
 _MAX_LEN = 10000
 
@@ -29,7 +30,7 @@ class CandidateStageComment(Base):
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(
         Integer,
-        ForeignKey("candidate.id", ondelete="CASCADE"),
+        ForeignKey("candidates.id", ondelete="CASCADE"),
         nullable=False,
     )
     organization_id = Column(
@@ -39,6 +40,7 @@ class CandidateStageComment(Base):
     )
     stage_key = Column(String(64), nullable=False)
     entries = Column(JSONB, nullable=False, server_default="[]")
+    application_status = Column(String(32), nullable=True, index=True)
     updated_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -91,6 +93,17 @@ class CandidateHrStageCommentCreate(BaseModel):
         if not self.text:
             raise ValueError("Comment text cannot be empty")
         return self
+
+
+class CandidateHrStageCommentResponse(BaseModel):
+    candidate_id: int
+    stage: StageKeyLiteral
+    entry: HrStageCommentEntryRead
+
+
+class CandidateApplicationStatusResponse(BaseModel):
+    candidate_id: int
+    application_status: ApplicationStatus
 
 
 def empty_hr_stage_comments_read() -> HrStageCommentsRead:

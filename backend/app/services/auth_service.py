@@ -1,5 +1,6 @@
 """
 Authentication — password hashing, JWT access tokens, and user persistence.
+DB access lives in repository.auth_repository.
 """
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..config import config
 from ..models.user import UserAccount, UserCreate
+from ..repository import auth_repository as user_repo
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -19,7 +21,10 @@ class TokenExpiredError(Exception):
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except ValueError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -29,13 +34,29 @@ def get_password_hash(password: str) -> str:
 def create_access_token(
     *,
     subject_user_id: int,
-    expires_delta: Optional[timedelta] = None,
+    email: Optional[str] = None,
+    organization_id: Optional[int] = None,
+    role: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
 ) -> str:
-    """Encode a JWT with ``sub`` = user id and standard expiry."""
-    expire = datetime.now(timezone.utc) + (
-        expires_delta if expires_delta is not None else timedelta(minutes=config.jwt_expire_minutes)
-    )
-    payload = {"sub": str(subject_user_id), "exp": expire}
+    """Encode a JWT with subject and basic user claims."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=config.jwt_expire_minutes)
+
+    payload = {
+        "sub": str(subject_user_id),
+        "exp": expire,
+    }
+    if email:
+        payload["email"] = email
+    if organization_id is not None:
+        payload["organization_id"] = organization_id
+    if role:
+        payload["role"] = role
+    if first_name:
+        payload["first_name"] = first_name
+    if last_name:
+        payload["last_name"] = last_name
     return jwt.encode(payload, config.jwt_secret_key, algorithm=config.jwt_algorithm)
 
 
@@ -69,7 +90,7 @@ class AccountDeactivatedError(Exception):
 
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[UserAccount]:
-    user = db.query(UserAccount).filter(UserAccount.email == email).first()
+    user = user_repo.get_user_by_email(db, email)
     if user is None or not verify_password(password, user.hashed_password):
         return None
     if not user.is_active:
@@ -78,11 +99,11 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[UserAc
 
 
 def get_user_by_id(db: Session, user_id: int) -> Optional[UserAccount]:
-    return db.query(UserAccount).filter(UserAccount.id == user_id).first()
+    return user_repo.get_user_by_id(db, user_id)
 
 
 def create_user(db: Session, user_create: UserCreate) -> UserAccount:
-    if db.query(UserAccount).filter(UserAccount.email == user_create.email).first():
+    if user_repo.email_taken(db, user_create.email):
         raise ValueError(f"User with email {user_create.email} already exists")
 
     user = UserAccount(
@@ -94,33 +115,15 @@ def create_user(db: Session, user_create: UserCreate) -> UserAccount:
         role=user_create.role or "hr_manager",
         is_active=True,
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    return user_repo.insert_user(db, user)
 
 
 def list_users(db: Session, org_id: int) -> list[UserAccount]:
-    return (
-        db.query(UserAccount)
-        .filter(UserAccount.organization_id == org_id)
-        .order_by(UserAccount.created_at.desc())
-        .all()
-    )
+    return user_repo.list_users_by_org(db, org_id)
 
 
 def set_user_active(db: Session, user_id: int, org_id: int, *, active: bool) -> Optional[UserAccount]:
-    user = (
-        db.query(UserAccount)
-        .filter(UserAccount.id == user_id, UserAccount.organization_id == org_id)
-        .first()
-    )
-    if user is None:
-        return None
-    user.is_active = active
-    db.commit()
-    db.refresh(user)
-    return user
+    return user_repo.set_user_active_in_org(db, user_id, org_id, active=active)
 
 
 def change_user_password(
@@ -132,6 +135,4 @@ def change_user_password(
 ) -> None:
     if not verify_password(current_password, user.hashed_password):
         raise ValueError("Current password is incorrect")
-    user.hashed_password = get_password_hash(new_password)
-    db.commit()
-    db.refresh(user)
+    user_repo.update_user_hashed_password(db, user, get_password_hash(new_password))

@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session
 
 from ..config import config
 from ..models.chat import ChatResponse, ChatSearchFilters, AggregationResult
-from ..models.candidate import CandidateRead
+from ..models.candidates import CandidateRead
 from ..services.candidate_service import list_candidates
-from .chatbot_client import ChatbotClient
+from ..clients.chatbot_client import ChatbotClient
+
 
 logger = logging.getLogger(__name__)
 

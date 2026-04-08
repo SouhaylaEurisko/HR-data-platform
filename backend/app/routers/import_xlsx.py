@@ -2,14 +2,14 @@
 Router: XLSX upload — preview, analyze, and confirm (two-phase import).
 """
 
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..config import get_db
 from ..models.user import UserAccount
+from ..models.import_session import ConfirmImportRequest, DuplicateCheckRequest
 from ..routers.auth import get_current_user, require_hr_manager
 from ..services.import_service import (
     analyze_workbook,
@@ -22,30 +22,7 @@ from ..services.import_service import (
 router = APIRouter(prefix="/api/import", tags=["import"])
 
 
-# ──────────────────────────────────────────────
-# Request / Response schemas
-# ──────────────────────────────────────────────
-
-class ConfirmImportRequest(BaseModel):
-    session_id: int
-    confirmed_mappings: Dict[str, str]
-    new_custom_fields: List[Dict[str, Any]] = []
-    skip_columns: List[str] = []
-    sheet_names: List[str]
-    org_id: int
-
-
-class DuplicateCheckRequest(BaseModel):
-    filename: str
-    sheet_names: List[str]
-    org_id: int = 1
-
-
-# ──────────────────────────────────────────────
-# Endpoints
-# ──────────────────────────────────────────────
-
-@router.post("/xlsx/preview", summary="Preview XLSX file structure")
+@router.post("/xlsx/preview", summary="Preview Excel file structure")
 async def preview_xlsx(
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     file: UploadFile = File(...),
@@ -58,7 +35,7 @@ async def preview_xlsx(
     return preview_workbook(workbook, file.filename or "unknown.xlsx")
 
 
-@router.post("/xlsx/analyze", summary="Analyze XLSX and suggest column mappings")
+@router.post("/xlsx/analyze", summary="Analyze Excel and suggest column mappings")
 async def analyze_xlsx(
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     file: UploadFile = File(...),

@@ -19,8 +19,8 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(email, password);
-      // Always redirect to home page after login
-      navigate('/', { replace: true });
+      // After successful login, open candidates list.
+      navigate('/candidates', { replace: true });
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {

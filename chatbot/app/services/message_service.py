@@ -8,8 +8,8 @@ from typing import Optional, Dict, Any, List, Union
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ..services.messages.flow_agent import FlowAgent
-from ..services.messages.title_agent import TitleAgent
+from ..services.agents.flow_agent import FlowAgent
+from ..services.agents.title_agent import TitleAgent
 from ..services.conversation_service import (
     create_conversation,
     get_conversation_by_id,

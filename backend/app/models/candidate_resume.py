@@ -23,7 +23,7 @@ class CandidateResume(Base):
     id = Column(Integer, primary_key=True, index=True)
     candidate_id = Column(
         Integer,
-        ForeignKey("candidate.id", ondelete="CASCADE"),
+        ForeignKey("candidates.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
         index=True,
@@ -38,7 +38,7 @@ class CandidateResume(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False,
     )
 
-    candidate = relationship("Candidate", back_populates="resume")
+    candidate = relationship("CandidateProfile", back_populates="resume")
 
 
 # ──────────────────────────────────────────────

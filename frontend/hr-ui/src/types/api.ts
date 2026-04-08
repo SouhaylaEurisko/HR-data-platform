@@ -147,6 +147,29 @@ export interface CandidateResume {
   updated_at: string;
 }
 
+/** GET /api/candidates — one row per profile with list-safe fields (no N+1 detail fetch). */
+export interface CandidateProfileListItem {
+  id: number;
+  organization_id: number;
+  import_session_id: number | null;
+  full_name: string | null;
+  email: string | null;
+  date_of_birth: string | null;
+  created_at: string;
+  applied_position: string | null;
+  is_open_for_relocation: RelocationOpenness | null;
+  application_status: ApplicationStatus | null;
+  hr_stage_comments: HrStageComments;
+}
+
+export interface CandidateProfileListResponse {
+  items: CandidateProfileListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+/** @deprecated Use CandidateProfileListResponse for GET /api/candidates */
 export interface CandidateListResponse {
   items: Candidate[];
   total: number;
@@ -161,7 +184,15 @@ export interface CandidateListParams {
   org_id?: number;
   search?: string;
   applied_position?: string;
-  sort_by?: 'created_at' | 'expected_salary_remote' | 'expected_salary_onsite' | 'years_of_experience' | 'full_name' | 'applied_position';
+  sort_by?:
+    | 'created_at'
+    | 'full_name'
+    | 'email'
+    | 'date_of_birth'
+    | 'applied_position'
+    | 'expected_salary_remote'
+    | 'expected_salary_onsite'
+    | 'years_of_experience';
   sort_order?: 'asc' | 'desc';
 }
 

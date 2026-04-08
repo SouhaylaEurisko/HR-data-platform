@@ -1,41 +1,27 @@
 """
-Org-scoped analytics — SQL aggregations on candidate (+ resume) data.
-No LLM; safe for HR viewers (router enforces auth + org from JWT user).
+Org-scoped analytics — aggregates applications (+ resume) data.
+SQL lives in repository.analytics_repository.
 """
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from ..models.applications import Application
 from ..models.analytics import (
     AnalyticsAppliedFilters,
-    AnalyticsFilterOption,
     AnalyticsFilterOptions,
     AnalyticsOverviewResponse,
     NamedCount,
-    PositionAverageMetric,
 )
-from ..models.candidate import Candidate
-from ..models.candidate_resume import CandidateResume
+from ..repository import analytics_repository as ar
 
-UNSET_FILTER_VALUE = "__unset__"
-
-_STATUS_LABELS = {
-    "pending": "Pending",
-    "on_hold": "On hold",
-    "rejected": "Rejected",
-    "selected": "Selected",
-}
-
-
-@dataclass(frozen=True, slots=True)
-class _AnalyticsFilters:
-    status: Optional[str] = None
-    position: Optional[str] = None
-    location: Optional[str] = None
+UNSET_STATUS_KEY = ar.UNSET_STATUS_KEY
+TOP_N_BUCKETS = ar.TOP_N_BUCKETS
+RECENT_APPLICATION_DAYS = ar.RECENT_APPLICATION_DAYS
+_STATUS_LABELS = ar.STATUS_LABELS
 
 
 def _named_counts(rows: list[tuple[str | None, int]], *, empty_label: str = "Unknown") -> List[NamedCount]:
@@ -46,71 +32,11 @@ def _named_counts(rows: list[tuple[str | None, int]], *, empty_label: str = "Unk
     return out
 
 
-def _clean_filter(value: Optional[str]) -> Optional[str]:
-    if value is None:
-        return None
-    stripped = str(value).strip()
-    return stripped or None
-
-
-def _blank_or_null(column):
-    return or_(column.is_(None), func.btrim(column) == "")
-
-
-def _apply_string_filter(query, column, value: Optional[str]):
-    if value is None:
-        return query
-    if value == UNSET_FILTER_VALUE:
-        return query.filter(_blank_or_null(column))
-    return query.filter(func.lower(func.btrim(column)) == value.lower())
-
-
-def _apply_analytics_filters(query, filters: _AnalyticsFilters):
-    query = _apply_string_filter(query, Candidate.application_status, filters.status)
-    query = _apply_string_filter(query, Candidate.applied_position, filters.position)
-    query = _apply_string_filter(query, Candidate.applied_position_location, filters.location)
-    return query
-
-
-def _build_filter_options(
-    db: Session,
-    organization_id: int,
-    column,
-    *,
-    empty_label: str = "Not set",
-    label_map: Optional[dict[str, str]] = None,
-) -> List[AnalyticsFilterOption]:
-    value_expr = func.nullif(func.btrim(column), "")
-    rows = (
-        db.query(value_expr, func.count(Candidate.id))
-        .filter(Candidate.organization_id == organization_id)
-        .group_by(value_expr)
-        .order_by(func.count(Candidate.id).desc(), value_expr.asc())
-        .all()
-    )
-
-    options: List[AnalyticsFilterOption] = []
-    for raw_value, count in rows:
-        if raw_value is None:
-            options.append(
-                AnalyticsFilterOption(
-                    value=UNSET_FILTER_VALUE,
-                    label=empty_label,
-                    count=int(count),
-                )
-            )
-            continue
-
-        value = str(raw_value).strip()
-        label = label_map.get(value.lower(), value) if label_map else value
-        options.append(
-            AnalyticsFilterOption(
-                value=value,
-                label=label,
-                count=int(count),
-            )
-        )
-    return options
+def _status_label(value: str | None) -> str:
+    normalized = (value or "").strip().lower()
+    if not normalized:
+        normalized = UNSET_STATUS_KEY
+    return _STATUS_LABELS.get(normalized, normalized.replace("_", " ").title())
 
 
 def get_analytics_overview(
@@ -123,177 +49,83 @@ def get_analytics_overview(
 ) -> AnalyticsOverviewResponse:
     org = organization_id
     now = datetime.now(timezone.utc)
-    filters = _AnalyticsFilters(
-        status=_clean_filter(status),
-        position=_clean_filter(position),
-        location=_clean_filter(location),
+    filters = ar.AnalyticsFilters(
+        status=ar.clean_filter(status),
+        position=ar.clean_filter(position),
+        location=ar.clean_filter(location),
     )
 
-    total = (
-        _apply_analytics_filters(
-            db.query(func.count(Candidate.id)).filter(Candidate.organization_id == org),
-            filters,
-        )
-        .scalar()
-        or 0
-    )
+    total = ar.count_total_applications(db, org, filters)
 
-    status_key = func.coalesce(
-        func.nullif(func.btrim(Candidate.application_status), ""),
-        "unset",
-    )
-    status_rows = (
-        _apply_analytics_filters(
-            db.query(status_key, func.count(Candidate.id)).filter(Candidate.organization_id == org),
-            filters,
-        )
-        .group_by(status_key)
-        .order_by(func.count(Candidate.id).desc())
-        .all()
-    )
-    by_status = [NamedCount(name=str(r[0]), count=int(r[1])) for r in status_rows]
+    status_rows = ar.fetch_status_breakdown_rows(db, org, filters)
+    by_status = [NamedCount(name=_status_label(r[0]), count=int(r[1])) for r in status_rows]
 
-    pos_rows = (
-        _apply_analytics_filters(
-            db.query(Candidate.applied_position, func.count(Candidate.id)).filter(
-                Candidate.organization_id == org,
-                Candidate.applied_position.isnot(None),
-                func.btrim(Candidate.applied_position) != "",
-            ),
-            filters,
-        )
-        .group_by(Candidate.applied_position)
-        .order_by(func.count(Candidate.id).desc())
-        .limit(10)
-        .all()
+    pos_rows = ar.grouped_count_rows(
+        db,
+        org,
+        Application.applied_position,
+        filters,
+        exclude_blank=True,
+        limit=TOP_N_BUCKETS,
     )
     top_positions = _named_counts(pos_rows, empty_label="Unknown")
 
-    loc_rows = (
-        _apply_analytics_filters(
-            db.query(Candidate.applied_position_location, func.count(Candidate.id)).filter(
-                Candidate.organization_id == org,
-                Candidate.applied_position_location.isnot(None),
-                func.btrim(Candidate.applied_position_location) != "",
-            ),
-            filters,
-        )
-        .group_by(Candidate.applied_position_location)
-        .order_by(func.count(Candidate.id).desc())
-        .limit(10)
-        .all()
+    loc_rows = ar.grouped_count_rows(
+        db,
+        org,
+        Application.applied_position_location,
+        filters,
+        exclude_blank=True,
+        limit=TOP_N_BUCKETS,
     )
     top_locations = _named_counts(loc_rows, empty_label="Unknown")
 
-    # Expected salary: COALESCE(remote, onsite) per row; average per position (top 10 by headcount with data)
-    salary_expr = func.coalesce(Candidate.expected_salary_remote, Candidate.expected_salary_onsite)
-    salary_rows = (
-        _apply_analytics_filters(
-            db.query(
-                Candidate.applied_position,
-                func.avg(salary_expr),
-                func.count(Candidate.id),
-            ).filter(
-                Candidate.organization_id == org,
-                Candidate.applied_position.isnot(None),
-                func.btrim(Candidate.applied_position) != "",
-                or_(
-                    Candidate.expected_salary_remote.isnot(None),
-                    Candidate.expected_salary_onsite.isnot(None),
-                ),
-            ),
-            filters,
-        )
-        .group_by(Candidate.applied_position)
-        .order_by(func.count(Candidate.id).desc())
-        .limit(10)
-        .all()
-    )
-    avg_salary_by_pos = [
-        PositionAverageMetric(
-            name=(str(r[0]) or "").strip() or "Unknown",
-            average=round(float(r[1]), 2) if r[1] is not None else 0.0,
-            sample_count=int(r[2]),
-        )
-        for r in salary_rows
-    ]
-
-    yoe_rows = (
-        _apply_analytics_filters(
-            db.query(
-                Candidate.applied_position,
-                func.avg(Candidate.years_of_experience),
-                func.count(Candidate.id),
-            ).filter(
-                Candidate.organization_id == org,
-                Candidate.applied_position.isnot(None),
-                func.btrim(Candidate.applied_position) != "",
-                Candidate.years_of_experience.isnot(None),
-            ),
-            filters,
-        )
-        .group_by(Candidate.applied_position)
-        .order_by(func.count(Candidate.id).desc())
-        .limit(10)
-        .all()
-    )
-    avg_yoe_by_pos = [
-        PositionAverageMetric(
-            name=(str(r[0]) or "").strip() or "Unknown",
-            average=round(float(r[1]), 2) if r[1] is not None else 0.0,
-            sample_count=int(r[2]),
-        )
-        for r in yoe_rows
-    ]
-
-    with_resume = (
-        _apply_analytics_filters(
-            db.query(func.count(Candidate.id))
-            .join(CandidateResume, CandidateResume.candidate_id == Candidate.id)
-            .filter(
-                Candidate.organization_id == org,
-                CandidateResume.organization_id == org,
-            ),
-            filters,
-        )
-        .scalar()
-        or 0
+    salary_expr = func.coalesce(Application.expected_salary_remote, Application.expected_salary_onsite)
+    avg_salary_by_pos = ar.average_metric_by_position(
+        db,
+        org,
+        filters,
+        salary_expr,
+        requires_value_filter=or_(
+            Application.expected_salary_remote.isnot(None),
+            Application.expected_salary_onsite.isnot(None),
+        ),
     )
 
+    avg_yoe_by_pos = ar.average_metric_by_position(
+        db,
+        org,
+        filters,
+        Application.years_of_experience,
+        requires_value_filter=Application.years_of_experience.isnot(None),
+    )
+
+    with_resume = ar.count_candidates_with_resume(db, org, filters)
     pct_resume = round(100.0 * with_resume / total, 1) if total else 0.0
 
-    since = now - timedelta(days=30)
-    recent = (
-        _apply_analytics_filters(
-            db.query(func.count(Candidate.id)).filter(
-                Candidate.organization_id == org,
-                Candidate.created_at >= since,
-            ),
-            filters,
-        )
-        .scalar()
-        or 0
-    )
+    since = now - timedelta(days=RECENT_APPLICATION_DAYS)
+    recent = ar.count_recent_applications(db, org, filters, since)
 
+    status_label_expr = ar.status_coalesce_expr()
     filter_options = AnalyticsFilterOptions(
-        statuses=_build_filter_options(
+        statuses=ar.build_filter_options(
             db,
             org,
-            Candidate.application_status,
+            status_label_expr,
             empty_label="Not set",
             label_map=_STATUS_LABELS,
         ),
-        positions=_build_filter_options(
+        positions=ar.build_filter_options(
             db,
             org,
-            Candidate.applied_position,
-            empty_label="Not set",
+            Application.applied_position,
+            include_empty_bucket=False,
         ),
-        locations=_build_filter_options(
+        locations=ar.build_filter_options(
             db,
             org,
-            Candidate.applied_position_location,
-            empty_label="Not set",
+            Application.applied_position_location,
+            include_empty_bucket=False,
         ),
     )
 

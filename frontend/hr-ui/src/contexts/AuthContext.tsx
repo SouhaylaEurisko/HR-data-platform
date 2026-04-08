@@ -53,16 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const handleAuthSuccess = (response: AuthResponse) => {
+  const handleAuthSuccess = async (response: AuthResponse) => {
     clearChatLocalStorage();
     setToken(response.access_token);
-    setUser(response.user || null);
     localStorage.setItem(AUTH_TOKEN_KEY, response.access_token);
+    const current = await getCurrentUser();
+    setUser(current);
   };
 
   const handleLogin = async (email: string, password: string) => {
     const response = await apiLogin(email, password);
-    handleAuthSuccess(response);
+    await handleAuthSuccess(response);
   };
 
   const handleCreateUserAsAdmin = async (

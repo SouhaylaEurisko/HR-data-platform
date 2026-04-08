@@ -3,18 +3,21 @@ Authentication router — login, user provisioning (HR manager), password change
 """
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from datetime import timedelta
 
-from ..config import get_db
+from ..config import get_db, config
 from ..models.user import (
     AdminUserCreate,
     ChangePasswordRequest,
     UserAccount,
     UserCreate,
     UserRead,
+    LoginRequest,
+    LoginResponse,
 )
 from ..services.auth_service import (
     AccountDeactivatedError,
@@ -30,19 +33,21 @@ from ..services.auth_service import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
     db: Session = Depends(get_db),
 ) -> UserAccount:
+    token = credentials.credentials if credentials is not None else None
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if token is None:
+        raise credentials_exception
     try:
         user_id = get_user_id_from_token(token)
     except TokenExpiredError:
@@ -76,30 +81,51 @@ def require_hr_manager(current_user: UserAccount) -> None:
         )
 
 
-@router.post("/login", response_model=dict)
+
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    summary="Login to retrieve Bearer token",
+    response_description="A Bearer token, token type, and user object.",
+)
 async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Session = Depends(get_db),
+    body: LoginRequest = Body(..., description="Login credentials (`email` and `password`)"),
+    db: Session = Depends(get_db)
 ):
+    """
+    Authenticate user with `email` and `password` fields and return an access token and current user.
+    Adjusted for improved reliability and clarity.
+    """
     try:
-        user = authenticate_user(db, form_data.username, form_data.password)
-    except AccountDeactivatedError:
+        user = authenticate_user(db, str(body.email), body.password)
+    except AccountDeactivatedError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account has been deactivated. Contact an HR manager.",
-        )
+        ) from exc
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Invalid email or password.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token = create_access_token(subject_user_id=user.id)
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": UserRead.model_validate(user),
-    }
+
+    access_token = create_access_token(
+        subject_user_id=user.id,
+        email=user.email,
+        organization_id=user.organization_id,
+        role=user.role,
+        first_name=user.first_name,
+        last_name=user.last_name,
+    )
+
+    expires_in = int(timedelta(minutes=config.jwt_expire_minutes).total_seconds())
+
+    return LoginResponse(
+        access_token=access_token,
+        expires_in=expires_in,
+    )
 
 
 @router.post("/users", response_model=UserRead)

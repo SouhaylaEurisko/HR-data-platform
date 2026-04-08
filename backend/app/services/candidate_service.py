@@ -2,77 +2,84 @@
 Candidate service — listing and detail with org-scoped filters and eager loading.
 
 HTTP list endpoint exposes name + position only; optional kwargs support chat-rich filters.
+DB queries live in repository.candidates_repository.
 """
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Literal, Optional
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import nullslast
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from ..models.candidate import (
-    Candidate,
+from ..models.candidates import (
     CandidateApplicationStatusUpdate,
     CandidateListResponse,
     CandidateRead,
+    CandidateProfile,
+    CandidateProfileListItem,
+    CandidateProfileListResponse,
     RelatedApplicationSummary,
 )
 from ..models.candidate_stage_comment import (
     CandidateHrStageCommentCreate,
     CandidateStageComment,
-    empty_hr_stage_comments_read,
+    HrStageCommentsRead,
 )
-from .candidate_stage_comments import (
+from ..models.enums import ApplicationStatus, TransportationAvailability
+from ..repository.candidates_repository import (
+    CandidateListFilterParams,
+    apply_candidate_list_filters,
+    fetch_email_group_rows,
+    fetch_latest_application_status,
+    get_candidate_profile_by_id_org,
+    get_latest_application_for_candidate,
+    get_stage_comment_for_update,
+    latest_application_status_by_candidate_ids,
+    latest_applications_by_candidate_ids,
+    list_stage_comments_for_candidate,
+    profiles_base_query,
+    profiles_query_with_latest_application_join,
+    query_profiles_for_list,
+)
+from .candidate_stage_comments_services import (
     fetch_hr_stage_comments_for_candidate,
     fetch_hr_stage_comments_for_candidate_ids,
 )
-
-_LOOKUP_EAGER_LIST = (
-    joinedload(Candidate.residency_type),
-    joinedload(Candidate.marital_status),
-    joinedload(Candidate.passport_validity_status),
-    joinedload(Candidate.workplace_type),
-    joinedload(Candidate.employment_type),
-    joinedload(Candidate.education_level),
-    joinedload(Candidate.education_completion_status),
-)
-
-_LOOKUP_EAGER_DETAIL = _LOOKUP_EAGER_LIST + (joinedload(Candidate.import_session),)
 
 # Sortable columns exposed on the candidates table (and created_at default)
 SortBy = Literal[
     "created_at",
     "full_name",
-    "applied_position",
-    "current_salary",
-    "expected_salary_remote",
-    "expected_salary_onsite",
-    "years_of_experience",
 ]
 
 _SORT_COLUMNS: dict[str, object] = {
-    "created_at": Candidate.created_at,
-    "full_name": Candidate.full_name,
-    "applied_position": Candidate.applied_position,
-    "current_salary": Candidate.current_salary,
-    "expected_salary_remote": Candidate.expected_salary_remote,
-    "expected_salary_onsite": Candidate.expected_salary_onsite,
-    "years_of_experience": Candidate.years_of_experience,
+    "created_at": CandidateProfile.created_at,
+    "full_name": CandidateProfile.full_name,
 }
 
 
-def _dec(value: Optional[float]) -> Optional[Decimal]:
+def _transport_enum_from_bool(value: Optional[bool]) -> Optional[TransportationAvailability]:
     if value is None:
         return None
-    return Decimal(str(value))
+    return TransportationAvailability.yes if value else TransportationAvailability.no
+
+
+def _optional_application_status(raw: Optional[str]) -> Optional[ApplicationStatus]:
+    if not raw or not str(raw).strip():
+        return None
+    s = str(raw).strip().lower()
+    for member in ApplicationStatus:
+        if member.value == s:
+            return member
+    return None
 
 
 @dataclass(frozen=True, slots=True)
 class _ListFilters:
     """Internal: HTTP passes name+position; chat may pass additional bounds."""
+
     search: Optional[str] = None
     applied_position: Optional[str] = None
     email: Optional[str] = None
@@ -85,8 +92,19 @@ class _ListFilters:
     max_expected_salary_onsite: Optional[float] = None
 
 
-def _base_query_for_org(db: Session, org_id: int):
-    return db.query(Candidate).filter(Candidate.organization_id == org_id)
+def _filters_to_repo_params(f: _ListFilters) -> CandidateListFilterParams:
+    return CandidateListFilterParams(
+        search=f.search,
+        applied_position=f.applied_position,
+        email=f.email,
+        nationality=f.nationality,
+        min_years_experience=f.min_years_experience,
+        max_years_experience=f.max_years_experience,
+        min_expected_salary_remote=f.min_expected_salary_remote,
+        max_expected_salary_remote=f.max_expected_salary_remote,
+        min_expected_salary_onsite=f.min_expected_salary_onsite,
+        max_expected_salary_onsite=f.max_expected_salary_onsite,
+    )
 
 
 def _application_context_for_candidate(
@@ -103,20 +121,7 @@ def _application_context_for_candidate(
     if not email or not str(email).strip():
         return None, None, []
     norm = str(email).strip().lower()
-    rows = (
-        db.query(Candidate.id, Candidate.applied_position, Candidate.applied_at, Candidate.created_at)
-        .filter(
-            Candidate.organization_id == org_id,
-            Candidate.email.isnot(None),
-            func.lower(func.trim(Candidate.email)) == norm,
-        )
-        .order_by(
-            Candidate.applied_at.asc().nulls_last(),
-            Candidate.created_at.asc(),
-            Candidate.id.asc(),
-        )
-        .all()
-    )
+    rows = fetch_email_group_rows(db, org_id=org_id, email_normalized=norm)
     if not rows:
         return None, None, []
     related = [
@@ -134,37 +139,6 @@ def _application_context_for_candidate(
     except ValueError:
         return None, None, related
     return idx_1based, len(rows), related
-
-
-def _apply_filters(q, f: _ListFilters):
-    if f.search:
-        term = f"%{f.search.strip()}%"
-        q = q.filter(Candidate.full_name.ilike(term))
-    if f.applied_position:
-        q = q.filter(Candidate.applied_position.ilike(f"%{f.applied_position.strip()}%"))
-    if f.email:
-        q = q.filter(Candidate.email.ilike(f"%{f.email.strip()}%"))
-    if f.nationality:
-        q = q.filter(Candidate.nationality.ilike(f"%{f.nationality.strip()}%"))
-    lo = _dec(f.min_years_experience)
-    if lo is not None:
-        q = q.filter(Candidate.years_of_experience >= lo)
-    hi = _dec(f.max_years_experience)
-    if hi is not None:
-        q = q.filter(Candidate.years_of_experience <= hi)
-    rmin = _dec(f.min_expected_salary_remote)
-    if rmin is not None:
-        q = q.filter(Candidate.expected_salary_remote >= rmin)
-    rmax = _dec(f.max_expected_salary_remote)
-    if rmax is not None:
-        q = q.filter(Candidate.expected_salary_remote <= rmax)
-    omin = _dec(f.min_expected_salary_onsite)
-    if omin is not None:
-        q = q.filter(Candidate.expected_salary_onsite >= omin)
-    omax = _dec(f.max_expected_salary_onsite)
-    if omax is not None:
-        q = q.filter(Candidate.expected_salary_onsite <= omax)
-    return q
 
 
 def list_candidates(
@@ -189,6 +163,7 @@ def list_candidates(
     """
     Paginated list. Router passes name (search) + position only; chat passes extra kwargs.
     """
+
     def _s(v: Optional[str]) -> Optional[str]:
         if not v or not str(v).strip():
             return None
@@ -207,34 +182,18 @@ def list_candidates(
         max_expected_salary_onsite=max_expected_salary_onsite,
     )
 
-    count_q = _apply_filters(_base_query_for_org(db, org_id), flt)
+    count_q = apply_candidate_list_filters(
+        profiles_base_query(db, org_id), db, _filters_to_repo_params(flt)
+    )
     total = count_q.count()
 
-    sort_col = _SORT_COLUMNS.get(sort_by, Candidate.created_at)
+    sort_col = _SORT_COLUMNS.get(sort_by, CandidateProfile.created_at)
     order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
     offset = (page - 1) * page_size
 
-    data_q = (
-        _apply_filters(
-            db.query(Candidate).options(*_LOOKUP_EAGER_LIST).filter(Candidate.organization_id == org_id),
-            flt,
-        )
-        .order_by(order)
-        .offset(offset)
-        .limit(page_size)
-    )
+    data_q = count_q.order_by(order, CandidateProfile.id.desc()).offset(offset).limit(page_size)
     rows = data_q.all()
-    ids = [c.id for c in rows]
-    latest_by_id = fetch_hr_stage_comments_for_candidate_ids(
-        db, org_id=org_id, candidate_ids=ids, latest_only=True
-    )
-    items = [
-        CandidateRead.from_orm_with_lookups(
-            c,
-            hr_stage_comments=latest_by_id.get(c.id, empty_hr_stage_comments_read()),
-        )
-        for c in rows
-    ]
+    items = [x for x in (get_candidate_by_id(db, c.id, org_id=org_id) for c in rows) if x is not None]
 
     return CandidateListResponse(
         items=items,
@@ -244,6 +203,77 @@ def list_candidates(
     )
 
 
+def list_candidate_profiles(
+    db: Session,
+    *,
+    org_id: int = 1,
+    page: int = 1,
+    page_size: int = 20,
+    search: Optional[str] = None,
+    applied_position: Optional[str] = None,
+    sort_by: Literal[
+        "created_at", "full_name", "email", "date_of_birth", "applied_position"
+    ] = "created_at",
+    sort_order: Literal["asc", "desc"] = "desc",
+) -> CandidateProfileListResponse:
+    query = query_profiles_for_list(db, org_id, search, applied_position)
+
+    if sort_by == "applied_position":
+        query, LatestApp = profiles_query_with_latest_application_join(db, query)
+        sort_col = LatestApp.applied_position
+    else:
+        sort_columns: dict[str, object] = {
+            "created_at": CandidateProfile.created_at,
+            "full_name": CandidateProfile.full_name,
+            "email": CandidateProfile.email,
+            "date_of_birth": CandidateProfile.date_of_birth,
+        }
+        sort_col = sort_columns.get(sort_by, CandidateProfile.created_at)
+
+    total = query.count()
+    order = (
+        nullslast(sort_col.asc())
+        if sort_order == "asc"
+        else nullslast(sort_col.desc())
+    )
+    offset = (page - 1) * page_size
+
+    rows = (
+        query.order_by(order, CandidateProfile.id.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+
+    ids = [r.id for r in rows]
+    apps_map = latest_applications_by_candidate_ids(db, ids)
+    status_map = latest_application_status_by_candidate_ids(db, org_id, ids)
+    hr_map = fetch_hr_stage_comments_for_candidate_ids(
+        db, org_id=org_id, candidate_ids=ids, latest_only=False
+    )
+
+    items = []
+    for row in rows:
+        app = apps_map.get(row.id)
+        items.append(
+            CandidateProfileListItem(
+                id=row.id,
+                organization_id=row.organization_id,
+                import_session_id=row.import_session_id,
+                full_name=row.full_name,
+                email=row.email,
+                date_of_birth=row.date_of_birth,
+                created_at=row.created_at,
+                applied_position=app.applied_position if app else None,
+                is_open_for_relocation=app.is_open_for_relocation if app else None,
+                application_status=_optional_application_status(status_map.get(row.id)),
+                hr_stage_comments=hr_map.get(row.id) or HrStageCommentsRead(),
+            )
+        )
+
+    return CandidateProfileListResponse(items=items, total=total, page=page, page_size=page_size)
+
+
 def append_candidate_hr_stage_comment(
     db: Session,
     candidate_id: int,
@@ -251,25 +281,12 @@ def append_candidate_hr_stage_comment(
     body: CandidateHrStageCommentCreate,
 ) -> Optional[CandidateRead]:
     """Append one object to the JSONB `entries` array for (candidate, stage)."""
-    candidate = (
-        db.query(Candidate)
-        .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
-        .first()
-    )
+    candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
     if candidate is None:
         return None
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     new_item = {"text": body.text, "created_at": now}
-    existing = (
-        db.query(CandidateStageComment)
-        .filter(
-            CandidateStageComment.candidate_id == candidate_id,
-            CandidateStageComment.organization_id == org_id,
-            CandidateStageComment.stage_key == body.stage,
-        )
-        .with_for_update()
-        .first()
-    )
+    existing = get_stage_comment_for_update(db, candidate_id, org_id, body.stage)
     if existing:
         entries = list(existing.entries) if isinstance(existing.entries, list) else []
         entries.append(new_item)
@@ -294,17 +311,26 @@ def update_candidate_application_status(
     org_id: int,
     body: CandidateApplicationStatusUpdate,
 ) -> Optional[CandidateRead]:
-    """Set application status (UI only); independent from HR stage comments."""
-    candidate = (
-        db.query(Candidate)
-        .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
-        .first()
-    )
+    """Set application status on candidate_stage_comment only."""
+    candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
     if candidate is None:
         return None
-    candidate.application_status = body.application_status.value
+    status_value = body.application_status.value
+    stage_rows = list_stage_comments_for_candidate(db, candidate_id, org_id)
+    if stage_rows:
+        for row in stage_rows:
+            row.application_status = status_value
+    else:
+        db.add(
+            CandidateStageComment(
+                candidate_id=candidate_id,
+                organization_id=org_id,
+                stage_key="pre_screening",
+                entries=[],
+                application_status=status_value,
+            )
+        )
     db.commit()
-    db.refresh(candidate)
     return get_candidate_by_id(db, candidate_id, org_id=org_id)
 
 
@@ -313,18 +339,16 @@ def get_candidate_by_id(
     candidate_id: int,
     org_id: int = 1,
 ) -> Optional[CandidateRead]:
-    """Single candidate scoped to organization, with lookups and import filename."""
-    candidate = (
-        db.query(Candidate)
-        .options(*_LOOKUP_EAGER_DETAIL)
-        .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
-        .first()
-    )
+    """Single candidate scoped to organization from candidates + applications tables."""
+    candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
     if candidate is None:
         return None
-    import_filename = (
-        candidate.import_session.original_filename if candidate.import_session else None
-    )
+    application = get_latest_application_for_candidate(db, candidate.id)
+    import_filename = candidate.import_session.original_filename if candidate.import_session else None
+    import_sheet = None
+    if candidate.import_session and candidate.import_session.import_sheet:
+        s = str(candidate.import_session.import_sheet).strip()
+        import_sheet = s or None
     app_idx, app_total, related = _application_context_for_candidate(
         db,
         org_id=org_id,
@@ -334,10 +358,54 @@ def get_candidate_by_id(
     hr_comments = fetch_hr_stage_comments_for_candidate(
         db, org_id=org_id, candidate_id=candidate_id
     )
-    return CandidateRead.from_orm_with_lookups(
-        candidate,
+    application_status = fetch_latest_application_status(db, candidate_id, org_id)
+
+    app_cf: dict = dict(application.custom_fields or {}) if application else {}
+    raw_import_data = app_cf.pop("_raw_import_data", None)
+    nationality = app_cf.pop("nationality", None)
+
+    return CandidateRead(
+        id=candidate.id,
+        organization_id=candidate.organization_id,
+        import_session_id=candidate.import_session_id,
+        applied_at=application.applied_at if application else None,
+        full_name=candidate.full_name,
+        email=candidate.email,
+        date_of_birth=candidate.date_of_birth,
+        nationality=nationality,
+        current_address=application.current_address if application else None,
+        residency_type_id=application.residency_type_id if application else None,
+        marital_status_id=application.marital_status_id if application else None,
+        number_of_dependents=application.number_of_dependents if application else None,
+        religion_sect=application.religion_sect if application else None,
+        passport_validity_status_id=application.passport_validity_status_id if application else None,
+        has_transportation=_transport_enum_from_bool(
+            application.has_transportation if application else None
+        ),
+        applied_position=application.applied_position if application else None,
+        applied_position_location=application.applied_position_location if application else None,
+        is_open_for_relocation=application.is_open_for_relocation if application else None,
+        years_of_experience=application.years_of_experience if application else None,
+        is_employed=application.is_employed if application else None,
+        current_salary=application.current_salary if application else None,
+        expected_salary_remote=application.expected_salary_remote if application else None,
+        expected_salary_onsite=application.expected_salary_onsite if application else None,
+        notice_period=application.notice_period if application else None,
+        is_overtime_flexible=application.is_overtime_flexible if application else None,
+        is_contract_flexible=application.is_contract_flexible if application else None,
+        workplace_type_id=application.workplace_type_id if application else None,
+        employment_type_id=application.employment_type_id if application else None,
+        tech_stack=(application.tech_stack or []) if application else [],
+        education_level_id=application.education_level_id if application else None,
+        education_completion_status_id=application.education_completion_status_id if application else None,
+        custom_fields=app_cf,
+        raw_import_data=raw_import_data,
+        created_at=candidate.created_at,
+        updated_at=(application.updated_at if application else candidate.created_at),
         hr_stage_comments=hr_comments,
+        application_status=application_status,
         import_filename=import_filename,
+        import_sheet=import_sheet,
         application_index=app_idx,
         application_total=app_total,
         related_applications=related,

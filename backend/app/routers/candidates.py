@@ -15,20 +15,20 @@ from ..routers.auth import get_current_user, require_hr_manager
 from ..models import (
     CandidateApplicationStatusUpdate,
     CandidateHrStageCommentCreate,
-    CandidateListResponse,
+    CandidateProfileListResponse,
     CandidateRead,
 )
 from ..services.candidate_service import (
     append_candidate_hr_stage_comment,
     get_candidate_by_id,
-    list_candidates,
+    list_candidate_profiles,
     update_candidate_application_status,
 )
 
 router = APIRouter(prefix="/api/candidates", tags=["candidates"])
 
 
-@router.get("", response_model=CandidateListResponse)
+@router.get("", response_model=CandidateProfileListResponse)
 def list_candidates_endpoint(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -36,17 +36,13 @@ def list_candidates_endpoint(
     search: Optional[str] = None,
     applied_position: Optional[str] = None,
     sort_by: Literal[
-        "created_at",
-        "full_name",
-        "applied_position",
-        "years_of_experience",
-        "expected_salary_remote",
-        "expected_salary_onsite",
+        "created_at", "full_name", "email", "date_of_birth", "applied_position"
     ] = "created_at",
     sort_order: Literal["asc", "desc"] = "desc",
+    _current_user: Annotated[UserAccount, Depends(get_current_user)] = None,
     db: Session = Depends(get_db),
-) -> CandidateListResponse:
-    return list_candidates(
+) -> CandidateProfileListResponse:
+    return list_candidate_profiles(
         db,
         org_id=org_id,
         page=page,
@@ -92,6 +88,7 @@ def patch_candidate_application_status(
 def get_candidate_endpoint(
     candidate_id: int,
     org_id: int = Query(1, description="Organization ID"),
+    _current_user: Annotated[UserAccount, Depends(get_current_user)] = None,
     db: Session = Depends(get_db),
 ) -> CandidateRead:
     result = get_candidate_by_id(db, candidate_id, org_id=org_id)

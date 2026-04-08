@@ -4,10 +4,10 @@ Lookup resolution — map import text to lookup_option.id (exact code or label, 
 
 from typing import List, Optional
 
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..models.lookup import LookupCategory, LookupOption
+from ..models.lookup import LookupOption
+from ..repository import lookups_repository
 
 
 def get_options_by_category(
@@ -16,25 +16,13 @@ def get_options_by_category(
     org_id: Optional[int] = None,
 ) -> List[LookupOption]:
     """Active options for a category (system-wide and, when org_id given, org-specific)."""
-    cat = db.query(LookupCategory).filter_by(code=category_code).first()
+    cat = lookups_repository.get_lookup_category_by_code(db, category_code)
     if not cat:
         return []
 
-    query = db.query(LookupOption).filter(
-        LookupOption.category_id == cat.id,
-        LookupOption.is_active.is_(True),
+    return lookups_repository.fetch_active_options_for_category(
+        db, category_id=cat.id, org_id=org_id
     )
-    if org_id is not None:
-        query = query.filter(
-            or_(
-                LookupOption.organization_id.is_(None),
-                LookupOption.organization_id == org_id,
-            )
-        )
-    else:
-        query = query.filter(LookupOption.organization_id.is_(None))
-
-    return query.order_by(LookupOption.display_order).all()
 
 
 def _find_option_id_by_code(options: List[LookupOption], code_lower: str) -> Optional[int]:

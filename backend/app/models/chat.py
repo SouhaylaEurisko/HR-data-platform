@@ -6,7 +6,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from .candidate import CandidateRead
+from .candidates import CandidateRead
 
 
 class QuestionClassification(BaseModel):

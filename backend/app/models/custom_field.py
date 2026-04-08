@@ -9,6 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from pydantic import BaseModel
 
 from ..config.database import Base
 
@@ -33,3 +34,14 @@ class CustomFieldDefinition(Base):
 
     organization = relationship("Organization", back_populates="custom_field_definitions")
     lookup_category = relationship("LookupCategory")
+
+
+
+class CustomFieldDefinitionOut(BaseModel):
+    id: int
+    field_key: str
+    label: str
+    field_type: str
+
+    class Config:
+        from_attributes = True

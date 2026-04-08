@@ -5,49 +5,21 @@ Router: Lookup endpoints for fetching and creating dropdown options.
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..config import get_db
-from ..models.lookup import LookupCategory, LookupOption
+from ..models.lookup import LookupCategoryOut, LookupOption, LookupOptionOut, CreateLookupOptionRequest
 from ..models.user import UserAccount
 from ..routers.auth import get_current_user, require_hr_manager
+from ..repository import lookups_repository
 from ..services.lookup_service import get_options_by_category
 
 router = APIRouter(prefix="/api/lookups", tags=["lookups"])
 
 
-class LookupOptionOut(BaseModel):
-    id: int
-    code: str
-    label: str
-    display_order: int
-    is_active: bool
-
-    class Config:
-        from_attributes = True
-
-
-class LookupCategoryOut(BaseModel):
-    id: int
-    code: str
-    label: str
-    description: Optional[str] = None
-    is_system: bool
-
-    class Config:
-        from_attributes = True
-
-
-class CreateLookupOptionRequest(BaseModel):
-    code: str
-    label: str
-    display_order: int = 0
-
-
 @router.get("/", summary="List all lookup categories")
 def list_categories(db: Session = Depends(get_db)) -> List[LookupCategoryOut]:
-    cats = db.query(LookupCategory).order_by(LookupCategory.code).all()
+    cats = lookups_repository.list_lookup_categories_ordered(db)
     return [LookupCategoryOut.model_validate(c) for c in cats]
 
 
@@ -59,7 +31,7 @@ def get_category_options(
 ) -> List[LookupOptionOut]:
     options = get_options_by_category(db, category_code, org_id)
     if not options:
-        cat = db.query(LookupCategory).filter_by(code=category_code).first()
+        cat = lookups_repository.get_lookup_category_by_code(db, category_code)
         if not cat:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -77,17 +49,15 @@ def create_option(
     db: Session = Depends(get_db),
 ) -> LookupOptionOut:
     require_hr_manager(current_user)
-    cat = db.query(LookupCategory).filter_by(code=category_code).first()
+    cat = lookups_repository.get_lookup_category_by_code(db, category_code)
     if not cat:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Category '{category_code}' not found.",
         )
 
-    existing = (
-        db.query(LookupOption)
-        .filter_by(category_id=cat.id, organization_id=org_id, code=body.code)
-        .first()
+    existing = lookups_repository.find_option_by_category_org_and_code(
+        db, category_id=cat.id, organization_id=org_id, code=body.code
     )
     if existing:
         raise HTTPException(
@@ -103,7 +73,7 @@ def create_option(
         display_order=body.display_order,
         is_active=True,
     )
-    db.add(option)
+    lookups_repository.add_lookup_option(db, option)
     db.commit()
     db.refresh(option)
     return LookupOptionOut.model_validate(option)

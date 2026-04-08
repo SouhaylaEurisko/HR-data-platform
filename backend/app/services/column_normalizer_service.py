@@ -19,7 +19,9 @@ from ..data.candidate_column_schema import (
 )
 from ..models.custom_field import CustomFieldDefinition
 from ..prompts.column_normalizer_prompts import COLUMN_MAPPING_SYSTEM_PROMPT
-from .llm_client import call_llm
+from ..repository import column_normalizer_repository
+from ..clients.llm_client import call_llm
+
 
 logger = logging.getLogger(__name__)
 
@@ -47,14 +49,19 @@ class LlmColumnSuggestion(TypedDict, total=False):
     confidence: float
 
 
-def _fetch_custom_field_definitions(
-    db: Session, org_id: int
-) -> List[CustomFieldDefinition]:
-    return (
-        db.query(CustomFieldDefinition)
-        .filter_by(organization_id=org_id, is_active=True)
-        .all()
-    )
+@dataclass
+class ColumnMapping:
+    excel_header: str
+    db_column: Optional[str] = None
+    confidence: float = 0.0
+    source: str = "unmatched"  # programmatic | llm | unmatched
+
+
+@dataclass
+class NormalizationResult:
+    matched: List[ColumnMapping] = field(default_factory=list)
+    suggested: List[ColumnMapping] = field(default_factory=list)
+    unmatched: List[ColumnMapping] = field(default_factory=list)
 
 
 def _custom_header_to_field_key(defs: List[CustomFieldDefinition]) -> Dict[str, str]:
@@ -72,24 +79,9 @@ def get_available_columns(db: Session, org_id: int) -> List[Dict[str, str]]:
         {"value": col, "label": COLUMN_LABELS.get(col, col)}
         for col in ALL_KNOWN_COLUMNS
     ]
-    for d in _fetch_custom_field_definitions(db, org_id):
+    for d in column_normalizer_repository.fetch_active_custom_field_definitions(db, org_id):
         cols.append({"value": f"custom:{d.field_key}", "label": f"{d.label} (custom)"})
     return cols
-
-
-@dataclass
-class ColumnMapping:
-    excel_header: str
-    db_column: Optional[str] = None
-    confidence: float = 0.0
-    source: str = "unmatched"  # programmatic | llm | unmatched
-
-
-@dataclass
-class NormalizationResult:
-    matched: List[ColumnMapping] = field(default_factory=list)
-    suggested: List[ColumnMapping] = field(default_factory=list)
-    unmatched: List[ColumnMapping] = field(default_factory=list)
 
 
 def match_programmatic(headers: List[str]) -> NormalizationResult:
@@ -201,7 +193,7 @@ async def normalize_columns(
       1. Programmatic matching against known columns + custom field defs.
       2. LLM fallback for remaining unmatched headers.
     """
-    defs = _fetch_custom_field_definitions(db, org_id)
+    defs = column_normalizer_repository.fetch_active_custom_field_definitions(db, org_id)
     header_to_field_key = _custom_header_to_field_key(defs)
     custom_keys_unique = list({d.field_key for d in defs})
 

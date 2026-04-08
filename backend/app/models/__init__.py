@@ -6,19 +6,22 @@ from .organization import Organization
 from .lookup import LookupCategory, LookupOption
 from .custom_field import CustomFieldDefinition
 from .import_session import ImportSession
-from .enums import ApplicationStatus, RelocationOpenness, TransportationAvailability
-from .candidate import (
-    Candidate,
+from .candidates import (
     CandidateApplicationStatusUpdate,
-    CandidateBase,
-    CandidateCreate,
-    CandidateRead,
     CandidateListResponse,
-    LookupOptionLabel,
+    CandidateRead,
+    CandidateProfile,
+    CandidateProfileListItem,
+    CandidateProfileListResponse,
     RelatedApplicationSummary,
 )
+from .applications import Application
+from .enums import ApplicationStatus, RelocationOpenness, TransportationAvailability
+
 from .candidate_stage_comment import (
+    CandidateApplicationStatusResponse,
     CandidateHrStageCommentCreate,
+    CandidateHrStageCommentResponse,
     CandidateStageComment,
     HrStageCommentEntryRead,
     HrStageCommentsRead,
@@ -36,7 +39,8 @@ from .user import (
     UserBase,
     UserCreate,
     UserRead,
-    UserLogin,
+    LoginRequest,
+    LoginResponse,
 )
 from .candidate_resume import (
     CandidateResume,
@@ -63,22 +67,25 @@ __all__ = [
     "CustomFieldDefinition",
     # Import session
     "ImportSession",
+    # New split candidate/application tables
+    "CandidateProfile",
+    "CandidateProfileListItem",
+    "CandidateProfileListResponse",
+    "Application",
     # Enums
     "ApplicationStatus",
     "RelocationOpenness",
     "TransportationAvailability",
     # Candidate models
-    "Candidate",
     "CandidateApplicationStatusUpdate",
-    "CandidateBase",
-    "CandidateCreate",
     "CandidateHrStageCommentCreate",
+    "CandidateHrStageCommentResponse",
+    "CandidateApplicationStatusResponse",
     "CandidateStageComment",
     "HrStageCommentEntryRead",
     "HrStageCommentsRead",
     "CandidateRead",
     "CandidateListResponse",
-    "LookupOptionLabel",
     "RelatedApplicationSummary",
     # Chat models
     "QuestionClassification",
@@ -92,7 +99,8 @@ __all__ = [
     "UserBase",
     "UserCreate",
     "UserRead",
-    "UserLogin",
+    "LoginRequest",
+    "LoginResponse",
     # Candidate resume
     "CandidateResume",
     "CandidateResumeRead",

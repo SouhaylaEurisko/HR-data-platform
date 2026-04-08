@@ -13,13 +13,11 @@ from typing import Any, Dict, List, Optional, Set
 
 from fastapi import UploadFile
 from openpyxl import load_workbook
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..models.candidate import Candidate
 from ..models.enums import RelocationOpenness, TransportationAvailability
-from ..models.import_session import ImportSession
-from .column_normalizer import (
+from ..repository import import_repository
+from .column_normalizer_service import (
     COLUMN_LABELS,
     ColumnMapping,
     NormalizationResult,
@@ -27,7 +25,7 @@ from .column_normalizer import (
     normalize_columns,
 )
 from .lookup_service import resolve_lookup_value
-from .type_detector import create_custom_field
+from .custom_field_type_service import create_custom_field
 
 
 # ──────────────────────────────────────────────
@@ -464,6 +462,89 @@ def _map_row(
     return candidate_kwargs
 
 
+_APPLICATION_IMPORT_KEYS = frozenset(
+    {
+        "import_session_id",
+        "notice_period",
+        "applied_at",
+        "current_address",
+        "residency_type_id",
+        "marital_status_id",
+        "number_of_dependents",
+        "religion_sect",
+        "passport_validity_status_id",
+        "has_transportation",
+        "applied_position",
+        "applied_position_location",
+        "is_open_for_relocation",
+        "years_of_experience",
+        "current_salary",
+        "expected_salary_remote",
+        "expected_salary_onsite",
+        "is_overtime_flexible",
+        "is_contract_flexible",
+        "workplace_type_id",
+        "employment_type_id",
+        "is_employed",
+        "tech_stack",
+        "education_level_id",
+        "education_completion_status_id",
+    }
+)
+
+
+def _has_transportation_to_bool(value: Any) -> Optional[bool]:
+    """Application.has_transportation is bool; import mapping still uses TransportationAvailability."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, TransportationAvailability):
+        return value is not TransportationAvailability.no
+    return None
+
+
+def _split_profile_and_application(mapped: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, Any]]:
+    """
+    Split flat row kwargs (legacy candidate-shaped) into CandidateProfile and Application dicts.
+    Fields that exist only on legacy candidate (e.g. nationality) merge into application.custom_fields.
+    """
+    profile: Dict[str, Any] = {
+        "organization_id": mapped["organization_id"],
+        "import_session_id": mapped["import_session_id"],
+    }
+    for k in ("full_name", "email", "date_of_birth"):
+        if k in mapped:
+            profile[k] = mapped[k]
+
+    application: Dict[str, Any] = {"import_session_id": mapped["import_session_id"]}
+    for k in _APPLICATION_IMPORT_KEYS:
+        if k == "import_session_id" or k not in mapped:
+            continue
+        v = mapped[k]
+        if k == "has_transportation":
+            v = _has_transportation_to_bool(v)
+        application[k] = v
+
+    custom = dict(mapped.get("custom_fields") or {})
+    if mapped.get("raw_import_data") is not None:
+        custom["_raw_import_data"] = mapped["raw_import_data"]
+
+    reserved_for_split = (
+        set(profile.keys())
+        | _APPLICATION_IMPORT_KEYS
+        | {"organization_id", "raw_import_data", "custom_fields"}
+    )
+    for k, v in mapped.items():
+        if k in reserved_for_split:
+            continue
+        if v is not None:
+            custom[k] = _to_json_safe(v)
+
+    application["custom_fields"] = custom
+    return profile, application
+
+
 # ──────────────────────────────────────────────
 # Workbook helpers
 # ──────────────────────────────────────────────
@@ -551,39 +632,20 @@ def check_import_name_conflicts(
     normalized_filename = str(filename or "").strip()
     normalized_sheets = [str(s).strip() for s in (sheet_names or []) if str(s).strip()]
 
-    filename_exists = False
-    if normalized_filename:
-        filename_exists = (
-            db.query(ImportSession.id)
-            .filter(
-                ImportSession.organization_id == org_id,
-                func.lower(ImportSession.original_filename) == normalized_filename.lower(),
-            )
-            .first()
-            is not None
-        )
+    filename_lower = normalized_filename.lower() if normalized_filename else ""
+    filename_exists = import_repository.import_filename_exists(db, org_id, filename_lower)
 
     # Duplicate means same filename AND same sheet name were already imported.
-    # A sheet existing under a different file should not trigger this warning.
-    existing_sheet_rows = []
-    if normalized_filename:
-        existing_sheet_rows = (
-            db.query(Candidate.import_sheet)
-            .join(ImportSession, Candidate.import_session_id == ImportSession.id)
-            .filter(
-                Candidate.organization_id == org_id,
-                Candidate.import_sheet.isnot(None),
-                ImportSession.organization_id == org_id,
-                func.lower(ImportSession.original_filename) == normalized_filename.lower(),
-            )
-            .distinct()
-            .all()
-        )
-    existing_sheets_map = {
-        str(row[0]).strip().lower(): str(row[0]).strip()
-        for row in existing_sheet_rows
-        if row and row[0] and str(row[0]).strip()
-    }
+    # Sheet names are stored on import_session.import_sheet (comma-separated if multiple).
+    existing_sheets_map: dict[str, str] = {}
+    if filename_lower:
+        for sheet_val in import_repository.distinct_import_sheet_strings_for_filename(
+            db, org_id, filename_lower
+        ):
+            for part in sheet_val.split(","):
+                p = part.strip()
+                if p:
+                    existing_sheets_map[p.lower()] = p
 
     duplicate_sheets: List[str] = []
     for sheet in normalized_sheets:
@@ -618,14 +680,12 @@ async def analyze_workbook(
     Phase A of the two-phase import.
     Parse headers, run column normalization, create ImportSession, save temp file.
     """
-    session = ImportSession(
-        organization_id=org_id,
-        uploaded_by_user_id=user_id,
+    session = import_repository.create_pending_import_session(
+        db,
+        org_id=org_id,
+        user_id=user_id,
         original_filename=filename,
-        status="pending",
     )
-    db.add(session)
-    db.flush()
 
     _save_temp_file(session.id, contents)
 
@@ -680,20 +740,19 @@ def confirm_and_import(
 ) -> dict:
     """
     Phase B: receive confirmed mappings, create custom fields,
-    validate rows, insert candidates, update import session.
+    validate rows, insert candidate profiles + applications, update import session.
 
     confirmed_mappings: {excel_header_lower: db_column}
     new_custom_fields: [{"header": "...", "label": "..."}, ...]
     skip_columns: Excel headers to omit from import (no mapping, excluded from raw_import_data).
     """
-    session = db.query(ImportSession).filter_by(id=session_id).first()
+    session = import_repository.get_import_session_by_id(db, session_id)
     if not session:
         raise ValueError(f"Import session {session_id} not found.")
     if session.status != "pending":
         raise ValueError(f"Session is already {session.status}.")
 
-    session.status = "processing"
-    db.flush()
+    import_repository.mark_import_session_processing(db, session)
 
     # Create any new custom fields
     workbook = _load_temp_file(session_id)
@@ -740,17 +799,21 @@ def confirm_and_import(
             {**e, "sheet": sheet_name} for e in result["row_errors"]
         )
 
-    # Update session
-    session.total_rows = total_created + total_skipped_empty + total_skipped_duplicates + total_errors
-    session.imported_rows = total_created
-    session.skipped_rows = total_skipped_empty + total_skipped_duplicates
-    session.error_rows = total_errors
-    session.status = "completed" if total_errors == 0 else "completed"
-    session.completed_at = datetime.utcnow()
-    session.summary = {
-        "sheets": sheet_results,
-        "row_errors": all_row_errors[:100],
-    }
+    sheet_labels = [str(s).strip() for s in sheet_names if s is not None and str(s).strip()]
+    import_sheet_val = ", ".join(dict.fromkeys(sheet_labels))[:255] if sheet_labels else None
+    import_repository.apply_import_session_completion(
+        session,
+        import_sheet=import_sheet_val,
+        total_rows=total_created + total_skipped_empty + total_skipped_duplicates + total_errors,
+        imported_rows=total_created,
+        skipped_rows=total_skipped_empty + total_skipped_duplicates,
+        error_rows=total_errors,
+        completed_at=datetime.utcnow(),
+        summary={
+            "sheets": sheet_results,
+            "row_errors": all_row_errors[:100],
+        },
+    )
 
     db.commit()
     _cleanup_temp_file(session_id)
@@ -862,13 +925,12 @@ def _process_sheet(
                 continue
 
             try:
-                candidate_kwargs = _map_row(row_dict, col_map, org_id, db)
-                candidate_kwargs["organization_id"] = org_id
-                candidate_kwargs["import_session_id"] = session_id
-                candidate_kwargs["import_sheet"] = sheet_name
+                mapped = _map_row(row_dict, col_map, org_id, db)
+                mapped["organization_id"] = org_id
+                mapped["import_session_id"] = session_id
 
-                candidate = Candidate(**candidate_kwargs)
-                db.add(candidate)
+                profile_kw, app_kw = _split_profile_and_application(mapped)
+                import_repository.insert_imported_candidate_row(db, profile_kw, app_kw)
                 created += 1
             except Exception as exc:
                 row_errors.append({"row_index": row_idx, "error": str(exc)})
