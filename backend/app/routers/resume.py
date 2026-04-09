@@ -34,7 +34,7 @@ _ALLOWED_CONTENT_TYPES = {
 async def upload_candidate_resume(
     candidate_id: int,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
-    file: U ploadFile = File(...),
+    file: UploadFile = File(...),
     org_id: int = Query(1, description="Organization ID"),
     db: Session = Depends(get_db),
 ) -> CandidateResumeRead:
