@@ -31,21 +31,22 @@ _FETCH_SQL_TEMPLATE = """
 SELECT
   c.id,
   c.full_name,
-  c.applied_position,
-  c.years_of_experience,
-  c.tech_stack,
-  c.notice_period,
-  c.is_open_for_relocation,
-  c.expected_salary_remote,
-  c.expected_salary_onsite,
-  c.is_overtime_flexible,
-  c.is_contract_flexible,
-  c.is_employed,
-  c.has_transportation,
-  c.nationality
-FROM candidate c
+  a.applied_position,
+  a.years_of_experience,
+  a.tech_stack,
+  a.notice_period,
+  a.is_open_for_relocation,
+  a.expected_salary_remote,
+  a.expected_salary_onsite,
+  a.is_overtime_flexible,
+  a.is_contract_flexible,
+  a.is_employed,
+  a.has_transportation,
+  a.custom_fields
+FROM candidates c
+INNER JOIN applications a ON a.candidate_id = c.id
 WHERE {where_clause}
-ORDER BY c.years_of_experience DESC NULLS LAST, c.created_at DESC
+ORDER BY a.years_of_experience DESC NULLS LAST, c.created_at DESC
 LIMIT :lim
 """
 
@@ -60,14 +61,14 @@ def _applied_position_where(position: str, params: Dict[str, Any]) -> str:
     if ba_intent:
         params["pos_ba_re"] = r"\mBA\M"
         params["pos_ba_txt"] = "%business analyst%"
-        return "(c.applied_position ~* :pos_ba_re OR c.applied_position ILIKE :pos_ba_txt)"
+        return "(a.applied_position ~* :pos_ba_re OR a.applied_position ILIKE :pos_ba_txt)"
     hr_intent = pl == "hr" or pl.startswith("human resource")
     if hr_intent:
         params["pos_hr_re"] = r"\mHR\M"
         params["pos_hr_txt"] = "%human resource%"
-        return "(c.applied_position ~* :pos_hr_re OR c.applied_position ILIKE :pos_hr_txt)"
+        return "(a.applied_position ~* :pos_hr_re OR a.applied_position ILIKE :pos_hr_txt)"
     params["pos"] = f"%{p}%"
-    return "c.applied_position ILIKE :pos"
+    return "a.applied_position ILIKE :pos"
 
 
 class CandidateComparisonAgent:

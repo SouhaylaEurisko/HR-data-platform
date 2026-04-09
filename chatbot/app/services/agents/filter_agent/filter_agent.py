@@ -3,6 +3,7 @@ Filter Agent — entry point.
 1. LLM → SQL   2. Execute SQL   3. LLM → Summary
 """
 import logging
+import re
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
@@ -65,11 +66,16 @@ class FilterAgent:
 
         # Detect the sort column, filter out corrupt rows, and re-sort correctly
         sql_upper = sql.upper()
-        if "ORDER BY YEARS_OF_EXPERIENCE" in sql_upper:
+        if re.search(r"ORDER\s+BY[\s\S]{0,120}YEARS_OF_EXPERIENCE", sql_upper):
             safe_rows = filter_empty_rows(safe_rows, required_field="years_of_experience")
-        elif "ORDER BY CURRENT_SALARY" in sql_upper:
+        elif re.search(r"ORDER\s+BY[\s\S]{0,120}CURRENT_SALARY", sql_upper):
             safe_rows = filter_empty_rows(safe_rows, required_field="current_salary")
-            descending = "DESC" in sql_upper.split("ORDER BY CURRENT_SALARY")[1].split("LIMIT")[0]
+            m = re.search(
+                r"ORDER\s+BY[\s\S]{0,120}CURRENT_SALARY([\s\S]{0,80}?)(?:LIMIT|\Z)",
+                sql_upper,
+            )
+            tail = m.group(1) if m else ""
+            descending = "DESC" in tail
             safe_rows = resort_by_salary(safe_rows, descending=descending)
 
         total = len(safe_rows)

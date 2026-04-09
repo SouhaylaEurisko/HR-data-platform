@@ -294,15 +294,16 @@ No markdown.
 No comments.
 No extra text.
 Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, MERGE, or WITH.
-Main table must always be: candidate c
+Always join profile + application rows: FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id
+Use aliases c (candidates) and a (applications) consistently.
 
 2. SCHEMA SAFETY
 Use only tables and columns that exist in the provided schema.
 Do not invent columns, joins, or lookup mappings.
 If a requested field cannot be mapped from the schema, do not guess.
 In unsupported cases, return:
-  - filter_sql: SELECT c.* FROM candidate c ORDER BY c.created_at DESC LIMIT 5
-  - aggregation_sql: SELECT COUNT(*) AS total_candidates FROM candidate c
+  - filter_sql: SELECT c.*, a.id AS application_id FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id ORDER BY c.created_at DESC LIMIT 5
+  - aggregation_sql: SELECT COUNT(*) AS total_candidates FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id
 
 3. CONSISTENCY
 Build one shared WHERE clause.
@@ -312,8 +313,8 @@ If PREVIOUS WHERE CLAUSE is provided, preserve it unless the new request clearly
 If both previous and new filters apply, combine them correctly.
 
 4. FILTER QUERY
-Always use:
-  SELECT c.*
+Always use the join in FROM, and:
+  SELECT c.*, a.id AS application_id
 LIMIT rules:
 - Default: LIMIT 5
 - When user asks for "top 3", "top 5", etc.: use that number.
@@ -321,24 +322,24 @@ LIMIT rules:
   "the lowest", "the least" of a numeric field:
   Use a subquery so ALL candidates who share the extreme value are returned.
   Example for "highest expected salary for react native":
-    WHERE c.applied_position ILIKE '%react native%'
-      AND COALESCE(c.expected_salary_remote, c.expected_salary_onsite)
-          = (SELECT MAX(COALESCE(c2.expected_salary_remote, c2.expected_salary_onsite))
-             FROM candidate c2
-             WHERE c2.applied_position ILIKE '%react native%')
+    WHERE a.applied_position ILIKE '%react native%'
+      AND COALESCE(a.expected_salary_remote, a.expected_salary_onsite)
+          = (SELECT MAX(COALESCE(a2.expected_salary_remote, a2.expected_salary_onsite))
+             FROM candidates c2 INNER JOIN applications a2 ON a2.candidate_id = c2.id
+             WHERE a2.applied_position ILIKE '%react native%')
   Example for "most experienced backend developers":
-    WHERE c.applied_position ILIKE '%backend%'
-      AND c.years_of_experience
-          = (SELECT MAX(c2.years_of_experience)
-             FROM candidate c2
-             WHERE c2.applied_position ILIKE '%backend%'
-               AND c2.years_of_experience <= 50)
+    WHERE a.applied_position ILIKE '%backend%'
+      AND a.years_of_experience
+          = (SELECT MAX(a2.years_of_experience)
+             FROM candidates c2 INNER JOIN applications a2 ON a2.candidate_id = c2.id
+             WHERE a2.applied_position ILIKE '%backend%'
+               AND a2.years_of_experience <= 50)
   This returns ONLY the candidates who actually hold the max/min value.
 ORDER BY rules:
-  - highest / top salary -> c.current_salary DESC NULLS LAST, c.created_at DESC
-  - lowest salary -> c.current_salary ASC NULLS LAST, c.created_at DESC
-  - most experience -> c.years_of_experience DESC NULLS LAST, c.created_at DESC
-  - least experience -> c.years_of_experience ASC NULLS LAST, c.created_at DESC
+  - highest / top salary -> a.current_salary DESC NULLS LAST, c.created_at DESC
+  - lowest salary -> a.current_salary ASC NULLS LAST, c.created_at DESC
+  - most experience -> a.years_of_experience DESC NULLS LAST, c.created_at DESC
+  - least experience -> a.years_of_experience ASC NULLS LAST, c.created_at DESC
   - otherwise -> c.created_at DESC
 
 5. AGGREGATION QUERY
@@ -347,39 +348,39 @@ Always include:
 Include only metrics explicitly requested by the user.
 If the request is vague, include:
   - COUNT(*) AS total_candidates
-  - ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary
-  - ROUND(AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
+  - ROUND(AVG(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary
+  - ROUND(AVG(a.years_of_experience) FILTER (WHERE a.years_of_experience IS NOT NULL AND a.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
 
 6. AGGREGATE EXPRESSIONS
 Use these exact expressions when needed:
 
 avg_salary
-  ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary
+  ROUND(AVG(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary
 
 max_salary
-  MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary
+  MAX(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL) AS max_salary
 
 min_salary
-  MIN(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS min_salary
+  MIN(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL) AS min_salary
 
 avg_expected_salary
-  ROUND(AVG(COALESCE(c.expected_salary_remote, c.expected_salary_onsite)) FILTER (WHERE COALESCE(c.expected_salary_remote, c.expected_salary_onsite) IS NOT NULL)::NUMERIC, 2) AS avg_expected_salary
+  ROUND(AVG(COALESCE(a.expected_salary_remote, a.expected_salary_onsite)) FILTER (WHERE COALESCE(a.expected_salary_remote, a.expected_salary_onsite) IS NOT NULL)::NUMERIC, 2) AS avg_expected_salary
 
 max_expected_salary
-  MAX(COALESCE(c.expected_salary_remote, c.expected_salary_onsite)) FILTER (WHERE COALESCE(c.expected_salary_remote, c.expected_salary_onsite) IS NOT NULL) AS max_expected_salary
+  MAX(COALESCE(a.expected_salary_remote, a.expected_salary_onsite)) FILTER (WHERE COALESCE(a.expected_salary_remote, a.expected_salary_onsite) IS NOT NULL) AS max_expected_salary
 
 min_expected_salary
-  MIN(COALESCE(c.expected_salary_remote, c.expected_salary_onsite)) FILTER (WHERE COALESCE(c.expected_salary_remote, c.expected_salary_onsite) IS NOT NULL) AS min_expected_salary
+  MIN(COALESCE(a.expected_salary_remote, a.expected_salary_onsite)) FILTER (WHERE COALESCE(a.expected_salary_remote, a.expected_salary_onsite) IS NOT NULL) AS min_expected_salary
 
 avg_experience
-  ROUND(AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
+  ROUND(AVG(a.years_of_experience) FILTER (WHERE a.years_of_experience IS NOT NULL AND a.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
 
 7. AGGREGATE SAFETY
 FILTER must attach to the aggregate, never to ROUND.
-Do not put c.current_salary IS NOT NULL in the shared WHERE unless the user explicitly asks for only candidates with salary on file.
+Do not put a.current_salary IS NOT NULL in the shared WHERE unless the user explicitly asks for only candidates with salary on file.
 Salary null handling belongs inside aggregate FILTER clauses.
 If the user filters by experience thresholds, use:
-  c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50
+  a.years_of_experience IS NOT NULL AND a.years_of_experience <= 50
   together with the requested threshold.
 
 8. FILTERING
@@ -388,55 +389,56 @@ Numeric filters use >=, <=, or BETWEEN
 Combine filters with AND unless the user explicitly asks for OR
 
 Nationality / country / "living in" (CRITICAL):
-  The candidate table has c.nationality (VARCHAR) and c.current_address (TEXT). There is NO c.country column — never use c.country.
-  Users often mean origin OR residence. For Lebanese, Jordanian, "from Lebanon", "living in lebanon", etc., match candidates if EITHER field suggests that place:
-    Define a reusable predicate (same in filter_sql, aggregation_sql, and any subquery alias c2/c3):
-    (COALESCE(c.nationality, '') ILIKE '%lebanese%' OR COALESCE(c.nationality, '') ILIKE '%lebanon%'
-     OR COALESCE(c.current_address, '') ILIKE '%lebanon%' OR COALESCE(c.current_address, '') ILIKE '%lebanese%')
-  For other countries, mirror the pattern (nationality demonym OR country name OR same tokens in current_address).
-  Apply the identical geographic predicate on c2 in subqueries (replace c. with c2.).
+  There is NO dedicated nationality column and NO c.country. Use a.current_address (TEXT) and/or a.custom_fields::text for geographic hints.
+  For Lebanese, Jordanian, "from Lebanon", "living in lebanon", etc., match if address or custom_fields text suggests that place:
+    Define a reusable predicate (same in filter_sql, aggregation_sql, and subqueries with a2):
+    (COALESCE(a.current_address, '') ILIKE '%lebanon%' OR COALESCE(a.current_address, '') ILIKE '%lebanese%'
+     OR COALESCE(a.custom_fields::text, '') ILIKE '%lebanon%' OR COALESCE(a.custom_fields::text, '') ILIKE '%lebanese%')
+  For other countries, mirror the pattern on a.current_address and a.custom_fields::text.
+  In subqueries use a2.current_address / a2.custom_fields with the same join pattern.
 
-Example — highest current salary among people living in Lebanon / Lebanese (same WHERE shape in both queries; use c2 in subquery):
-  Let geo_c be:
-    (COALESCE(c.nationality, '') ILIKE '%lebanese%' OR COALESCE(c.nationality, '') ILIKE '%lebanon%'
-     OR COALESCE(c.current_address, '') ILIKE '%lebanon%' OR COALESCE(c.current_address, '') ILIKE '%lebanese%')
+Example — highest current salary among people living in Lebanon / Lebanese (same WHERE shape in both queries):
+  Let geo_a be:
+    (COALESCE(a.current_address, '') ILIKE '%lebanon%' OR COALESCE(a.current_address, '') ILIKE '%lebanese%'
+     OR COALESCE(a.custom_fields::text, '') ILIKE '%lebanon%' OR COALESCE(a.custom_fields::text, '') ILIKE '%lebanese%')
   filter_sql WHERE:
-    <geo_c> AND c.current_salary = (SELECT MAX(c2.current_salary) FROM candidate c2
-      WHERE (same predicate with c2 instead of c) AND c2.current_salary IS NOT NULL)
+    <geo_a> AND a.current_salary = (SELECT MAX(a2.current_salary)
+      FROM candidates c2 INNER JOIN applications a2 ON a2.candidate_id = c2.id
+      WHERE (same predicate with a2 instead of a) AND a2.current_salary IS NOT NULL)
   aggregation_sql WHERE:
-    <geo_c>
+    <geo_a>
 
 9. ROLE AND SKILL MATCHING
 Role or position requests search only:
-  c.applied_position
+  a.applied_position
 Skill requests search only:
-  c.tech_stack::text
+  a.tech_stack::text
 If both role and skill are requested, require both.
 If multiple skills are joined by "and", require all using AND.
 If multiple skills are joined by "or", use OR.
 Never infer a role from a skill.
-Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on c.tech_stack.
+Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on a.tech_stack.
 Only use:
-  c.tech_stack::text ILIKE '%value%'
+  a.tech_stack::text ILIKE '%value%'
 
 10. ROLE ABBREVIATIONS
 Use these mappings when relevant:
 
 BA
-  (c.applied_position ~* '\\\\mBA\\\\M' OR c.applied_position ILIKE '%business analyst%')
+  (a.applied_position ~* '\\\\mBA\\\\M' OR a.applied_position ILIKE '%business analyst%')
 
 PM
-  (c.applied_position ~* '\\\\mPM\\\\M' OR c.applied_position ILIKE '%product manager%' OR c.applied_position ILIKE '%project manager%')
+  (a.applied_position ~* '\\\\mPM\\\\M' OR a.applied_position ILIKE '%product manager%' OR a.applied_position ILIKE '%project manager%')
 
 QA
-  (c.applied_position ~* '\\\\mQA\\\\M' OR c.applied_position ILIKE '%quality assurance%' OR c.applied_position ILIKE '%test engineer%' OR c.applied_position ILIKE '%software tester%')
+  (a.applied_position ~* '\\\\mQA\\\\M' OR a.applied_position ILIKE '%quality assurance%' OR a.applied_position ILIKE '%test engineer%' OR a.applied_position ILIKE '%software tester%')
 
 HR
-  (c.applied_position ~* '\\\\mHR\\\\M' OR c.applied_position ILIKE '%human resource%')
+  (a.applied_position ~* '\\\\mHR\\\\M' OR a.applied_position ILIKE '%human resource%')
   Use '%human resource%' not only '%human resources%' so singular titles (e.g. Human Resource Manager) match.
 
 11. LOOKUP JOINS
-Use LEFT JOIN lookup_option lo ON <foreign_key_column> = lo.id only when the schema clearly shows the requested field is a lookup id.
+Use LEFT JOIN lookup_option lo ON <foreign_key_column> = lo.id only when the schema clearly shows the requested field is a lookup id (columns live on applications a).
 When filtering by a lookup value, use lo.label.
 
 12. SQL STYLE
@@ -512,3 +514,5 @@ EXAMPLE OUTPUT
   "reply": "Here’s a summary of the matching candidates and their statistics."
 }
 """
+
+FILTER_AGG_SQL_PROMPT = FILTER_AGG_SQL_PROMPT.replace("{schema}", CANDIDATES_SCHEMA)

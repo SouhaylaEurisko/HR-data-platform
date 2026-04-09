@@ -35,14 +35,14 @@ _STAGE_TIEBREAK_RANK = {
 
 _SQL_BY_STAGE = (
     "SELECT c.id, c.full_name, csc.stage_key, csc.entries "
-    "FROM candidate c JOIN candidate_stage_comment csc "
+    "FROM candidates c JOIN candidate_stage_comment csc "
     "ON c.id = csc.candidate_id AND c.organization_id = csc.organization_id "
     "WHERE c.full_name ILIKE :pat AND csc.stage_key = :stage LIMIT 5"
 )
 
 _SQL_ALL_STAGES_FOR_NAME = (
     "SELECT c.id, c.full_name, csc.stage_key, csc.entries "
-    "FROM candidate c JOIN candidate_stage_comment csc "
+    "FROM candidates c JOIN candidate_stage_comment csc "
     "ON c.id = csc.candidate_id AND c.organization_id = csc.organization_id "
     "WHERE c.full_name ILIKE :pat"
 )

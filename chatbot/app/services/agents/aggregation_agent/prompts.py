@@ -285,14 +285,14 @@ RULES
 - Never return comments.
 - Never return any text outside the JSON object.
 - Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, or WITH.
-- Main table must always be: candidate c
+- Always use: FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id (c = profile, a = application row).
 
 2. SOURCE OF TRUTH
 - Use only tables and columns that exist in the provided schema.
 - Do not invent columns, joins, or lookup mappings.
 - If a requested field cannot be mapped from the schema, do not guess.
 - In unsupported cases, return:
-  SELECT COUNT(*) AS total_candidates FROM candidate c
+  SELECT COUNT(*) AS total_candidates FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id
 
 3. DEFAULT BEHAVIOR
 - Always include:
@@ -300,50 +300,50 @@ RULES
 - Include only the metrics explicitly requested by the user.
 - If the user asks a vague question like "stats about candidates", include:
   COUNT(*) AS total_candidates,
-  ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary,
-  ROUND(AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
+  ROUND(AVG(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary,
+  ROUND(AVG(a.years_of_experience) FILTER (WHERE a.years_of_experience IS NOT NULL AND a.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
 
 4. AGGREGATE EXPRESSIONS
 Use these exact expressions when needed:
 
 - Average current salary:
-  ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary
+  ROUND(AVG(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary
 
 - Maximum current salary:
-  MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary
+  MAX(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL) AS max_salary
 
 - Minimum current salary:
-  MIN(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS min_salary
+  MIN(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL) AS min_salary
 
 - Average expected salary:
-  ROUND(AVG(COALESCE(c.expected_salary_remote, c.expected_salary_onsite)) FILTER (WHERE COALESCE(c.expected_salary_remote, c.expected_salary_onsite) IS NOT NULL)::NUMERIC, 2) AS avg_expected_salary
+  ROUND(AVG(COALESCE(a.expected_salary_remote, a.expected_salary_onsite)) FILTER (WHERE COALESCE(a.expected_salary_remote, a.expected_salary_onsite) IS NOT NULL)::NUMERIC, 2) AS avg_expected_salary
 
 - Maximum expected salary:
-  MAX(COALESCE(c.expected_salary_remote, c.expected_salary_onsite)) FILTER (WHERE COALESCE(c.expected_salary_remote, c.expected_salary_onsite) IS NOT NULL) AS max_expected_salary
+  MAX(COALESCE(a.expected_salary_remote, a.expected_salary_onsite)) FILTER (WHERE COALESCE(a.expected_salary_remote, a.expected_salary_onsite) IS NOT NULL) AS max_expected_salary
 
 - Minimum expected salary:
-  MIN(COALESCE(c.expected_salary_remote, c.expected_salary_onsite)) FILTER (WHERE COALESCE(c.expected_salary_remote, c.expected_salary_onsite) IS NOT NULL) AS min_expected_salary
+  MIN(COALESCE(a.expected_salary_remote, a.expected_salary_onsite)) FILTER (WHERE COALESCE(a.expected_salary_remote, a.expected_salary_onsite) IS NOT NULL) AS min_expected_salary
 
 - Average experience:
-  ROUND(AVG(c.years_of_experience) FILTER (WHERE c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
+  ROUND(AVG(a.years_of_experience) FILTER (WHERE a.years_of_experience IS NOT NULL AND a.years_of_experience <= 50)::NUMERIC, 2) AS avg_experience
 
 Important:
 - FILTER attaches to the aggregate, never to ROUND.
-- Do not place c.current_salary IS NOT NULL in WHERE unless the user explicitly asks to exclude candidates with missing salary.
+- Do not place a.current_salary IS NOT NULL in WHERE unless the user explicitly asks to exclude candidates with missing salary.
 - For salary aggregates, missing salary values must be excluded only inside FILTER.
 
 5. FILTERING RULES
 - Text filters use ILIKE '%value%'
 - Numeric filters use >=, <=, or BETWEEN
 - Combine multiple filters with AND unless the user explicitly asks for OR
-- Nationality / country / living in: NO c.country. Combine c.nationality ILIKE with c.current_address ILIKE using OR when the user asks about origin, nationality, or where someone lives (e.g. Lebanon: match lebanese/lebanon in nationality OR lebanon/lebanese in current_address).
+- Nationality / country / living in: NO country column. Use a.current_address and/or a.custom_fields::text with OR for geographic hints (e.g. Lebanon: lebanon/lebanese in address or custom_fields).
 
 6. ROLE AND SKILL MATCHING
 - If the user asks for a role or position, search only:
-  c.applied_position
+  a.applied_position
 
 - If the user asks about skills candidates know or use, search only:
-  c.tech_stack::text
+  a.tech_stack::text
 
 - If the user names both a role and a skill, require both conditions.
 
@@ -352,24 +352,24 @@ Important:
 - If the user names multiple skills with "or", use OR.
 
 - Never infer a role from a skill unless the role is explicitly stated.
-- Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on c.tech_stack.
+- Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on a.tech_stack.
 - The only allowed tech stack pattern is:
-  c.tech_stack::text ILIKE '%value%'
+  a.tech_stack::text ILIKE '%value%'
 
 7. ROLE ABBREVIATIONS
 When relevant, use these exact mappings:
 
 - BA:
-  (c.applied_position ~* '\\\\mBA\\\\M' OR c.applied_position ILIKE '%business analyst%')
+  (a.applied_position ~* '\\\\mBA\\\\M' OR a.applied_position ILIKE '%business analyst%')
 
 - PM:
-  (c.applied_position ~* '\\\\mPM\\\\M' OR c.applied_position ILIKE '%product manager%' OR c.applied_position ILIKE '%project manager%')
+  (a.applied_position ~* '\\\\mPM\\\\M' OR a.applied_position ILIKE '%product manager%' OR a.applied_position ILIKE '%project manager%')
 
 - QA:
-  (c.applied_position ~* '\\\\mQA\\\\M' OR c.applied_position ILIKE '%quality assurance%' OR c.applied_position ILIKE '%test engineer%' OR c.applied_position ILIKE '%software tester%')
+  (a.applied_position ~* '\\\\mQA\\\\M' OR a.applied_position ILIKE '%quality assurance%' OR a.applied_position ILIKE '%test engineer%' OR a.applied_position ILIKE '%software tester%')
 
 - HR:
-  (c.applied_position ~* '\\\\mHR\\\\M' OR c.applied_position ILIKE '%human resource%')
+  (a.applied_position ~* '\\\\mHR\\\\M' OR a.applied_position ILIKE '%human resource%')
   Prefer '%human resource%' over only '%human resources%' so singular job titles match.
 
 8. GROUPING RULES
@@ -381,7 +381,7 @@ When relevant, use these exact mappings:
   - Every non-aggregate selected column must appear in GROUP BY
 
 9. LOOKUP JOINS
-- Use JOIN lookup_option lo ON <foreign_key_column> = lo.id only when the schema clearly shows the requested field is stored as a lookup id.
+- Use JOIN lookup_option lo ON <foreign_key_column> = lo.id only when the schema clearly shows the requested field is stored as a lookup id (on applications a).
 - When grouping or filtering by a lookup value, use lo.label.
 
 10. CONTEXT HANDLING
@@ -399,38 +399,40 @@ EXAMPLES
 User: How many candidates do we have?
 Output:
 {
-  "sql": "SELECT COUNT(*) AS total_candidates FROM candidate c",
-  "explanation": "Counts all candidates"
+  "sql": "SELECT COUNT(*) AS total_candidates FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id",
+  "explanation": "Counts all application rows"
 }
 
 User: Average salary of frontend developers
 Output:
 {
-  "sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidate c WHERE c.applied_position ILIKE '%frontend%'",
+  "sql": "SELECT COUNT(*) AS total_candidates, ROUND(AVG(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL)::NUMERIC, 2) AS avg_salary FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id WHERE a.applied_position ILIKE '%frontend%'",
   "explanation": "Frontend cohort average salary"
 }
 
 User: Highest salary among backend developers
 Output:
 {
-  "sql": "SELECT COUNT(*) AS total_candidates, MAX(c.current_salary) FILTER (WHERE c.current_salary IS NOT NULL) AS max_salary FROM candidate c WHERE c.applied_position ILIKE '%backend%'",
+  "sql": "SELECT COUNT(*) AS total_candidates, MAX(a.current_salary) FILTER (WHERE a.current_salary IS NOT NULL) AS max_salary FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id WHERE a.applied_position ILIKE '%backend%'",
   "explanation": "Backend cohort maximum salary"
 }
 
 User: How many candidates know python and fastapi?
 Output:
 {
-  "sql": "SELECT COUNT(*) AS total_candidates FROM candidate c WHERE c.tech_stack::text ILIKE '%python%' AND c.tech_stack::text ILIKE '%fastapi%'",
+  "sql": "SELECT COUNT(*) AS total_candidates FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id WHERE a.tech_stack::text ILIKE '%python%' AND a.tech_stack::text ILIKE '%fastapi%'",
   "explanation": "Counts candidates with both skills"
 }
 
 User: Count candidates by employment type
 Output:
 {
-  "sql": "SELECT lo.label AS employment_type, COUNT(*) AS total_candidates FROM candidate c JOIN lookup_option lo ON c.employment_type_id = lo.id GROUP BY lo.label",
+  "sql": "SELECT lo.label AS employment_type, COUNT(*) AS total_candidates FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id JOIN lookup_option lo ON a.employment_type_id = lo.id GROUP BY lo.label",
   "explanation": "Counts candidates by employment type"
 }
 """
+
+AGGREGATION_SQL_PROMPT = AGGREGATION_SQL_PROMPT.replace("{schema}", CANDIDATES_SCHEMA)
 
 AGGREGATION_SUMMARY_PROMPT = """
 You are an HR data analyst.

@@ -12,39 +12,47 @@ from .salary_parser import compute_salary_stats, parse_salary_text
 
 logger = logging.getLogger(__name__)
 
-CANDIDATES_SCHEMA = """
-TABLE candidate (
+DEFAULT_CANDIDATES_APPLICATIONS_JOIN = (
+    "FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id"
+)
+
+CANDIDATES_SCHEMA = (
+    """
+TABLE candidates (
+  id                  INTEGER PRIMARY KEY,
+  organization_id     INTEGER NOT NULL,
+  import_session_id   INTEGER,
+  full_name           VARCHAR(255),
+  email               VARCHAR(320),
+  date_of_birth       DATE,
+  created_at          TIMESTAMPTZ
+)
+
+TABLE applications (
   id                              INTEGER PRIMARY KEY,
-  organization_id                 INTEGER NOT NULL,
+  candidate_id                    INTEGER NOT NULL,  -- -> candidates.id
   import_session_id               INTEGER,
-  import_sheet                    VARCHAR(255),
-  full_name                       VARCHAR(255),
-  email                           VARCHAR(320),
-  date_of_birth                   DATE,
-  nationality                     VARCHAR(100),
+  notice_period                   VARCHAR(100),
+  applied_at                      TIMESTAMPTZ,
   current_address                 TEXT,
   number_of_dependents            SMALLINT,
   religion_sect                   VARCHAR(100),
-  has_transportation              transportation_availability,  -- yes | no | only_open_for_remote_opportunities
+  has_transportation              BOOLEAN,
   applied_position                VARCHAR(255),
   applied_position_location       VARCHAR(255),
-  is_open_for_relocation          relocation_openness,  -- yes | no | for_missions_only
+  is_open_for_relocation          relocation_openness,  -- PostgreSQL enum: yes | no | for_missions_only
   years_of_experience             NUMERIC(4,1),
   is_employed                     BOOLEAN,
   current_salary                  NUMERIC(12,2),
   expected_salary_remote          NUMERIC(12,2),
   expected_salary_onsite          NUMERIC(12,2),
-  notice_period                   VARCHAR(100),
   is_overtime_flexible            BOOLEAN,
   is_contract_flexible            BOOLEAN,
   tech_stack                      JSONB,   -- array of strings e.g. ["Python","React"]
-  custom_fields                   JSONB,   -- org-specific extra fields
-  raw_import_data                 JSONB,
-  applied_at                      TIMESTAMPTZ,
+  custom_fields                   JSONB,   -- org-specific extra fields (may hold nationality, etc.)
   created_at                      TIMESTAMPTZ,
   updated_at                      TIMESTAMPTZ,
 
-  -- Lookup FK columns (JOIN lookup_option for human-readable labels):
   residency_type_id               INTEGER,  -- -> lookup_option
   marital_status_id               INTEGER,  -- -> lookup_option
   passport_validity_status_id     INTEGER,  -- -> lookup_option
@@ -53,6 +61,33 @@ TABLE candidate (
   education_level_id              INTEGER,  -- -> lookup_option
   education_completion_status_id  INTEGER   -- -> lookup_option
 )
+
+REQUIRED JOIN for application fields (position, salary, experience, tech_stack, address, lookups):
+  """
+    + DEFAULT_CANDIDATES_APPLICATIONS_JOIN
+    + """
+
+The legacy table name "candidate" (singular) is rejected at query execution — only "candidates" + "applications" (and related tables below) are allowed.
+
+Aliases (use consistently):
+  c = candidates (profile: full_name, email, organization_id, dates)
+  a = applications (job application row: position, salary, tech_stack, etc.)
+
+Row shape for listings:
+  Prefer SELECT c.*, a.id AS application_id so rows include profile + application columns.
+  The bare id from c.* is the candidate id; application_id is applications.id.
+
+Counts:
+  COUNT(*) counts application rows. For "how many candidates (people)" use COUNT(DISTINCT c.id).
+
+Multiple applications per person:
+  Optional: DISTINCT ON (c.id) ... ORDER BY c.id, a.created_at DESC for latest application only.
+
+Subqueries:
+  Repeat the same JOIN with new aliases (e.g. FROM candidates c2 INNER JOIN applications a2 ON a2.candidate_id = c2.id).
+
+Nationality / country:
+  No nationality column. Use a.current_address ILIKE and/or a.custom_fields::text ILIKE.
 
 TABLE lookup_option (
   id              INTEGER PRIMARY KEY,
@@ -70,7 +105,7 @@ TABLE lookup_category (
 
 TABLE candidate_stage_comment (
   id               INTEGER PRIMARY KEY,
-  candidate_id     INTEGER NOT NULL,  -- -> candidate.id
+  candidate_id     INTEGER NOT NULL,  -- -> candidates.id
   organization_id  INTEGER NOT NULL,
   stage_key        VARCHAR(64),       -- pre_screening | technical_interview | hr_interview | offer_stage
   entries          JSONB,             -- array of {"text": "...", "created_at": "ISO-8601"} oldest->newest
@@ -79,7 +114,7 @@ TABLE candidate_stage_comment (
 
 TABLE candidate_resume (
   id               INTEGER PRIMARY KEY,
-  candidate_id     INTEGER NOT NULL UNIQUE,  -- -> candidate.id (one resume per candidate)
+  candidate_id     INTEGER NOT NULL UNIQUE,  -- -> candidates.id (one resume per candidate)
   organization_id  INTEGER NOT NULL,
   filename         VARCHAR(255),
   content_type     VARCHAR(100),
@@ -88,7 +123,39 @@ TABLE candidate_resume (
                            --   work_experience (array of {company, title, start_date, end_date, description}),
                            --   education (array of {institution, degree, field_of_study, start_date, end_date})
 )
-""".strip()
+"""
+).strip()
+
+_LEGACY_CANDIDATE_TABLE_ERROR = (
+    'The legacy table "candidate" is not allowed. Use "candidates" with '
+    'INNER JOIN applications a ON a.candidate_id = c.id (aliases c / a). '
+    'Do not use a CTE named "candidate".'
+)
+
+# Legacy flat table name only — allows candidates, candidate_stage_comment, candidate_resume, candidate_id, etc.
+_LEGACY_CANDIDATE_TABLE_PATTERNS = (
+    # Quoted relation "candidate"
+    re.compile(
+        r'(?is)(?:\bfrom\b|\bjoin\b)\s+(?:only\s+)?(?:(?:[\w]+\.)?)"candidate"(?=\s|,|\)|;|$)',
+    ),
+    re.compile(
+        r'(?is),\s*(?:(?:[\w]+\.)?)"candidate"(?=\s|,|\)|;|$)',
+    ),
+    # Unquoted relation candidate (word boundary excludes candidates, candidate_resume, …)
+    re.compile(
+        r'(?is)(?:\bfrom\b|\bjoin\b)\s+(?:only\s+)?(?:(?:[\w]+\.)?)\bcandidate\b(?![a-z0-9_"])(?=\s|,|\)|;|$)',
+    ),
+    re.compile(
+        r'(?is),\s*(?:(?:[\w]+\.)?)\bcandidate\b(?![a-z0-9_"])(?=\s|,|\)|;|$)',
+    ),
+)
+
+
+def _reject_legacy_candidate_table(sql: str) -> None:
+    """Disallow reads from the deprecated single-table `candidate` model."""
+    for pat in _LEGACY_CANDIDATE_TABLE_PATTERNS:
+        if pat.search(sql):
+            raise ValueError(_LEGACY_CANDIDATE_TABLE_ERROR)
 
 
 def execute_safe_query(db: Session, sql: str) -> List[Dict[str, Any]]:
@@ -100,6 +167,8 @@ def execute_safe_query(db: Session, sql: str) -> List[Dict[str, Any]]:
 
     if not cleaned.upper().startswith("SELECT"):
         raise ValueError("Only SELECT queries are allowed.")
+
+    _reject_legacy_candidate_table(cleaned)
 
     forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "TRUNCATE", "CREATE", "GRANT", "REVOKE"]
     upper = cleaned.upper()
@@ -128,7 +197,7 @@ def _extract_where_clause(sql: str) -> str:
     upper = cleaned.upper()
     from_idx = upper.find("FROM")
     if from_idx == -1:
-        return "FROM candidate"
+        return DEFAULT_CANDIDATES_APPLICATIONS_JOIN
     tail = cleaned[from_idx:]
     tail = re.sub(
         r"\s+(GROUP\s+BY|ORDER\s+BY|HAVING|LIMIT)\s+.*$",
@@ -239,7 +308,7 @@ def fetch_experience_stats_for_query(
 
 # Match current_salary as a filter column, excluding alias.c2 / t2 style (digit before dot → c2.current_salary).
 # Also exclude bare matches that are really "c2.current_salary" via (?<!\d)\. only matching .current_salary when the dot is not after a digit.
-_CS_COL = r"(?:(?<!\d)\.current_salary|(?:^|[^\w.])(?:c\.)?current_salary)"
+_CS_COL = r"(?:(?<!\d)\.current_salary|(?:^|[^\w.])(?:c\.|a\.)?current_salary)"
 
 _SALARY_SIMPLE_RE = re.compile(
     _CS_COL + r"""\s*(=|>=|<=|>|<|!=)\s*([\d\.]+)""",

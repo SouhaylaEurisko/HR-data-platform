@@ -371,20 +371,23 @@ No extra text.
 Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, MERGE, or WITH.
 
 2. TABLE RULES
-Main table must be: candidate c
-Resume table must be: candidate_resume cr
-Always join resume data using:
+Profile table: candidates c
+Application table: applications a (join for application-level fields)
+Resume table: candidate_resume cr
+Always join applications and resume:
+  INNER JOIN applications a ON a.candidate_id = c.id
   LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id
 Always select:
-  c.*, cr.resume_info
+  c.*, a.id AS application_id, cr.resume_info
 
 3. SCHEMA SAFETY
 Use only tables and columns that exist in the provided schema.
 Do not invent columns or joins.
 If a requested field cannot be mapped safely, do not guess.
 In unsupported cases, return:
-  SELECT c.*, cr.resume_info
-  FROM candidate c
+  SELECT c.*, a.id AS application_id, cr.resume_info
+  FROM candidates c
+  INNER JOIN applications a ON a.candidate_id = c.id
   LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id
   ORDER BY c.created_at DESC
   LIMIT 10
@@ -394,13 +397,13 @@ Name search:
   c.full_name ILIKE '%value%'
 
 Resume AND profile keyword search (CRITICAL):
-  Parsed CV text lives in cr.resume_info (JSONB). Structured skills on the candidate profile live in
-  c.tech_stack (JSONB array of strings). Many candidates have skills in tech_stack only (import,
+  Parsed CV text lives in cr.resume_info (JSONB). Structured skills live on the application row
+  a.tech_stack (JSONB array of strings). Many profiles have skills in tech_stack only (import,
   manual entry) with empty or sparse resume_info — searching resume_info alone misses them.
   When the user asks for skills, technologies, tools, frameworks, languages, or phrases like
   "on their resume", "profile", "CV", or "background", search BOTH sources for each keyword:
     (COALESCE(cr.resume_info::text, '') ILIKE '%keyword%'
-     OR COALESCE(c.tech_stack::text, '') ILIKE '%keyword%')
+     OR COALESCE(a.tech_stack::text, '') ILIKE '%keyword%')
   If the user requires multiple keywords (e.g. "Python and FastAPI"), AND separate predicates:
     (...python...) AND (...fastapi...)
   If they use "or" between skills, OR those predicates instead.
@@ -419,7 +422,7 @@ single [retrieved_candidates] name, filter by that person's name the same as if 
 Never use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text on resume_info or tech_stack.
 Use only:
   - COALESCE(cr.resume_info::text, '') ILIKE '%value%'
-  - c.tech_stack::text ILIKE '%value%' (always inside COALESCE(c.tech_stack::text, '') when OR-ing with resume)
+  - a.tech_stack::text ILIKE '%value%' (always inside COALESCE(a.tech_stack::text, '') when OR-ing with resume)
   - cr.resume_info->>'field' when a direct top-level text field is explicitly needed
 
 6. SORTING AND LIMIT
@@ -433,7 +436,7 @@ If the user clearly asks about one named candidate, use LIMIT 5 or less.
 7. SQL STYLE
 Keep the query minimal and clean.
 Select only:
-  c.*, cr.resume_info
+  c.*, a.id AS application_id, cr.resume_info
 Do not add GROUP BY unless explicitly required.
 Do not add ORDER BY fields other than c.created_at unless explicitly required.
 
@@ -442,24 +445,29 @@ EXAMPLES
 User: Tell me more about Mahmoud Tawba
 Output:
 {
-  "sql": "SELECT c.*, cr.resume_info FROM candidate c LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE c.full_name ILIKE '%mahmoud tawba%' ORDER BY c.created_at DESC LIMIT 5",
-  "explanation": "Fetches candidate profile and resume data"
+  "sql": "SELECT c.*, a.id AS application_id, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE c.full_name ILIKE '%mahmoud tawba%' ORDER BY c.created_at DESC LIMIT 5",
+  "explanation": "Fetches candidate profile, application row, and resume data"
 }
 
 User: Candidates whose resume mentions project management
 Output:
 {
-  "sql": "SELECT c.*, cr.resume_info FROM candidate c LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%project management%' OR COALESCE(c.tech_stack::text, '') ILIKE '%project management%') ORDER BY c.created_at DESC LIMIT 20",
-  "explanation": "Searches parsed resume and profile tech_stack for the phrase"
+  "sql": "SELECT c.*, a.id AS application_id, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%project management%' OR COALESCE(a.tech_stack::text, '') ILIKE '%project management%') ORDER BY c.created_at DESC LIMIT 20",
+  "explanation": "Searches parsed resume and application tech_stack for the phrase"
 }
 
 User: Who has Python and FastAPI on their resume or profile
 Output:
 {
-  "sql": "SELECT c.*, cr.resume_info FROM candidate c LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%python%' OR COALESCE(c.tech_stack::text, '') ILIKE '%python%') AND (COALESCE(cr.resume_info::text, '') ILIKE '%fastapi%' OR COALESCE(c.tech_stack::text, '') ILIKE '%fastapi%') ORDER BY c.created_at DESC LIMIT 20",
-  "explanation": "Requires both skills in resume JSON or candidate tech_stack"
+  "sql": "SELECT c.*, a.id AS application_id, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%python%' OR COALESCE(a.tech_stack::text, '') ILIKE '%python%') AND (COALESCE(cr.resume_info::text, '') ILIKE '%fastapi%' OR COALESCE(a.tech_stack::text, '') ILIKE '%fastapi%') ORDER BY c.created_at DESC LIMIT 20",
+  "explanation": "Requires both skills in resume JSON or application tech_stack"
 }
 """
+
+CV_INFO_SQL_PROMPT = CV_INFO_SQL_PROMPT.replace("{schema}", CANDIDATES_SCHEMA).replace(
+    "{user_request}",
+    "The user request is provided in the user message in this conversation.",
+)
 CV_INFO_SUMMARY_PROMPT = """
 You are an HR data analyst.
 

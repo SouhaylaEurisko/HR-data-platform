@@ -15,8 +15,8 @@ Rules:
 Output exactly one SELECT statement.
 Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE.
 Use only tables and columns from the schema.
-Base table: candidate c
-Default query: SELECT c.* FROM candidate c
+Base: join candidates c with applications a (see schema REQUIRED JOIN).
+Default query: SELECT c.*, a.id AS application_id FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id
 Default sort: ORDER BY c.created_at DESC
 Default limit: LIMIT 20
 Use the user's limit if explicitly requested.
@@ -32,35 +32,35 @@ Mapping:
 Name search -> c.full_name ILIKE '%value%'
 Text filters -> ILIKE
 Numeric filters -> =, >=, <=, BETWEEN
-Nationality / country / "living in" -> There is NO c.country. Use c.nationality ILIKE and/or c.current_address ILIKE (OR together) so origin and residence both count, e.g. Lebanon: nationality lebanese/lebanon OR address contains lebanon/lebanese.
+Nationality / country / "living in" -> There is NO country column. Use a.current_address ILIKE and/or a.custom_fields::text ILIKE (OR together) for place hints, e.g. Lebanon: address contains lebanon/lebanese.
 
 Position vs tech_stack (CRITICAL — choose correctly):
-The PRIMARY column for finding candidates is c.applied_position.
-The tech_stack column is ONLY for additional skill/tool detail queries.
+The PRIMARY column for finding candidates is a.applied_position.
+The tech_stack column is ONLY for additional skill/tool detail queries (a.tech_stack).
 
 Decision logic — pick ONE approach per term:
 
 1. User asks for candidates by ROLE, POSITION, or JOB TITLE
    (e.g. "react native candidates", "backend developers", "mobile devs", "data scientists",
     "flutter developers", "fullstack engineers", "designers"):
-   → ALWAYS search c.applied_position ILIKE '%value%'
+   → ALWAYS search a.applied_position ILIKE '%value%'
    → NEVER use tech_stack for this. Even if the role name is also a technology (React Native,
      Flutter, Angular, etc.), the user is asking for the POSITION, not a skill filter.
 
 2. User explicitly asks about SKILLS candidates KNOW / USE / HAVE EXPERIENCE WITH,
    using phrasing like "candidates who know X", "skilled in X", "proficient in X",
    "with X on their resume":
-   → Search c.tech_stack::text ILIKE '%value%'
+   → Search a.tech_stack::text ILIKE '%value%'
 
 3. User names BOTH a position AND a separate skill:
-   → c.applied_position ILIKE '%position%' AND c.tech_stack::text ILIKE '%skill%'
+   → a.applied_position ILIKE '%position%' AND a.tech_stack::text ILIKE '%skill%'
    Example: "React Native developers who know TypeScript"
-   → c.applied_position ILIKE '%react native%' AND c.tech_stack::text ILIKE '%typescript%'
+   → a.applied_position ILIKE '%react native%' AND a.tech_stack::text ILIKE '%typescript%'
 
-Default: if unclear, use c.applied_position. It is always safer.
+Default: if unclear, use a.applied_position. It is always safer.
 
 FORBIDDEN on tech_stack: NEVER use @>, ANY(), jsonb_array_elements, or jsonb_array_elements_text.
-ALWAYS use: c.tech_stack::text ILIKE '%value%'
+ALWAYS use: a.tech_stack::text ILIKE '%value%'
 
 Short titles / abbreviations (CRITICAL):
 Short role abbreviations (2-3 letters) are common substrings in unrelated words.
@@ -86,28 +86,28 @@ Common abbreviation mappings (use these expansions):
   SE  -> software engineer
 
 Example for "IT candidates":
-  (c.applied_position ~* '\\mIT\\M' OR c.applied_position ILIKE '%information technology%')
+  (a.applied_position ~* '\\mIT\\M' OR a.applied_position ILIKE '%information technology%')
 Example for "BA candidates":
-  (c.applied_position ~* '\\mBA\\M' OR c.applied_position ILIKE '%business analyst%')
+  (a.applied_position ~* '\\mBA\\M' OR a.applied_position ILIKE '%business analyst%')
 
 Lookup joins:
 Join lookup_option only when needed.
 Example:
-  LEFT JOIN lookup_option wt ON c.workplace_type_id = wt.id
+  LEFT JOIN lookup_option wt ON a.workplace_type_id = wt.id
 For lookup codes like remote / onsite / hybrid, use exact equality on wt.code.
 
 Quality guards:
 If experience is filtered or sorted, add:
-  c.years_of_experience IS NOT NULL AND c.years_of_experience <= 50
+  a.years_of_experience IS NOT NULL AND a.years_of_experience <= 50
 If current salary is filtered or sorted, add:
-  c.current_salary IS NOT NULL
+  a.current_salary IS NOT NULL
 If expected salary is filtered or sorted, add:
-  (c.expected_salary_remote IS NOT NULL OR c.expected_salary_onsite IS NOT NULL)
+  (a.expected_salary_remote IS NOT NULL OR a.expected_salary_onsite IS NOT NULL)
 
 Sorting:
-highest salary / top earners -> ORDER BY c.current_salary DESC
-highest expected salary -> ORDER BY COALESCE(c.expected_salary_remote, c.expected_salary_onsite) DESC
-most experienced -> ORDER BY c.years_of_experience DESC
+highest salary / top earners -> ORDER BY a.current_salary DESC
+highest expected salary -> ORDER BY COALESCE(a.expected_salary_remote, a.expected_salary_onsite) DESC
+most experienced -> ORDER BY a.years_of_experience DESC
 otherwise -> ORDER BY c.created_at DESC
 
 LIMIT rules (CRITICAL):
@@ -119,18 +119,18 @@ LIMIT rules (CRITICAL):
   "the lowest", "the least" of a numeric field:
   → Use a subquery to return ALL candidates who share the extreme value.
   Example for "react native candidate with max experience":
-    WHERE c.applied_position ILIKE '%react native%'
-      AND c.years_of_experience
-          = (SELECT MAX(c2.years_of_experience)
-             FROM candidate c2
-             WHERE c2.applied_position ILIKE '%react native%'
-               AND c2.years_of_experience <= 50)
+    WHERE a.applied_position ILIKE '%react native%'
+      AND a.years_of_experience
+          = (SELECT MAX(a2.years_of_experience)
+             FROM candidates c2 INNER JOIN applications a2 ON a2.candidate_id = c2.id
+             WHERE a2.applied_position ILIKE '%react native%'
+               AND a2.years_of_experience <= 50)
   Example for "highest expected salary for backend":
-    WHERE c.applied_position ILIKE '%backend%'
-      AND COALESCE(c.expected_salary_remote, c.expected_salary_onsite)
-          = (SELECT MAX(COALESCE(c2.expected_salary_remote, c2.expected_salary_onsite))
-             FROM candidate c2
-             WHERE c2.applied_position ILIKE '%backend%')
+    WHERE a.applied_position ILIKE '%backend%'
+      AND COALESCE(a.expected_salary_remote, a.expected_salary_onsite)
+          = (SELECT MAX(COALESCE(a2.expected_salary_remote, a2.expected_salary_onsite))
+             FROM candidates c2 INNER JOIN applications a2 ON a2.candidate_id = c2.id
+             WHERE a2.applied_position ILIKE '%backend%')
   This returns ONLY candidates who actually hold the max/min value, not a sorted list.
 
 Fallback:

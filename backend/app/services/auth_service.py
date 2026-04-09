@@ -19,6 +19,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 class TokenExpiredError(Exception):
     """JWT signature valid but token past expiry."""
 
+class AccountDeactivatedError(Exception):
+    """User account exists but is_active=False."""
+
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
@@ -83,10 +86,6 @@ def get_user_id_from_token(token: str) -> int:
         return int(sub)
     except (TypeError, ValueError) as exc:
         raise ValueError("Invalid subject") from exc
-
-
-class AccountDeactivatedError(Exception):
-    """User account exists but is_active=False."""
 
 
 def authenticate_user(db: Session, email: str, password: str) -> Optional[UserAccount]:
