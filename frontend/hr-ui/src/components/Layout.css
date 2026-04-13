@@ -317,7 +317,7 @@
 .floating-chat-btn {
   position: fixed;
   bottom: 4.35rem;
-  right: 2rem;
+  right: 1.25rem;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -486,7 +486,7 @@
     width: 56px;
     height: 56px;
     bottom: 2.35rem;
-    right: 1.25rem;
+    right: 1rem;
   }
 
   .floating-chat-tooltip {

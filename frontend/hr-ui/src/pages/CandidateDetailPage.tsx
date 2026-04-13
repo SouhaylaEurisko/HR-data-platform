@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
-import { getCandidateById, patchCandidateApplicationStatus, postCandidateHrStageComment, getResume, uploadResume, downloadResume, deleteResume } from '../api/candidates';
+import { fetchLookupOptions } from '../api/lookups';
+import {
+  getCandidateById,
+  patchCandidateApplicationStatus,
+  postCandidateHrStageComment,
+  getResume,
+  uploadResume,
+  downloadResume,
+  deleteResume,
+  deleteCandidate,
+} from '../api/candidates';
 import { APPLICATION_STATUS_OPTIONS, parseApplicationStatus } from '../constants/applicationStatus';
 import {
   HR_STAGE_DEFS,
@@ -9,10 +19,9 @@ import {
   type HrStageDef,
   type HrStageKey,
 } from '../constants/hrStages.ts';
-import type { ApplicationStatus, Candidate, CandidateResume, HrStageCommentEntry } from '../types/api';
+import type { ApplicationStatus, Candidate, CandidateResume, HrStageCommentEntry, LookupOption } from '../types/api';
 import { apiErrorMessage } from '../utils/apiErrorMessage';
-import { relocationOpennessLabel } from '../utils/relocationOpenness';
-import { transportationAvailabilityLabel } from '../utils/transportationAvailability';
+import { PersonalInformationCard, ProfessionalInformationCard } from '../components/CandidateDetailEditableCards';
 import { useAuth } from '../contexts/AuthContext';
 import ConfirmationDialog from '../components/ConfirmationDialog';
 import {
@@ -75,6 +84,10 @@ export default function CandidateDetailPage() {
   const [resumeMismatchMessage, setResumeMismatchMessage] = useState('');
   const resumeFileRef = useRef<HTMLInputElement>(null);
   const didScrollToHrComment = useRef(false);
+  const [lookupOptions, setLookupOptions] = useState<Record<string, LookupOption[]>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const hrStageSelectRef = useRef<HTMLDivElement>(null);
   const hrLatestBlockRef = useRef<HTMLDivElement>(null);
 
@@ -112,6 +125,39 @@ export default function CandidateDetailPage() {
   useEffect(() => {
     if (!stageHasLatestComment) setHrHistoryOpen(false);
   }, [stageHasLatestComment, selectedHrStage]);
+
+  useEffect(() => {
+    if (!canWrite) return;
+    const codes = [
+      'residency_type',
+      'marital_status',
+      'passport_validity',
+      'workplace_type',
+      'employment_type',
+      'education_level',
+      'education_completion',
+    ] as const;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const pairs = await Promise.all(
+          codes.map(async (code) => {
+            const opts = await fetchLookupOptions(code);
+            return [code, opts] as const;
+          })
+        );
+        if (cancelled) return;
+        const next: Record<string, LookupOption[]> = {};
+        for (const [code, opts] of pairs) next[code] = opts;
+        setLookupOptions(next);
+      } catch {
+        if (!cancelled) setLookupOptions({});
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canWrite]);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -445,165 +491,26 @@ export default function CandidateDetailPage() {
       <div className="detail-content">
         {!canWrite && (
           <div className="read-only-banner" role="status">
-            Read-only access: you can view candidates and HR comments. Only HR managers can change
-            application status or add comments.
+            Read-only access: you can view candidates and HR comments. Only HR managers can edit profile
+            fields, change application status, add comments, or delete a candidate.
           </div>
         )}
-        {/* Personal Information */}
-        <div className="detail-card">
-          <h2>Personal Information</h2>
-          <div className="detail-grid">
-            <div className="detail-item">
-              <span className="detail-label">Full Name:</span>
-              <span className="detail-value">{displayName(candidate)}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Email:</span>
-              <span className="detail-value">
-                {candidate.email ? (
-                  <a href={`mailto:${candidate.email}`}>{candidate.email}</a>
-                ) : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Nationality:</span>
-              <span className="detail-value">{candidate.nationality || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Date of Birth:</span>
-              <span className="detail-value">{formatDate(candidate.date_of_birth)}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Current Address:</span>
-              <span className="detail-value">{candidate.current_address || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Residency Type:</span>
-              <span className="detail-value">{candidate.residency_type_label || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Marital Status:</span>
-              <span className="detail-value">{candidate.marital_status_label || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Dependents:</span>
-              <span className="detail-value">
-                {candidate.number_of_dependents !== null ? candidate.number_of_dependents : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Transportation:</span>
-              <span className="detail-value">
-                {transportationAvailabilityLabel(candidate.has_transportation)}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Passport Status:</span>
-              <span className="detail-value">{candidate.passport_validity_status_label || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Religion / Sect:</span>
-              <span className="detail-value">{candidate.religion_sect || '-'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Professional Information */}
-        <div className="detail-card">
-          <h2>Professional Information</h2>
-          <div className="detail-grid">
-            <div className="detail-item">
-              <span className="detail-label">Applied Position:</span>
-              <span className="detail-value">{candidate.applied_position || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Location:</span>
-              <span className="detail-value">{candidate.applied_position_location || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Years of Experience:</span>
-              <span className="detail-value">
-                {candidate.years_of_experience !== null && candidate.years_of_experience !== undefined
-                  ? `${candidate.years_of_experience} years`
-                  : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Current Salary:</span>
-              <span className="detail-value">
-                {candidate.current_salary !== null && candidate.current_salary !== undefined
-                  ? `$${Number(candidate.current_salary).toLocaleString()}`
-                  : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Expected Salary (Remote):</span>
-              <span className="detail-value">
-                {candidate.expected_salary_remote !== null && candidate.expected_salary_remote !== undefined
-                  ? `$${Number(candidate.expected_salary_remote).toLocaleString()}`
-                  : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Expected Salary (Onsite):</span>
-              <span className="detail-value">
-                {candidate.expected_salary_onsite !== null && candidate.expected_salary_onsite !== undefined
-                  ? `$${Number(candidate.expected_salary_onsite).toLocaleString()}`
-                  : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Is Employed:</span>
-              <span className="detail-value">
-                {candidate.is_employed === true ? 'Yes' : candidate.is_employed === false ? 'No' : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Employment Type:</span>
-              <span className="detail-value">{candidate.employment_type_label || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Workplace Type:</span>
-              <span className="detail-value">{candidate.workplace_type_label || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Notice Period:</span>
-              <span className="detail-value">{candidate.notice_period || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Open for Relocation:</span>
-              <span className="detail-value">
-                {relocationOpennessLabel(candidate.is_open_for_relocation)}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Overtime Flexible:</span>
-              <span className="detail-value">
-                {candidate.is_overtime_flexible === true ? 'Yes' : candidate.is_overtime_flexible === false ? 'No' : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Contract Flexible:</span>
-              <span className="detail-value">
-                {candidate.is_contract_flexible === true ? 'Yes' : candidate.is_contract_flexible === false ? 'No' : '-'}
-              </span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Education Level:</span>
-              <span className="detail-value">{candidate.education_level_label || '-'}</span>
-            </div>
-            <div className="detail-item">
-              <span className="detail-label">Education Status:</span>
-              <span className="detail-value">{candidate.education_completion_status_label || '-'}</span>
-            </div>
-            {candidate.tech_stack && candidate.tech_stack.length > 0 && (
-              <div className="detail-item detail-item-wide">
-                <span className="detail-label">Tech Stack:</span>
-                <span className="detail-value">{candidate.tech_stack.join(', ')}</span>
-              </div>
-            )}
-          </div>
-        </div>
+        <PersonalInformationCard
+          candidate={candidate}
+          canWrite={canWrite}
+          lookups={lookupOptions}
+          onCandidateUpdated={setCandidate}
+          formatDate={formatDate}
+          displayName={displayName}
+        />
+        <ProfessionalInformationCard
+          candidate={candidate}
+          canWrite={canWrite}
+          lookups={lookupOptions}
+          onCandidateUpdated={setCandidate}
+          formatDate={formatDate}
+          displayName={displayName}
+        />
 
         {/* Custom Fields */}
         {hasCustomFields && (
@@ -945,6 +852,20 @@ export default function CandidateDetailPage() {
         </div>
       </div>
 
+      {canWrite && (
+        <button
+          type="button"
+          className="candidate-detail-delete-corner"
+          aria-label="Delete candidate"
+          onClick={() => {
+            setDeleteError(null);
+            setDeleteDialogOpen(true);
+          }}
+        >
+          Delete candidate
+        </button>
+      )}
+
       {/* PDF Viewer Modal */}
       {pdfViewerUrl && (
         <div className="pdf-viewer-overlay" onClick={closePdfViewer}>
@@ -973,6 +894,41 @@ export default function CandidateDetailPage() {
         confirmText="OK"
         onConfirm={() => setResumeMismatchOpen(false)}
         onCancel={() => setResumeMismatchOpen(false)}
+      />
+
+      <ConfirmationDialog
+        isOpen={deleteDialogOpen}
+        title="Delete this candidate?"
+        message={
+          deleteError
+            ? deleteError
+            : `This will permanently delete ${displayName(candidate)} and all related data in this platform: application rows, uploaded CV, and HR stage comments. This cannot be undone.`
+        }
+        variant="danger"
+        confirmText={deleteBusy ? 'Deleting…' : 'Delete candidate'}
+        cancelText="Cancel"
+        onCancel={() => {
+          if (!deleteBusy) {
+            setDeleteDialogOpen(false);
+            setDeleteError(null);
+          }
+        }}
+        onConfirm={() => {
+          if (deleteBusy) return;
+          void (async () => {
+            setDeleteBusy(true);
+            setDeleteError(null);
+            try {
+              await deleteCandidate(candidate.id);
+              setDeleteDialogOpen(false);
+              goBack();
+            } catch (e: unknown) {
+              setDeleteError(apiErrorMessage(e, 'Failed to delete candidate'));
+            } finally {
+              setDeleteBusy(false);
+            }
+          })();
+        }}
       />
     </div>
   );

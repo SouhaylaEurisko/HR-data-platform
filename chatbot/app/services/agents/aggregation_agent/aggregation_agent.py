@@ -3,7 +3,7 @@ Aggregation Agent — entry point.
 1. LLM → aggregation SQL   2. Execute SQL   3. Correct salary stats   4. LLM → Summary
 """
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from .models import AggregationAgentResult
@@ -14,6 +14,62 @@ from ...utils.db_utils import execute_safe_query, fetch_salary_stats_for_query, 
 from ....config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
+
+# When GROUP BY a.applied_position ranks by COUNT(*), NULL titles often form the largest bucket
+# and LIMIT 1 returns applied_position = NULL. Re-run excluding blank titles.
+_TOP_NONBLANK_APPLIED_POSITION_SQL = (
+    "SELECT a.applied_position, COUNT(*) AS total_candidates "
+    "FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id "
+    "WHERE NULLIF(TRIM(a.applied_position), '') IS NOT NULL "
+    "GROUP BY a.applied_position ORDER BY COUNT(*) DESC LIMIT 1"
+)
+
+
+def _applied_position_column_key(row: Dict[str, Any]) -> Optional[str]:
+    for k in row:
+        if k.lower() == "applied_position":
+            return k
+    return None
+
+
+def _is_blank_position_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    return False
+
+
+def _should_replace_null_top_applied_position_bucket(sql: str, stats: List[Dict[str, Any]]) -> bool:
+    """True when the LLM returned a single grouped row whose position label is blank (NULL bucket won)."""
+    if len(stats) != 1:
+        return False
+    sl = sql.lower()
+    if "group by" not in sl or "applied_position" not in sl:
+        return False
+    su = sql.upper()
+    if "ORDER BY" not in su and "LIMIT" not in su:
+        return False
+    key = _applied_position_column_key(stats[0])
+    if not key:
+        return False
+    return _is_blank_position_value(stats[0].get(key))
+
+
+def _apply_top_applied_position_fallback(
+    db: Session, sql: str, stats: List[Dict[str, Any]]
+) -> Tuple[str, List[Dict[str, Any]]]:
+    """If stats are the NULL applied_position bucket winning a top-1 style query, re-query with non-blank titles."""
+    if not _should_replace_null_top_applied_position_bucket(sql, stats):
+        return sql, stats
+    try:
+        fixed_rows = execute_safe_query(db, _TOP_NONBLANK_APPLIED_POSITION_SQL)
+    except (ValueError, RuntimeError) as exc:
+        logger.warning("Top applied_position fallback query failed: %s", exc)
+        return sql, stats
+    if not fixed_rows:
+        return sql, stats
+    return _TOP_NONBLANK_APPLIED_POSITION_SQL.strip(), fixed_rows
 
 
 def _apply_salary_correction(
@@ -153,6 +209,17 @@ class AggregationAgent:
             )
 
         safe_stats = sanitize_stats(rows)
+
+        sql_used, rows_for_stats = _apply_top_applied_position_fallback(db, sql, safe_stats)
+        if sql_used != sql:
+            sql = sql_used
+            safe_stats = sanitize_stats(rows_for_stats)
+            if chatbot_logger:
+                chatbot_logger.log_section(
+                    "AGGREGATION - APPLIED_POSITION FALLBACK",
+                    status="APPLIED",
+                    reason="Top group was NULL/blank applied_position; re-ranked excluding empty titles",
+                )
 
         # Log raw stats from DB (before corrections)
         if chatbot_logger:

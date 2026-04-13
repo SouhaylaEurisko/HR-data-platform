@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm.attributes import flag_modified
 
 from ..models.applications import Application
 from ..models.candidate_stage_comment import CandidateStageComment
@@ -255,3 +256,70 @@ def list_stage_comments_for_candidate(
         )
         .all()
     )
+
+
+def delete_candidate_profile_for_org(db: Session, candidate_id: int, org_id: int) -> bool:
+    """
+    Remove a candidate profile scoped to org.
+
+    Cascades (ORM / DB): applications, candidate_resume, candidate_stage_comment rows
+    tied to this candidates.id are removed with the profile.
+    """
+    row = get_candidate_profile_by_id_org(db, candidate_id, org_id)
+    if row is None:
+        return False
+    db.delete(row)
+    db.commit()
+    return True
+
+
+def persist_candidate_profile_patch(
+    db: Session,
+    *,
+    candidate_id: int,
+    org_id: int,
+    profile_updates: Dict[str, Any],
+    application_updates: Dict[str, Any],
+    nationality_explicit: bool,
+    nationality_value: Optional[str],
+) -> bool:
+    """
+    Apply profile + latest-application field writes and commit.
+
+    ``has_transportation`` in *application_updates* must already be resolved to bool | None.
+    """
+    candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
+    if candidate is None:
+        return False
+
+    for key, value in profile_updates.items():
+        setattr(candidate, key, value)
+
+    need_application = bool(application_updates) or nationality_explicit
+    application = get_latest_application_for_candidate(db, candidate.id)
+    if application is None and need_application:
+        application = Application(
+            candidate_id=candidate.id,
+            import_session_id=candidate.import_session_id,
+        )
+        db.add(application)
+        db.flush()
+
+    if application is not None:
+        if nationality_explicit:
+            cf = dict(application.custom_fields or {})
+            if nationality_value is not None and str(nationality_value).strip() != "":
+                cf["nationality"] = str(nationality_value).strip()
+            else:
+                cf.pop("nationality", None)
+            application.custom_fields = cf
+            flag_modified(application, "custom_fields")
+
+        for key, value in application_updates.items():
+            setattr(application, key, value)
+
+    db.commit()
+    db.refresh(candidate)
+    if application is not None:
+        db.refresh(application)
+    return True

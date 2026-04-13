@@ -380,6 +380,14 @@ When relevant, use these exact mappings:
   - Then other requested aggregates
   - Every non-aggregate selected column must appear in GROUP BY
 
+8b. GROUPING BY a.applied_position (CRITICAL)
+- Many rows have NULL or blank a.applied_position. Those rows group into one bucket and often have the highest COUNT(*), which makes "which position has the most candidates?" return Applied Position = null and confuses users.
+- When grouping by a.applied_position OR answering which / what position has the most, highest, or top number of candidates (including follow-ups like "what is this position" or "what position has N candidates?" when N is a count from that ranking):
+  - Restrict to rows that actually have a title on file, unless the user explicitly asks about missing/unknown position:
+    AND NULLIF(TRIM(a.applied_position), '') IS NOT NULL
+  - Prefer ORDER BY COUNT(*) DESC (not only the alias) when ranking groups.
+- When the user asks which position has exactly N candidates (a specific number), use HAVING COUNT(*) = N (and still exclude blank positions unless they ask about unknown titles). If several groups tie, omit LIMIT 1 or use LIMIT with a clear cap.
+
 9. LOOKUP JOINS
 - Use JOIN lookup_option lo ON <foreign_key_column> = lo.id only when the schema clearly shows the requested field is stored as a lookup id (on applications a).
 - When grouping or filtering by a lookup value, use lo.label.
@@ -391,8 +399,8 @@ When relevant, use these exact mappings:
 11. SQL STYLE
 - Keep the query minimal and clean.
 - Select only requested fields and required grouping fields.
-- Do not add ORDER BY unless the user explicitly asks for sorting or ranking.
-- Do not add LIMIT unless the user explicitly asks for top/bottom results.
+- Do not add ORDER BY unless the user explicitly asks for sorting or ranking, or the question implies a single top/bottom group (e.g. "position with the most candidates", "role with highest count").
+- Do not add LIMIT unless the user explicitly asks for top/bottom results or a single winner/tie-breaker row is implied (e.g. one position with the largest count).
 
 EXAMPLES
 
@@ -429,6 +437,13 @@ Output:
 {
   "sql": "SELECT lo.label AS employment_type, COUNT(*) AS total_candidates FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id JOIN lookup_option lo ON a.employment_type_id = lo.id GROUP BY lo.label",
   "explanation": "Counts candidates by employment type"
+}
+
+User: What position has the most candidates?
+Output:
+{
+  "sql": "SELECT a.applied_position, COUNT(*) AS total_candidates FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id WHERE NULLIF(TRIM(a.applied_position), '') IS NOT NULL GROUP BY a.applied_position ORDER BY COUNT(*) DESC LIMIT 1",
+  "explanation": "Top job title among rows with a non-empty applied_position"
 }
 """
 

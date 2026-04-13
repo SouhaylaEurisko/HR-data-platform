@@ -15,7 +15,7 @@ COLUMN_SCHEMA: Dict[str, ColumnSchemaEntry] = {
         "label": "Full Name",
         "aliases": [
             "full name", "fullname", "name", "first name", "last name",
-            "fname", "lname", "given name", "family name", "surname",
+            "given name", "family name", "surname",
             "candidate name", "applicant name",
         ],
     },

@@ -10,6 +10,7 @@ from .candidates import (
     CandidateApplicationStatusUpdate,
     CandidateListResponse,
     CandidateRead,
+    CandidateUpdate,
     CandidateProfile,
     CandidateProfileListItem,
     CandidateProfileListResponse,
@@ -78,6 +79,7 @@ __all__ = [
     "TransportationAvailability",
     # Candidate models
     "CandidateApplicationStatusUpdate",
+    "CandidateUpdate",
     "CandidateHrStageCommentCreate",
     "CandidateHrStageCommentResponse",
     "CandidateApplicationStatusResponse",

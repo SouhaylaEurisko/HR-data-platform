@@ -1,8 +1,36 @@
 /* CandidateDetailPage — Eurisko Theme (Purple / Dark) */
 
 .candidate-detail-page {
+  position: relative;
   max-width: 1000px;
   margin: 0 auto;
+  padding-bottom: 3.5rem;
+}
+
+.candidate-detail-page:not(:has(.candidate-detail-delete-corner)) {
+  padding-bottom: 0;
+}
+
+.candidate-detail-delete-corner {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 2;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--eurisko-radius-sm);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.candidate-detail-delete-corner:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.65);
 }
 
 .read-only-banner {
@@ -14,6 +42,130 @@
   color: var(--eurisko-text-secondary);
   font-size: 0.9rem;
   line-height: 1.45;
+}
+
+.detail-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.detail-card-heading h2 {
+  margin: 0;
+}
+
+.detail-card-editable .detail-card-heading {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--eurisko-border);
+  margin-bottom: 1rem;
+}
+
+.detail-card-editable .detail-card-heading h2 {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.detail-card-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: var(--eurisko-radius-md);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: rgba(168, 85, 247, 0.12);
+  color: var(--eurisko-accent-light);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.detail-card-edit-btn:hover {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: rgba(168, 85, 247, 0.55);
+}
+
+.detail-card-edit-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.detail-item-edit {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.detail-item-edit .detail-label {
+  font-size: 0.78rem;
+  color: var(--eurisko-text-secondary);
+}
+
+.detail-input,
+.detail-textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--eurisko-radius-sm);
+  border: 1px solid var(--eurisko-border);
+  background: var(--eurisko-bg-surface);
+  color: var(--eurisko-text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.detail-textarea {
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.detail-card-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--eurisko-border);
+}
+
+.detail-edit-cancel-btn {
+  padding: 0.5rem 1rem;
+  border-radius: var(--eurisko-radius-sm);
+  border: 1px solid var(--eurisko-border);
+  background: transparent;
+  color: var(--eurisko-text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+}
+
+.detail-edit-save-btn {
+  padding: 0.5rem 1.1rem;
+  border-radius: var(--eurisko-radius-sm);
+  border: none;
+  background: var(--eurisko-primary);
+  color: white;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.detail-edit-save-btn:disabled,
+.detail-edit-cancel-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.detail-edit-error {
+  margin: 0.75rem 0 0;
+  color: var(--eurisko-error);
+  font-size: 0.875rem;
 }
 
 .detail-header {

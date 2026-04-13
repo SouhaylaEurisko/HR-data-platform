@@ -6,6 +6,7 @@ import type {
   CandidateListParams,
   CandidateProfileListResponse,
   CandidateResume,
+  CandidateUpdatePayload,
 } from '../types/api';
 import type { HrStageKey } from '../constants/hrStages';
 
@@ -74,4 +75,19 @@ export const downloadResume = async (candidateId: number): Promise<Blob> => {
 
 export const deleteResume = async (candidateId: number): Promise<void> => {
   await apiClient.delete(API_ENDPOINTS.candidateResume(candidateId));
+};
+
+export const patchCandidate = async (
+  id: number,
+  body: CandidateUpdatePayload,
+  orgId = 1
+): Promise<Candidate> => {
+  const response = await apiClient.patch<Candidate>(API_ENDPOINTS.candidateById(id), body, {
+    params: { org_id: orgId },
+  });
+  return response.data;
+};
+
+export const deleteCandidate = async (id: number, orgId = 1): Promise<void> => {
+  await apiClient.delete(API_ENDPOINTS.candidateById(id), { params: { org_id: orgId } });
 };

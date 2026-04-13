@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from .models import FilterAggregationResult
+from .intent_helpers import is_count_only_query, total_candidates_from_stats
 from .utils import sanitize_rows, sanitize_stats
 from ..filter_agent.utils import filter_empty_rows, resort_by_salary
 from .services.filter_aggregation import generate_filter_agg_sql, summarise_filter_agg
@@ -37,6 +38,8 @@ class FilterAggregationAgent:
         agg_sql = sql_result["aggregation_sql"]
         explanation = sql_result.get("explanation", "")
 
+        count_only = is_count_only_query(message)
+
         # Log SQL generation
         if chatbot_logger:
             chatbot_logger.log_section(
@@ -45,26 +48,35 @@ class FilterAggregationAgent:
                 filter_sql=filter_sql,
                 aggregation_sql=agg_sql,
                 explanation=explanation,
+                count_only_question=count_only,
             )
 
-        # 2. Execute filter query (salary-aware)
+        # 2. Execute filter query (salary-aware), unless user only asked for a count/total
         rows = []
-        try:
-            rows, salary_corrected = execute_salary_aware_query(db, filter_sql)
-            if salary_corrected and chatbot_logger:
-                chatbot_logger.log_section(
-                    "FILTER + AGGREGATION - SALARY FILTER CORRECTION",
-                    status="APPLIED",
-                    rows_after_correction=len(rows),
-                )
-        except (ValueError, RuntimeError) as exc:
-            logger.error(f"Filter query failed: {exc}")
+        if count_only:
             if chatbot_logger:
                 chatbot_logger.log_section(
                     "FILTER + AGGREGATION - FILTER EXECUTION",
-                    status="FAILED",
-                    error=str(exc),
+                    status="SKIPPED",
+                    reason="Count-only question; aggregation supplies totals without sample rows",
                 )
+        else:
+            try:
+                rows, salary_corrected = execute_salary_aware_query(db, filter_sql)
+                if salary_corrected and chatbot_logger:
+                    chatbot_logger.log_section(
+                        "FILTER + AGGREGATION - SALARY FILTER CORRECTION",
+                        status="APPLIED",
+                        rows_after_correction=len(rows),
+                    )
+            except (ValueError, RuntimeError) as exc:
+                logger.error(f"Filter query failed: {exc}")
+                if chatbot_logger:
+                    chatbot_logger.log_section(
+                        "FILTER + AGGREGATION - FILTER EXECUTION",
+                        status="FAILED",
+                        error=str(exc),
+                    )
 
         # 3. Execute aggregation query
         stats = []
@@ -93,7 +105,11 @@ class FilterAggregationAgent:
             descending = "DESC" in tail.split("LIMIT")[0]
             safe_rows = resort_by_salary(safe_rows, descending=descending)
 
-        total = len(safe_rows)
+        stat_total = total_candidates_from_stats(safe_stats)
+        if count_only:
+            total = stat_total if stat_total is not None else 0
+        else:
+            total = len(safe_rows)
 
         # Log raw data from DB (before corrections)
         if chatbot_logger:
@@ -134,11 +150,11 @@ class FilterAggregationAgent:
             chatbot_logger.log_db_stats("FILTER + AGGREGATION - CORRECTED STATS (sent to LLM)", safe_stats)
             chatbot_logger.log_section(
                 "FILTER + AGGREGATION - QUERY EXECUTION",
-                filter_rows_found=total,
+                filter_rows_found=len(safe_rows),
                 aggregation_stats_rows=len(safe_stats),
             )
 
-        if total == 0 and not safe_stats:
+        if not safe_stats and not safe_rows:
             result = FilterAggregationResult(
                 filter_sql=filter_sql,
                 aggregation_sql=agg_sql,
@@ -160,7 +176,12 @@ class FilterAggregationAgent:
 
         # 4. LLM summarises
         summary_data = await summarise_filter_agg(
-            self.llm, message, safe_rows, safe_stats, total
+            self.llm,
+            message,
+            safe_rows,
+            safe_stats,
+            total,
+            stats_only=count_only,
         )
 
         result = FilterAggregationResult(

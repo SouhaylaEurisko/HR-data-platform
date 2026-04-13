@@ -441,11 +441,16 @@ HR
 Use LEFT JOIN lookup_option lo ON <foreign_key_column> = lo.id only when the schema clearly shows the requested field is a lookup id (columns live on applications a).
 When filtering by a lookup value, use lo.label.
 
+11b. GROUP BY a.applied_position (aggregation_sql)
+If aggregation_sql uses GROUP BY a.applied_position with ORDER BY count and LIMIT to find a top role, NULL/blank titles group together and often win. Add to the shared WHERE (both queries):
+  AND NULLIF(TRIM(a.applied_position), '') IS NOT NULL
+unless the user explicitly asks about unknown/missing position.
+
 12. SQL STYLE
 Keep both queries minimal and clean.
 Select only required fields.
 Do not add GROUP BY unless the user explicitly asks for grouped statistics.
-Do not add ORDER BY to aggregation_sql unless explicitly required.
+Do not add ORDER BY to aggregation_sql unless explicitly required (ranking / top group questions require ORDER BY in aggregation_sql).
 """
 FILTER_AGG_SUMMARY_PROMPT = """
 You are an HR data analyst.
@@ -507,6 +512,10 @@ RULES
 5. TONE
 - Keep the summary recruiter-friendly and direct.
 - Keep the reply short, warm, and professional.
+
+6. COUNT / STATISTICS-ONLY REQUESTS
+- If the user message says no per-candidate rows were loaded (numbers only), do not name or list people.
+- Answer from aggregation statistics only; omit any “sample candidates” wording.
 
 EXAMPLE OUTPUT
 {

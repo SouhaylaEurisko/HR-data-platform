@@ -347,6 +347,37 @@ export interface LookupCategory {
   is_system: boolean;
 }
 
+/** PATCH /api/candidates/{id} — only send fields you want to change. */
+export type CandidateUpdatePayload = Partial<{
+  full_name: string | null;
+  email: string | null;
+  date_of_birth: string | null;
+  nationality: string | null;
+  current_address: string | null;
+  residency_type_id: number | null;
+  marital_status_id: number | null;
+  number_of_dependents: number | null;
+  religion_sect: string | null;
+  passport_validity_status_id: number | null;
+  has_transportation: TransportationAvailability | null;
+  applied_position: string | null;
+  applied_position_location: string | null;
+  is_open_for_relocation: RelocationOpenness | null;
+  years_of_experience: number | null;
+  is_employed: boolean | null;
+  current_salary: number | null;
+  expected_salary_remote: number | null;
+  expected_salary_onsite: number | null;
+  notice_period: string | null;
+  is_overtime_flexible: boolean | null;
+  is_contract_flexible: boolean | null;
+  workplace_type_id: number | null;
+  employment_type_id: number | null;
+  tech_stack: string[] | null;
+  education_level_id: number | null;
+  education_completion_status_id: number | null;
+}>;
+
 // Chat types
 export interface ChatRequest {
   message: string;

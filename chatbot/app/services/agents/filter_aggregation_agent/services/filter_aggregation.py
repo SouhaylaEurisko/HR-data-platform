@@ -30,15 +30,28 @@ async def summarise_filter_agg(
     rows: List[Dict[str, Any]],
     stats: List[Dict[str, Any]],
     total: int,
+    *,
+    stats_only: bool = False,
 ) -> Dict[str, str]:
-    row_display = rows_to_display(rows)
     stat_display = stats_to_display(stats)
-    prompt_input = (
-        f"User asked: {user_message}\n"
-        f"Total candidates found: {total}\n\n"
-        f"Sample candidates:\n{row_display}\n\n"
-        f"Aggregation statistics:\n{stat_display}"
-    )
+    if stats_only:
+        prompt_input = (
+            f"User asked: {user_message}\n"
+            f"Total candidates in the filtered set (from aggregation): {total}\n\n"
+            "No per-candidate rows were loaded; the user asked for counts/statistics only.\n\n"
+            f"Aggregation statistics:\n{stat_display}\n\n"
+            "IMPORTANT: Do not name or list individual candidates. "
+            "Answer using only counts and aggregation metrics. "
+            "Keep summary to 1–3 sentences; reply one short sentence."
+        )
+    else:
+        row_display = rows_to_display(rows)
+        prompt_input = (
+            f"User asked: {user_message}\n"
+            f"Total candidates found: {total}\n\n"
+            f"Sample candidates:\n{row_display}\n\n"
+            f"Aggregation statistics:\n{stat_display}"
+        )
     return await llm.call(
         FILTER_AGG_SUMMARY_PROMPT,
         prompt_input,

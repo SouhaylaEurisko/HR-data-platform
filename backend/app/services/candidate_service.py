@@ -7,16 +7,18 @@ DB queries live in repository.candidates_repository.
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from sqlalchemy import nullslast
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
+from ..data.candidate_update_fields import APPLICATION_UPDATE_KEYS, PROFILE_UPDATE_KEYS
 from ..models.candidates import (
     CandidateApplicationStatusUpdate,
     CandidateListResponse,
     CandidateRead,
+    CandidateUpdate,
     CandidateProfile,
     CandidateProfileListItem,
     CandidateProfileListResponse,
@@ -31,6 +33,7 @@ from ..models.enums import ApplicationStatus, TransportationAvailability
 from ..repository.candidates_repository import (
     CandidateListFilterParams,
     apply_candidate_list_filters,
+    delete_candidate_profile_for_org,
     fetch_email_group_rows,
     fetch_latest_application_status,
     get_candidate_profile_by_id_org,
@@ -39,6 +42,7 @@ from ..repository.candidates_repository import (
     latest_application_status_by_candidate_ids,
     latest_applications_by_candidate_ids,
     list_stage_comments_for_candidate,
+    persist_candidate_profile_patch,
     profiles_base_query,
     profiles_query_with_latest_application_join,
     query_profiles_for_list,
@@ -64,6 +68,17 @@ def _transport_enum_from_bool(value: Optional[bool]) -> Optional[TransportationA
     if value is None:
         return None
     return TransportationAvailability.yes if value else TransportationAvailability.no
+
+
+def _transport_bool_from_enum(value: Any) -> Optional[bool]:
+    """Map API TransportationAvailability to applications.has_transportation (bool column)."""
+    if value is None:
+        return None
+    if value == TransportationAvailability.yes:
+        return True
+    if value == TransportationAvailability.no:
+        return False
+    return None
 
 
 def _optional_application_status(raw: Optional[str]) -> Optional[ApplicationStatus]:
@@ -331,6 +346,54 @@ def update_candidate_application_status(
             )
         )
     db.commit()
+    return get_candidate_by_id(db, candidate_id, org_id=org_id)
+
+
+def delete_candidate_profile(db: Session, candidate_id: int, org_id: int) -> bool:
+    """Delete candidate profile; repository removes row and cascades related data."""
+    return delete_candidate_profile_for_org(db, candidate_id, org_id)
+
+
+def update_candidate_profile(
+    db: Session,
+    candidate_id: int,
+    org_id: int,
+    body: CandidateUpdate,
+) -> Optional[CandidateRead]:
+    """Apply partial updates to profile + latest application row."""
+    if get_candidate_profile_by_id_org(db, candidate_id, org_id) is None:
+        return None
+
+    data = body.model_dump(exclude_unset=True)
+    if not data:
+        return get_candidate_by_id(db, candidate_id, org_id=org_id)
+
+    nationality_explicit = "nationality" in data
+    nationality_val = data.pop("nationality", None) if nationality_explicit else None
+
+    profile_updates = {k: data.pop(k) for k in list(data.keys()) if k in PROFILE_UPDATE_KEYS}
+
+    application_updates: dict[str, Any] = {}
+    for key in list(data.keys()):
+        if key == "has_transportation":
+            application_updates[key] = _transport_bool_from_enum(data.pop(key))
+        elif key in APPLICATION_UPDATE_KEYS:
+            application_updates[key] = data.pop(key)
+
+    if not profile_updates and not application_updates and not nationality_explicit:
+        return get_candidate_by_id(db, candidate_id, org_id=org_id)
+
+    if not persist_candidate_profile_patch(
+        db,
+        candidate_id=candidate_id,
+        org_id=org_id,
+        profile_updates=profile_updates,
+        application_updates=application_updates,
+        nationality_explicit=nationality_explicit,
+        nationality_value=nationality_val,
+    ):
+        return None
+
     return get_candidate_by_id(db, candidate_id, org_id=org_id)
 
 

@@ -17,12 +17,15 @@ from ..models import (
     CandidateHrStageCommentCreate,
     CandidateProfileListResponse,
     CandidateRead,
+    CandidateUpdate,
 )
 from ..services.candidate_service import (
     append_candidate_hr_stage_comment,
+    delete_candidate_profile,
     get_candidate_by_id,
     list_candidate_profiles,
     update_candidate_application_status,
+    update_candidate_profile,
 )
 
 router = APIRouter(prefix="/api/candidates", tags=["candidates"])
@@ -82,6 +85,34 @@ def patch_candidate_application_status(
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
     return result
+
+
+@router.patch("/{candidate_id}", response_model=CandidateRead)
+def patch_candidate_endpoint(
+    candidate_id: int,
+    body: CandidateUpdate,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
+    org_id: int = Query(1, description="Organization ID"),
+    db: Session = Depends(get_db),
+) -> CandidateRead:
+    require_hr_manager(current_user)
+    result = update_candidate_profile(db, candidate_id, org_id=org_id, body=body)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
+    return result
+
+
+@router.delete("/{candidate_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_candidate_endpoint(
+    candidate_id: int,
+    current_user: Annotated[UserAccount, Depends(get_current_user)],
+    org_id: int = Query(1, description="Organization ID"),
+    db: Session = Depends(get_db),
+) -> None:
+    require_hr_manager(current_user)
+    applied = delete_candidate_profile(db, candidate_id, org_id=org_id)
+    if not applied:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
 
 
 @router.get("/{candidate_id}", response_model=CandidateRead)
