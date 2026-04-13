@@ -20,7 +20,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       // After successful login, open candidates list.
-      navigate('/candidates', { replace: true });
+      navigate('/', { replace: true });
     } catch (err: any) {
       setError(getErrorMessage(err));
     } finally {

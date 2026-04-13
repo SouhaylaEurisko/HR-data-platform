@@ -52,7 +52,7 @@ export default function UploadPage() {
       lines.push('A file with the same name has already been imported.');
     }
     if (check.duplicate_sheets.length > 0) {
-      lines.push(`These sheet names already exist: ${check.duplicate_sheets.join(', ')}`);
+      lines.push(`These sheet names already exist: ${check.duplicate_sheets.join(', ')}.`);
     }
     lines.push('Proceeding may create duplicate candidate entries.');
     return lines.join(' ');
