@@ -7,13 +7,12 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from ..models.candidate_resume import CandidateResume, CandidateResumeRead
+from ..constants import ResumeUpload
+from ..models.candidate_resume import CandidateResume
+from ..schemas.resume import CandidateResumeRead
 from ..repository import candidates_repository, resume_repository
 
 logger = logging.getLogger(__name__)
-
-_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
-
 
 async def upload_resume(
     db: Session,
@@ -24,7 +23,7 @@ async def upload_resume(
     file_data: bytes,
 ) -> CandidateResumeRead:
     """Store a resume PDF and trigger GPT parsing for resume_info."""
-    if len(file_data) > _MAX_FILE_SIZE:
+    if len(file_data) > ResumeUpload.MAX_FILE_BYTES:
         raise ValueError("Resume file exceeds maximum size of 10 MB.")
 
     candidate = candidates_repository.get_candidate_profile_by_id_org(

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..config import get_db
 from ..models.user import UserAccount
-from ..models.import_session import ConfirmImportRequest, DuplicateCheckRequest
+from ..schemas.import_session import ConfirmImportRequest, DuplicateCheckRequest
 from ..routers.auth import get_current_user, require_hr_manager
 from ..services.import_service import (
     analyze_workbook,

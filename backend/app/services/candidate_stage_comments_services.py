@@ -10,7 +10,7 @@ from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
-from ..models.candidate_stage_comment import (
+from ..dtos.hr_stage_comments import (
     HrStageCommentsRead,
     hr_stage_comments_latest_only,
     json_rows_to_hr_stage_comments_read,

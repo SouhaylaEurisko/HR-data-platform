@@ -10,7 +10,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..config import get_db
-from ..models.candidate_resume import CandidateResumeRead
+from ..constants import ResumeUpload
+from ..schemas.resume import CandidateResumeRead
 from ..models.user import UserAccount
 from ..routers.auth import get_current_user, require_hr_manager
 from ..services.resume_service import (
@@ -25,11 +26,6 @@ router = APIRouter(
     tags=["resume"],
 )
 
-_ALLOWED_CONTENT_TYPES = {
-    "application/pdf",
-}
-
-
 @router.post("", response_model=CandidateResumeRead, status_code=status.HTTP_201_CREATED)
 async def upload_candidate_resume(
     candidate_id: int,
@@ -40,7 +36,7 @@ async def upload_candidate_resume(
 ) -> CandidateResumeRead:
     require_hr_manager(current_user)
 
-    if file.content_type not in _ALLOWED_CONTENT_TYPES:
+    if file.content_type not in ResumeUpload.ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only PDF files are accepted.",

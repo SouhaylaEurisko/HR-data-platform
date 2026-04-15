@@ -1,21 +1,10 @@
-"""
-Conversation and Message models — store chat conversations and messages per user.
-"""
+"""Conversation and Message ORM — per-user chat history."""
 
-from datetime import datetime
-from typing import Optional
-
-from pydantic import BaseModel
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..config.database import Base
-
-
-# ──────────────────────────────────────────────
-# SQLAlchemy ORM models
-# ──────────────────────────────────────────────
 
 
 class Conversation(Base):
@@ -56,43 +45,3 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     conversation = relationship("Conversation", back_populates="messages")
-
-
-# ──────────────────────────────────────────────
-# Pydantic schemas (for API if needed)
-# ──────────────────────────────────────────────
-
-
-class MessageRead(BaseModel):
-    id: int
-    conversation_id: int
-    role: str
-    content: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class MessageCreate(BaseModel):
-    role: str  # 'user' | 'assistant' | 'system'
-    content: str
-
-
-class ConversationRead(BaseModel):
-    id: int
-    user_account_id: int
-    title: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class ConversationCreate(BaseModel):
-    title: Optional[str] = None
-
-
-class ConversationWithMessages(ConversationRead):
-    messages: list[MessageRead] = []

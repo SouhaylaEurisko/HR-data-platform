@@ -1,15 +1,8 @@
-"""
-CustomFieldDefinition -- registry for org-specific dynamic fields
-stored in the candidate.custom_fields JSONB column.
-"""
+"""CustomFieldDefinition ORM — org-specific dynamic fields (JSONB on candidate)."""
 
-from sqlalchemy import (
-    Boolean, Column, Integer, SmallInteger, String,
-    DateTime, ForeignKey, UniqueConstraint,
-)
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from pydantic import BaseModel
 
 from ..config.database import Base
 
@@ -34,14 +27,3 @@ class CustomFieldDefinition(Base):
 
     organization = relationship("Organization", back_populates="custom_field_definitions")
     lookup_category = relationship("LookupCategory")
-
-
-
-class CustomFieldDefinitionOut(BaseModel):
-    id: int
-    field_key: str
-    label: str
-    field_type: str
-
-    class Config:
-        from_attributes = True

@@ -1,8 +1,12 @@
-"""Pydantic schemas for org-scoped analytics API responses."""
+"""Org-scoped analytics API response schemas."""
+
+from __future__ import annotations
 
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
+
+from ..dtos.analytics import AnalyticsFilterOption
 
 
 class NamedCount(BaseModel):
@@ -18,14 +22,6 @@ class PositionAverageMetric(BaseModel):
     name: str = Field(description="applied_position label")
     average: float
     sample_count: int = Field(ge=0, description="Candidates included in the average")
-
-
-class AnalyticsFilterOption(BaseModel):
-    """One selectable filter value exposed by analytics."""
-
-    value: str = Field(description="Opaque value sent back to the analytics API")
-    label: str = Field(description="Human-readable label shown in the UI")
-    count: int = Field(ge=0, description="Candidates in this bucket for the full organization dataset")
 
 
 class AnalyticsFilterOptions(BaseModel):

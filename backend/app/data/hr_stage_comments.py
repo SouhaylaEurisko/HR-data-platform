@@ -1,14 +1,11 @@
 """
 HR pipeline stage keys (shared by stage-comment API and models).
+
+Canonical definitions live in ``app.constants``.
 """
 
 from __future__ import annotations
 
-from typing import Tuple
+from ..constants import HR_STAGE_KEYS
 
-HR_STAGE_KEYS: Tuple[str, ...] = (
-    "pre_screening",
-    "technical_interview",
-    "hr_interview",
-    "offer_stage",
-)
+__all__ = ["HR_STAGE_KEYS"]

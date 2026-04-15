@@ -7,11 +7,12 @@ Two-tier approach:
 """
 
 import logging
-from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, TypedDict, cast
 
 from sqlalchemy.orm import Session
 
+from ..constants import ColumnNormalizer
+from ..dtos.column_normalizer import ColumnMapping, NormalizationResult
 from ..data.candidate_column_schema import (
     ALL_KNOWN_COLUMNS,
     COLUMN_LABELS,
@@ -36,32 +37,12 @@ __all__ = [
     "normalize_columns",
 ]
 
-# LLM confidence routing
-LLM_DEFAULT_CONFIDENCE = 0.5
-LLM_AUTO_MATCH_MIN = 0.90
-LLM_SUGGEST_MIN = 0.70
-
 _REVERSE_INDEX = build_alias_reverse_index()
 
 
 class LlmColumnSuggestion(TypedDict, total=False):
     column: Optional[str]
     confidence: float
-
-
-@dataclass
-class ColumnMapping:
-    excel_header: str
-    db_column: Optional[str] = None
-    confidence: float = 0.0
-    source: str = "unmatched"  # programmatic | llm | unmatched
-
-
-@dataclass
-class NormalizationResult:
-    matched: List[ColumnMapping] = field(default_factory=list)
-    suggested: List[ColumnMapping] = field(default_factory=list)
-    unmatched: List[ColumnMapping] = field(default_factory=list)
 
 
 def _custom_header_to_field_key(defs: List[CustomFieldDefinition]) -> Dict[str, str]:
@@ -146,12 +127,12 @@ def _apply_llm_suggestions(
         if col:
             mapping.db_column = col
             mapping.confidence = float(
-                suggestion.get("confidence", LLM_DEFAULT_CONFIDENCE)
+                suggestion.get("confidence", ColumnNormalizer.LLM_DEFAULT_CONFIDENCE)
             )
             mapping.source = "llm"
-            if mapping.confidence >= LLM_AUTO_MATCH_MIN:
+            if mapping.confidence >= ColumnNormalizer.LLM_AUTO_MATCH_MIN:
                 result.matched.append(mapping)
-            elif mapping.confidence >= LLM_SUGGEST_MIN:
+            elif mapping.confidence >= ColumnNormalizer.LLM_SUGGEST_MIN:
                 result.suggested.append(mapping)
             else:
                 new_unmatched.append(mapping)

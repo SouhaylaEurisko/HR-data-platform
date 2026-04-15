@@ -1,14 +1,9 @@
-"""
-ImportSession -- tracks each Excel file upload as a discrete event.
-"""
+"""ImportSession ORM — tracks each Excel file upload as a discrete event."""
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from typing import Any, Dict, List
-
-from pydantic import BaseModel
 
 from ..config.database import Base
 
@@ -33,23 +28,3 @@ class ImportSession(Base):
     organization = relationship("Organization", back_populates="import_sessions")
     uploaded_by = relationship("UserAccount")
     candidate_profiles = relationship("CandidateProfile", back_populates="import_session")
-
-
-
-# ──────────────────────────────────────────────
-# Request / Response schemas
-# ──────────────────────────────────────────────
-
-class ConfirmImportRequest(BaseModel):
-    session_id: int
-    confirmed_mappings: Dict[str, str]
-    new_custom_fields: List[Dict[str, Any]] = []
-    skip_columns: List[str] = []
-    sheet_names: List[str]
-    org_id: int
-
-
-class DuplicateCheckRequest(BaseModel):
-    filename: str
-    sheet_names: List[str]
-    org_id: int = 1

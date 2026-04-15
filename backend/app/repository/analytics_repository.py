@@ -2,38 +2,24 @@
 Org-scoped analytics — SQLAlchemy queries over applications, profiles, stage comments, resumes.
 """
 
-from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from ..models.analytics import AnalyticsFilterOption, PositionAverageMetric
+from ..constants import Analytics
+from ..dtos.analytics import AnalyticsFilterOption, AnalyticsFilters
 from ..models.applications import Application
 from ..models.candidates import CandidateProfile
 from ..models.candidate_stage_comment import CandidateStageComment
 from ..models.candidate_resume import CandidateResume
+from ..schemas.analytics import PositionAverageMetric
 
-UNSET_FILTER_VALUE = "__unset__"
-UNSET_STATUS_KEY = "unset"
-TOP_N_BUCKETS = 10
-RECENT_APPLICATION_DAYS = 30
-
-STATUS_LABELS = {
-    "pending": "Pending",
-    "on_hold": "On hold",
-    "rejected": "Rejected",
-    "selected": "Selected",
-    UNSET_STATUS_KEY: "Not set",
-}
-
-
-@dataclass(frozen=True, slots=True)
-class AnalyticsFilters:
-    status: Optional[str] = None
-    position: Optional[str] = None
-    location: Optional[str] = None
+UNSET_FILTER_VALUE = Analytics.UNSET_FILTER_VALUE
+UNSET_STATUS_KEY = Analytics.UNSET_STATUS_KEY
+TOP_N_BUCKETS = Analytics.TOP_N_BUCKETS
+RECENT_APPLICATION_DAYS = Analytics.RECENT_APPLICATION_DAYS
 
 
 def clean_filter(value: Optional[str]) -> Optional[str]:

@@ -10,18 +10,19 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..models.applications import Application
-from ..models.analytics import (
+from ..schemas.analytics import (
     AnalyticsAppliedFilters,
     AnalyticsFilterOptions,
     AnalyticsOverviewResponse,
     NamedCount,
 )
+from ..constants import Analytics, STATUS_LABELS
 from ..repository import analytics_repository as ar
 
-UNSET_STATUS_KEY = ar.UNSET_STATUS_KEY
-TOP_N_BUCKETS = ar.TOP_N_BUCKETS
-RECENT_APPLICATION_DAYS = ar.RECENT_APPLICATION_DAYS
-_STATUS_LABELS = ar.STATUS_LABELS
+UNSET_STATUS_KEY = Analytics.UNSET_STATUS_KEY
+TOP_N_BUCKETS = Analytics.TOP_N_BUCKETS
+RECENT_APPLICATION_DAYS = Analytics.RECENT_APPLICATION_DAYS
+_STATUS_LABELS = STATUS_LABELS
 
 
 def _named_counts(rows: list[tuple[str | None, int]], *, empty_label: str = "Unknown") -> List[NamedCount]:

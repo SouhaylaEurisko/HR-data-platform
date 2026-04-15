@@ -11,7 +11,8 @@ from typing import Any, Dict, List
 import httpx
 
 from ...config.config import config
-from .models import ResumeInfo
+from ...constants import ResumeParser
+from ...dtos.resume_parser import ResumeInfo
 from .prompts import RESUME_EXTRACT_PROMPT
 
 logger = logging.getLogger(__name__)
@@ -30,9 +31,9 @@ def _pdf_pages_to_base64_images(pdf_bytes: bytes) -> List[str]:
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     images: List[str] = []
-    for page_num in range(min(len(doc), 5)):
+    for page_num in range(min(len(doc), ResumeParser.MAX_PDF_PAGES)):
         page = doc.load_page(page_num)
-        pix = page.get_pixmap(dpi=200)
+        pix = page.get_pixmap(dpi=ResumeParser.RENDER_DPI)
         img_bytes = pix.tobytes("png")
         images.append(base64.b64encode(img_bytes).decode("utf-8"))
     doc.close()

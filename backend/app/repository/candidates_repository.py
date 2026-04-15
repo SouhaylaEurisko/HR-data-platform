@@ -1,6 +1,5 @@
 """Candidate profile, application, and stage-comment queries."""
 
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional, Tuple
@@ -9,6 +8,8 @@ from sqlalchemy import func, nullslast
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.orm.attributes import flag_modified
 
+from ..constants import CandidateList, HR_STAGE_KEYS
+from ..dtos.candidate import CandidateListFilterParams
 from ..models.applications import Application
 from ..models.candidate_stage_comment import CandidateStageComment
 from ..models.candidates import CandidateProfile
@@ -25,19 +26,8 @@ _UI_LIST_SORT_COLUMNS: dict[str, Any] = {
     "date_of_birth": CandidateProfile.date_of_birth,
 }
 
-
-@dataclass(frozen=True, slots=True)
-class CandidateListFilterParams:
-    search: Optional[str] = None
-    applied_position: Optional[str] = None
-    email: Optional[str] = None
-    nationality: Optional[str] = None
-    min_years_experience: Optional[float] = None
-    max_years_experience: Optional[float] = None
-    min_expected_salary_remote: Optional[float] = None
-    max_expected_salary_remote: Optional[float] = None
-    min_expected_salary_onsite: Optional[float] = None
-    max_expected_salary_onsite: Optional[float] = None
+assert set(_CHAT_LIST_SORT_COLUMNS) == set(CandidateList.CHAT_SORT_BY_KEYS)
+assert set(_UI_LIST_SORT_COLUMNS) | {"applied_position"} == set(CandidateList.PROFILE_SORT_BY_KEYS)
 
 
 def _dec(value: Optional[float]) -> Optional[Decimal]:
@@ -413,7 +403,7 @@ def set_application_status_on_candidate_stage_comments(
             CandidateStageComment(
                 candidate_id=candidate_id,
                 organization_id=org_id,
-                stage_key="pre_screening",
+                stage_key=HR_STAGE_KEYS[0],
                 entries=[],
                 application_status=status_value,
             )

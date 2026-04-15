@@ -8,8 +8,9 @@ import httpx
 from sqlalchemy.orm import Session
 
 from ..config import config
-from ..models.chat import ChatResponse, ChatSearchFilters, AggregationResult
-from ..models.candidates import CandidateRead
+from ..dtos.chat import AggregationResult, ChatSearchFilters
+from ..schemas.candidate import CandidateRead
+from ..schemas.chat import ChatResponse
 from ..services.candidate_service import list_candidates
 from ..clients.chatbot_client import ChatbotClient
 

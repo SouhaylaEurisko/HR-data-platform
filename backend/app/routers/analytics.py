@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from ..config import get_db
-from ..models.analytics import AnalyticsOverviewResponse
+from ..schemas.analytics import AnalyticsOverviewResponse
 from ..models.user import UserAccount
 from ..routers.auth import get_current_user
 from ..services.analytics_service import get_analytics_overview

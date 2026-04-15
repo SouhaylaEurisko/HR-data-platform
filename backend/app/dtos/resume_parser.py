@@ -1,4 +1,4 @@
-"""Pydantic models for structured resume data extracted by GPT-4o vision."""
+"""Structured resume payload produced by the resume parser agent (internal)."""
 
 from typing import List, Optional
 

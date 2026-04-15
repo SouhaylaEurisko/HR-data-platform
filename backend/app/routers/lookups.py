@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..config import get_db
-from ..models.lookup import LookupCategoryOut, LookupOption, LookupOptionOut, CreateLookupOptionRequest
+from ..models.lookup import LookupOption
+from ..schemas.lookup import CreateLookupOptionRequest, LookupCategoryOut, LookupOptionOut
 from ..models.user import UserAccount
 from ..routers.auth import get_current_user, require_hr_manager
 from ..repository import lookups_repository

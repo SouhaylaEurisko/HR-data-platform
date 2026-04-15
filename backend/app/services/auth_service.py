@@ -9,8 +9,11 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
+from ..constants import Auth
+
 from ..config import config
-from ..models.user import UserAccount, UserCreate
+from ..models.user import UserAccount
+from ..schemas.user import UserCreate
 from ..repository import auth_repository as user_repo
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -111,7 +114,7 @@ def create_user(db: Session, user_create: UserCreate) -> UserAccount:
         hashed_password=get_password_hash(user_create.password),
         first_name=user_create.first_name.strip(),
         last_name=user_create.last_name.strip(),
-        role=user_create.role or "hr_manager",
+        role=user_create.role or Auth.HR_MANAGER_ROLE,
         is_active=True,
     )
     return user_repo.insert_user(db, user)

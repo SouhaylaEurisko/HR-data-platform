@@ -10,9 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from ..config import get_db
+from ..constants import CandidateList
 from ..models.user import UserAccount
 from ..routers.auth import get_current_user, require_hr_manager
-from ..models import (
+from ..schemas.candidate import (
     CandidateApplicationStatusResponse,
     CandidateApplicationStatusUpdate,
     CandidateHrStageCommentCreate,
@@ -36,8 +37,10 @@ router = APIRouter(prefix="/api/candidates", tags=["candidates"])
 
 @router.get("", response_model=CandidateProfileListResponse)
 def list_candidates_endpoint(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page: int = Query(CandidateList.DEFAULT_PAGE, ge=1),
+    page_size: int = Query(
+        CandidateList.DEFAULT_PAGE_SIZE, ge=1, le=CandidateList.MAX_PAGE_SIZE
+    ),
     org_id: int = Query(1, description="Organization ID"),
     search: Optional[str] = None,
     applied_position: Optional[str] = None,

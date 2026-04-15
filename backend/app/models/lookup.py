@@ -1,22 +1,25 @@
-"""
-Lookup models -- dynamic enum pattern.
-Two tables handle all enumerable dropdown values in the system.
-"""
+"""Lookup ORM — dynamic enum pattern (category + option rows)."""
 
 from sqlalchemy import (
-    Boolean, Column, Integer, SmallInteger, String, Text,
-    DateTime, ForeignKey, UniqueConstraint,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..config.database import Base
-from pydantic import BaseModel
-from typing import Optional
 
 
 class LookupCategory(Base):
     """Defines the *type* of dropdown (e.g. workplace_type, marital_status)."""
+
     __tablename__ = "lookup_category"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -31,6 +34,7 @@ class LookupCategory(Base):
 
 class LookupOption(Base):
     """Actual dropdown values within a category."""
+
     __tablename__ = "lookup_option"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -47,32 +51,3 @@ class LookupOption(Base):
     )
 
     category = relationship("LookupCategory", back_populates="options")
-
-
-
-class LookupOptionOut(BaseModel):
-    id: int
-    code: str
-    label: str
-    display_order: int
-    is_active: bool
-
-    class Config:
-        from_attributes = True
-
-
-class LookupCategoryOut(BaseModel):
-    id: int
-    code: str
-    label: str
-    description: Optional[str] = None
-    is_system: bool
-
-    class Config:
-        from_attributes = True
-
-
-class CreateLookupOptionRequest(BaseModel):
-    code: str
-    label: str
-    display_order: int = 0

@@ -10,14 +10,15 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 
 from ..config import get_db, config
-from ..models.user import (
+from ..constants import Auth
+from ..models.user import UserAccount
+from ..schemas.user import (
     AdminUserCreate,
     ChangePasswordRequest,
-    UserAccount,
-    UserCreate,
-    UserRead,
     LoginRequest,
     LoginResponse,
+    UserCreate,
+    UserRead,
 )
 from ..services.auth_service import (
     AccountDeactivatedError,
@@ -70,11 +71,8 @@ def get_current_user(
     return user
 
 
-HR_MANAGER_ROLE = "hr_manager"
-
-
 def require_hr_manager(current_user: UserAccount) -> None:
-    if current_user.role != HR_MANAGER_ROLE:
+    if current_user.role != Auth.HR_MANAGER_ROLE:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only HR managers can perform this action.",

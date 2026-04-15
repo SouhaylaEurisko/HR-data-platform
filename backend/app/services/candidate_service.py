@@ -10,27 +10,26 @@ from typing import Any, Literal, Optional
 
 from sqlalchemy.orm import Session
 
+from ..constants import CandidateList
 from ..data.candidate_update_fields import APPLICATION_UPDATE_KEYS, PROFILE_UPDATE_KEYS
-from ..models.candidates import (
+from ..dtos.candidate import CandidateListFilterParams
+from ..dtos.hr_stage_comments import HrStageCommentsRead
+from ..models.candidates import CandidateProfile
+from ..models.enums import ApplicationStatus, TransportationAvailability
+from ..schemas.candidate import (
+    CandidateApplicationStatusResponse,
     CandidateApplicationStatusUpdate,
+    CandidateHrStageCommentCreate,
+    CandidateHrStageCommentsUpdateResponse,
     CandidateListResponse,
+    CandidateProfileListItem,
+    CandidateProfileListResponse,
     CandidateProfilePatchResponse,
     CandidateRead,
     CandidateUpdate,
-    CandidateProfile,
-    CandidateProfileListItem,
-    CandidateProfileListResponse,
     RelatedApplicationSummary,
 )
-from ..models.candidate_stage_comment import (
-    CandidateApplicationStatusResponse,
-    CandidateHrStageCommentCreate,
-    CandidateHrStageCommentsUpdateResponse,
-    HrStageCommentsRead,
-)
-from ..models.enums import ApplicationStatus, TransportationAvailability
 from ..repository.candidates_repository import (
-    CandidateListFilterParams,
     append_hr_stage_comment_entry,
     delete_candidate_profile_for_org,
     fetch_filtered_candidates_page,
@@ -129,8 +128,8 @@ def list_candidates(
     db: Session,
     *,
     org_id: int = 1,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = CandidateList.DEFAULT_PAGE,
+    page_size: int = CandidateList.DEFAULT_PAGE_SIZE,
     search: Optional[str] = None,
     applied_position: Optional[str] = None,
     email: Optional[str] = None,
@@ -189,8 +188,8 @@ def list_candidate_profiles(
     db: Session,
     *,
     org_id: int = 1,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = CandidateList.DEFAULT_PAGE,
+    page_size: int = CandidateList.DEFAULT_PAGE_SIZE,
     search: Optional[str] = None,
     applied_position: Optional[str] = None,
     sort_by: Literal[
