@@ -31,6 +31,7 @@ class Application(Base):
     notice_period = Column(String(100), nullable=True)
     applied_at = Column(DateTime(timezone=True), nullable=True)
     current_address = Column(Text, nullable=True)
+    nationality = Column(String(100), nullable=True, index=True)
     residency_type_id = Column(Integer, ForeignKey("lookup_option.id"), nullable=True)
     marital_status_id = Column(Integer, ForeignKey("lookup_option.id"), nullable=True)
     number_of_dependents = Column(SmallInteger, nullable=True)

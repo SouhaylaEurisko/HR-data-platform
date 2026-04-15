@@ -1,16 +1,29 @@
 """Candidate profile, application, and stage-comment queries."""
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
-from sqlalchemy import func
+from sqlalchemy import func, nullslast
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.orm.attributes import flag_modified
 
 from ..models.applications import Application
 from ..models.candidate_stage_comment import CandidateStageComment
 from ..models.candidates import CandidateProfile
+
+_CHAT_LIST_SORT_COLUMNS: dict[str, Any] = {
+    "created_at": CandidateProfile.created_at,
+    "full_name": CandidateProfile.full_name,
+}
+
+_UI_LIST_SORT_COLUMNS: dict[str, Any] = {
+    "created_at": CandidateProfile.created_at,
+    "full_name": CandidateProfile.full_name,
+    "email": CandidateProfile.email,
+    "date_of_birth": CandidateProfile.date_of_birth,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +74,9 @@ def apply_candidate_list_filters(q, db: Session, f: CandidateListFilterParams):
         )
     if f.email:
         q = q.filter(CandidateProfile.email.ilike(f"%{f.email.strip()}%"))
+    if f.nationality and str(f.nationality).strip():
+        term = f"%{str(f.nationality).strip()}%"
+        q = _apply_application_predicate(q, Application.nationality.ilike(term))
     q = _apply_application_range(
         q, f.min_years_experience, f.max_years_experience, Application.years_of_experience
     )
@@ -258,6 +274,154 @@ def list_stage_comments_for_candidate(
     )
 
 
+def fetch_filtered_candidates_page(
+    db: Session,
+    *,
+    org_id: int,
+    filters: CandidateListFilterParams,
+    sort_by: str,
+    sort_order: Literal["asc", "desc"],
+    page: int,
+    page_size: int,
+) -> Tuple[int, List[CandidateProfile]]:
+    """Count + page of profiles after list filters (chat / rich list)."""
+    count_q = apply_candidate_list_filters(profiles_base_query(db, org_id), db, filters)
+    total = count_q.count()
+    sort_col = _CHAT_LIST_SORT_COLUMNS.get(sort_by, CandidateProfile.created_at)
+    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
+    offset = (page - 1) * page_size
+    rows = (
+        count_q.order_by(order, CandidateProfile.id.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+    return total, rows
+
+
+def fetch_profile_list_page(
+    db: Session,
+    *,
+    org_id: int,
+    search: Optional[str],
+    applied_position: Optional[str],
+    sort_by: Literal[
+        "created_at", "full_name", "email", "date_of_birth", "applied_position"
+    ],
+    sort_order: Literal["asc", "desc"],
+    page: int,
+    page_size: int,
+) -> Tuple[int, List[CandidateProfile]]:
+    """Count + page for HR UI candidate table (sort may join latest application)."""
+    query = query_profiles_for_list(db, org_id, search, applied_position)
+    if sort_by == "applied_position":
+        query, LatestApp = profiles_query_with_latest_application_join(db, query)
+        sort_col = LatestApp.applied_position
+    else:
+        sort_col = _UI_LIST_SORT_COLUMNS.get(sort_by, CandidateProfile.created_at)
+
+    total = query.count()
+    order = (
+        nullslast(sort_col.asc())
+        if sort_order == "asc"
+        else nullslast(sort_col.desc())
+    )
+    offset = (page - 1) * page_size
+    rows = (
+        query.order_by(order, CandidateProfile.id.desc())
+        .offset(offset)
+        .limit(page_size)
+        .all()
+    )
+    return total, rows
+
+
+def get_shared_email_application_context(
+    db: Session,
+    *,
+    org_id: int,
+    candidate_id: int,
+    email: Optional[str],
+) -> Tuple[Optional[int], Optional[int], List[Any]]:
+    """
+    Same-email siblings within org: 1-based index of candidate_id, total count, raw group rows.
+
+    Rows match ``fetch_email_group_rows`` shape (id, applied_position, applied_at, created_at).
+    """
+    if not email or not str(email).strip():
+        return None, None, []
+    norm = str(email).strip().lower()
+    rows = fetch_email_group_rows(db, org_id=org_id, email_normalized=norm)
+    if not rows:
+        return None, None, []
+    ids = [r.id for r in rows]
+    try:
+        idx_1based = ids.index(candidate_id) + 1
+    except ValueError:
+        return None, None, list(rows)
+    return idx_1based, len(rows), list(rows)
+
+
+def append_hr_stage_comment_entry(
+    db: Session,
+    *,
+    candidate_id: int,
+    org_id: int,
+    stage_key: str,
+    text: str,
+) -> bool:
+    """Append one JSONB entry for (candidate, stage). Returns False if profile missing."""
+    if get_candidate_profile_by_id_org(db, candidate_id, org_id) is None:
+        return False
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    new_item = {"text": text, "created_at": now}
+    existing = get_stage_comment_for_update(db, candidate_id, org_id, stage_key)
+    if existing:
+        entries = list(existing.entries) if isinstance(existing.entries, list) else []
+        entries.append(new_item)
+        existing.entries = entries
+        flag_modified(existing, "entries")
+    else:
+        db.add(
+            CandidateStageComment(
+                candidate_id=candidate_id,
+                organization_id=org_id,
+                stage_key=stage_key,
+                entries=[new_item],
+            )
+        )
+    db.commit()
+    return True
+
+
+def set_application_status_on_candidate_stage_comments(
+    db: Session,
+    *,
+    candidate_id: int,
+    org_id: int,
+    status_value: str,
+) -> bool:
+    """Mirror application_status onto all stage-comment rows (or seed one row). False if no profile."""
+    if get_candidate_profile_by_id_org(db, candidate_id, org_id) is None:
+        return False
+    stage_rows = list_stage_comments_for_candidate(db, candidate_id, org_id)
+    if stage_rows:
+        for row in stage_rows:
+            row.application_status = status_value
+    else:
+        db.add(
+            CandidateStageComment(
+                candidate_id=candidate_id,
+                organization_id=org_id,
+                stage_key="pre_screening",
+                entries=[],
+                application_status=status_value,
+            )
+        )
+    db.commit()
+    return True
+
+
 def delete_candidate_profile_for_org(db: Session, candidate_id: int, org_id: int) -> bool:
     """
     Remove a candidate profile scoped to org.
@@ -280,8 +444,6 @@ def persist_candidate_profile_patch(
     org_id: int,
     profile_updates: Dict[str, Any],
     application_updates: Dict[str, Any],
-    nationality_explicit: bool,
-    nationality_value: Optional[str],
 ) -> bool:
     """
     Apply profile + latest-application field writes and commit.
@@ -295,7 +457,7 @@ def persist_candidate_profile_patch(
     for key, value in profile_updates.items():
         setattr(candidate, key, value)
 
-    need_application = bool(application_updates) or nationality_explicit
+    need_application = bool(application_updates)
     application = get_latest_application_for_candidate(db, candidate.id)
     if application is None and need_application:
         application = Application(
@@ -306,14 +468,12 @@ def persist_candidate_profile_patch(
         db.flush()
 
     if application is not None:
-        if nationality_explicit:
+        if "nationality" in application_updates:
             cf = dict(application.custom_fields or {})
-            if nationality_value is not None and str(nationality_value).strip() != "":
-                cf["nationality"] = str(nationality_value).strip()
-            else:
-                cf.pop("nationality", None)
-            application.custom_fields = cf
-            flag_modified(application, "custom_fields")
+            if "nationality" in cf:
+                cf.pop("nationality")
+                application.custom_fields = cf
+                flag_modified(application, "custom_fields")
 
         for key, value in application_updates.items():
             setattr(application, key, value)

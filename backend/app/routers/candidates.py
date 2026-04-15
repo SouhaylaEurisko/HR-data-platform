@@ -13,9 +13,12 @@ from ..config import get_db
 from ..models.user import UserAccount
 from ..routers.auth import get_current_user, require_hr_manager
 from ..models import (
+    CandidateApplicationStatusResponse,
     CandidateApplicationStatusUpdate,
     CandidateHrStageCommentCreate,
+    CandidateHrStageCommentsUpdateResponse,
     CandidateProfileListResponse,
+    CandidateProfilePatchResponse,
     CandidateRead,
     CandidateUpdate,
 )
@@ -57,14 +60,14 @@ def list_candidates_endpoint(
     )
 
 
-@router.post("/{candidate_id}/hr-stage-comments", response_model=CandidateRead)
+@router.post("/{candidate_id}/hr-stage-comments", response_model=CandidateHrStageCommentsUpdateResponse)
 def post_candidate_hr_stage_comment(
     candidate_id: int,
     body: CandidateHrStageCommentCreate,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
     db: Session = Depends(get_db),
-) -> CandidateRead:
+) -> CandidateHrStageCommentsUpdateResponse:
     require_hr_manager(current_user)
     result = append_candidate_hr_stage_comment(db, candidate_id, org_id=org_id, body=body)
     if result is None:
@@ -72,14 +75,14 @@ def post_candidate_hr_stage_comment(
     return result
 
 
-@router.patch("/{candidate_id}/application-status", response_model=CandidateRead)
+@router.patch("/{candidate_id}/application-status", response_model=CandidateApplicationStatusResponse)
 def patch_candidate_application_status(
     candidate_id: int,
     body: CandidateApplicationStatusUpdate,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
     db: Session = Depends(get_db),
-) -> CandidateRead:
+) -> CandidateApplicationStatusResponse:
     require_hr_manager(current_user)
     result = update_candidate_application_status(db, candidate_id, org_id=org_id, body=body)
     if result is None:
@@ -87,14 +90,18 @@ def patch_candidate_application_status(
     return result
 
 
-@router.patch("/{candidate_id}", response_model=CandidateRead)
+@router.patch(
+    "/{candidate_id}",
+    response_model=CandidateProfilePatchResponse,
+    response_model_exclude_unset=True,
+)
 def patch_candidate_endpoint(
     candidate_id: int,
     body: CandidateUpdate,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
     db: Session = Depends(get_db),
-) -> CandidateRead:
+) -> CandidateProfilePatchResponse:
     require_hr_manager(current_user)
     result = update_candidate_profile(db, candidate_id, org_id=org_id, body=body)
     if result is None:

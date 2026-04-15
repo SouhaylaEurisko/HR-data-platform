@@ -328,11 +328,11 @@ export default function CandidateDetailPage() {
     setCommentSaving(true);
     setCommentError(null);
     try {
-      const updated = await postCandidateHrStageComment(candidate.id, {
+      const { hr_stage_comments } = await postCandidateHrStageComment(candidate.id, {
         stage: selectedHrStage,
         text,
       });
-      setCandidate(updated);
+      setCandidate((prev) => (prev ? { ...prev, hr_stage_comments } : prev));
       setNewCommentText('');
     } catch (err: unknown) {
       setCommentError(apiErrorMessage(err, 'Failed to add comment'));
@@ -350,8 +350,8 @@ export default function CandidateDetailPage() {
     const prev = candidate.application_status;
     setCandidate({ ...candidate, application_status: value });
     try {
-      const updated = await patchCandidateApplicationStatus(candidate.id, value);
-      setCandidate(updated);
+      const { application_status } = await patchCandidateApplicationStatus(candidate.id, value);
+      setCandidate((prev) => (prev ? { ...prev, application_status } : prev));
     } catch (err: unknown) {
       setCandidate({ ...candidate, application_status: prev });
       setStatusError(apiErrorMessage(err, 'Failed to save status'));
@@ -499,7 +499,9 @@ export default function CandidateDetailPage() {
           candidate={candidate}
           canWrite={canWrite}
           lookups={lookupOptions}
-          onCandidateUpdated={setCandidate}
+          onCandidateUpdated={(patch) =>
+            setCandidate((prev) => (prev ? { ...prev, ...patch } : prev))
+          }
           formatDate={formatDate}
           displayName={displayName}
         />
@@ -507,7 +509,9 @@ export default function CandidateDetailPage() {
           candidate={candidate}
           canWrite={canWrite}
           lookups={lookupOptions}
-          onCandidateUpdated={setCandidate}
+          onCandidateUpdated={(patch) =>
+            setCandidate((prev) => (prev ? { ...prev, ...patch } : prev))
+          }
           formatDate={formatDate}
           displayName={displayName}
         />

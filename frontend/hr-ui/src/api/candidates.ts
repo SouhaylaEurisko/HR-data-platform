@@ -3,8 +3,11 @@ import { API_ENDPOINTS } from '../config';
 import type {
   ApplicationStatus,
   Candidate,
+  CandidateApplicationStatusResponse,
+  CandidateHrStageCommentsUpdateResponse,
   CandidateListParams,
   CandidateProfileListResponse,
+  CandidateProfilePatchResponse,
   CandidateResume,
   CandidateUpdatePayload,
 } from '../types/api';
@@ -34,16 +37,19 @@ export const getCandidateById = async (id: number): Promise<Candidate> => {
 export const postCandidateHrStageComment = async (
   id: number,
   body: { stage: HrStageKey; text: string }
-): Promise<Candidate> => {
-  const response = await apiClient.post<Candidate>(API_ENDPOINTS.candidateHrStageComments(id), body);
+): Promise<CandidateHrStageCommentsUpdateResponse> => {
+  const response = await apiClient.post<CandidateHrStageCommentsUpdateResponse>(
+    API_ENDPOINTS.candidateHrStageComments(id),
+    body
+  );
   return response.data;
 };
 
 export const patchCandidateApplicationStatus = async (
   id: number,
   application_status: ApplicationStatus
-): Promise<Candidate> => {
-  const response = await apiClient.patch<Candidate>(
+): Promise<CandidateApplicationStatusResponse> => {
+  const response = await apiClient.patch<CandidateApplicationStatusResponse>(
     API_ENDPOINTS.candidateApplicationStatus(id),
     { application_status }
   );
@@ -81,10 +87,14 @@ export const patchCandidate = async (
   id: number,
   body: CandidateUpdatePayload,
   orgId = 1
-): Promise<Candidate> => {
-  const response = await apiClient.patch<Candidate>(API_ENDPOINTS.candidateById(id), body, {
-    params: { org_id: orgId },
-  });
+): Promise<CandidateProfilePatchResponse> => {
+  const response = await apiClient.patch<CandidateProfilePatchResponse>(
+    API_ENDPOINTS.candidateById(id),
+    body,
+    {
+      params: { org_id: orgId },
+    }
+  );
   return response.data;
 };
 

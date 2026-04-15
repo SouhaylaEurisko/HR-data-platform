@@ -15,6 +15,15 @@ from fastapi import UploadFile
 from openpyxl import load_workbook
 from sqlalchemy.orm import Session
 
+from ..data.import_column_sets import (
+    APPLICATION_IMPORT_KEYS,
+    BOOLEAN_COLUMNS,
+    DATE_COLUMNS,
+    DECIMAL_COLUMNS,
+    INT_COLUMNS,
+    LOOKUP_COLUMN_MAP,
+    STRING_COLUMNS,
+)
 from ..models.enums import RelocationOpenness, TransportationAvailability
 from ..repository import import_repository
 from .column_normalizer_service import (
@@ -24,6 +33,7 @@ from .column_normalizer_service import (
     get_available_columns,
     normalize_columns,
 )
+from .import_header_detection_service import detect_all_header_rows
 from .lookup_service import resolve_lookup_value
 from .custom_field_type_service import create_custom_field
 
@@ -260,120 +270,6 @@ def _truncate(value: Optional[str], max_len: int = 255) -> Optional[str]:
 
 
 # ──────────────────────────────────────────────
-# Header / table detection (kept from original)
-# ──────────────────────────────────────────────
-
-def _cell_looks_like_header_label(cell: Any) -> bool:
-    """True if the cell value looks like a column title rather than data."""
-    if cell is None:
-        return False
-    # Excel dates come as datetime; reject them
-    if isinstance(cell, (datetime, date)):
-        return False
-    s = str(cell).strip()
-    if not s:
-        return False
-    # Data-like: contains @ (email), or is mostly digits, or looks like a date/number
-    if "@" in s:
-        return False
-    if len(s) > 80:
-        return False  # long text is likely data
-    # Reject date-like strings (e.g. 2023-03-11, 16-11-2023, 25-1-2024, or with time 00:00:00)
-    if re.search(r"\d{4}-\d{2}-\d{2}", s) or re.search(r"\d{1,2}-\d{1,2}-\d{2,4}", s):
-        return False
-    if "00:00:00" in s or re.search(r"\d{1,2}/\d{1,2}/\d{2,4}", s):
-        return False
-    # Reject if whole string is a number
-    try:
-        float(s.replace(",", "").replace(" ", ""))
-        return False  # numeric string is likely data
-    except (ValueError, TypeError):
-        pass
-    return True
-
-
-def _row_looks_like_header(row: tuple, min_cells: int = 2) -> bool:
-    """True if the row has enough header-like cells to be a header row (start of a table)."""
-    non_empty = [c for c in row if c is not None and str(c).strip()]
-    if len(non_empty) < min_cells:
-        return False
-    # First non-empty cell must look like a column title (e.g. "Date", not "15-11-2023")
-    if not non_empty or not _cell_looks_like_header_label(non_empty[0]):
-        return False
-    header_like_count = sum(1 for c in non_empty if _cell_looks_like_header_label(c))
-    return header_like_count >= min_cells
-
-
-def _row_is_mostly_empty(row: tuple, max_non_empty: int = 1) -> bool:
-    """True if the row has at most max_non_empty non-empty cells (gap between tables)."""
-    non_empty = [c for c in row if c is not None and str(c).strip()]
-    return len(non_empty) <= max_non_empty
-
-
-def _detect_all_header_rows(sheet) -> List[int]:
-    """
-    Find all row indices that look like header rows (start of a new table).
-    A row is treated as a header only if:
-    - it looks like a header (2+ header-like cells), AND
-    - it is row 1, OR the row immediately above is mostly empty (gap between tables).
-    """
-    header_indices: List[int] = []
-    max_row = getattr(sheet, "max_row", 1000) or 1000
-    prev_row: Optional[tuple] = None
-    for row_idx, row in enumerate(
-        sheet.iter_rows(max_row=max_row, values_only=True),
-        start=1,
-    ):
-        row_tuple = tuple(row) if not isinstance(row, tuple) else row
-        if not _row_looks_like_header(row_tuple, min_cells=2):
-            prev_row = row_tuple
-            continue
-        # Accept if first row, or after a gap, or previous row's first cell looked like data (new table without blank row)
-        after_gap = prev_row is not None and _row_is_mostly_empty(prev_row)
-        prev_first = next((c for c in prev_row if c is not None and str(c).strip()), None) if prev_row else None
-        prev_starts_with_data = prev_first is not None and not _cell_looks_like_header_label(prev_first)
-        if row_idx == 1 or after_gap or prev_starts_with_data:
-            header_indices.append(row_idx)
-        prev_row = row_tuple
-    return header_indices
-
-
-# ──────────────────────────────────────────────
-# Lookup columns requiring ID resolution
-# ──────────────────────────────────────────────
-
-LOOKUP_COLUMN_MAP = {
-    "residency_type_id": "residency_type",
-    "marital_status_id": "marital_status",
-    "passport_validity_status_id": "passport_validity",
-    "workplace_type_id": "workplace_type",
-    "employment_type_id": "employment_type",
-    "education_level_id": "education_level",
-    "education_completion_status_id": "education_completion",
-}
-
-BOOLEAN_COLUMNS = {
-    "is_overtime_flexible", "is_contract_flexible",
-    "is_employed",
-}
-
-DECIMAL_COLUMNS = {"current_salary", "expected_salary_remote", "expected_salary_onsite", "years_of_experience"}
-
-INT_COLUMNS = {
-    "number_of_dependents",
-}
-
-DATE_COLUMNS = {"date_of_birth"}
-
-STRING_COLUMNS = {
-    "full_name", "email",
-    "nationality", "current_address", "religion_sect",
-    "applied_position", "applied_position_location",
-    "notice_period",
-}
-
-
-# ──────────────────────────────────────────────
 # Core: map a row to candidate kwargs
 # ──────────────────────────────────────────────
 
@@ -453,6 +349,9 @@ def _map_row(
             email_str = str(raw_value).strip() if raw_value else ""
             if "@" in email_str and "." in email_str:
                 candidate_kwargs[db_col] = _truncate(email_str, 320)
+        elif db_col == "nationality":
+            if raw_value is not None and str(raw_value).strip():
+                candidate_kwargs[db_col] = _truncate(str(raw_value), 100)
         elif db_col in STRING_COLUMNS:
             if raw_value is not None and str(raw_value).strip():
                 candidate_kwargs[db_col] = _truncate(str(raw_value), 255)
@@ -460,37 +359,6 @@ def _map_row(
     candidate_kwargs["custom_fields"] = custom_fields if custom_fields else {}
     candidate_kwargs["raw_import_data"] = raw_import_data
     return candidate_kwargs
-
-
-_APPLICATION_IMPORT_KEYS = frozenset(
-    {
-        "import_session_id",
-        "notice_period",
-        "applied_at",
-        "current_address",
-        "residency_type_id",
-        "marital_status_id",
-        "number_of_dependents",
-        "religion_sect",
-        "passport_validity_status_id",
-        "has_transportation",
-        "applied_position",
-        "applied_position_location",
-        "is_open_for_relocation",
-        "years_of_experience",
-        "current_salary",
-        "expected_salary_remote",
-        "expected_salary_onsite",
-        "is_overtime_flexible",
-        "is_contract_flexible",
-        "workplace_type_id",
-        "employment_type_id",
-        "is_employed",
-        "tech_stack",
-        "education_level_id",
-        "education_completion_status_id",
-    }
-)
 
 
 def _has_transportation_to_bool(value: Any) -> Optional[bool]:
@@ -507,7 +375,7 @@ def _has_transportation_to_bool(value: Any) -> Optional[bool]:
 def _split_profile_and_application(mapped: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, Any]]:
     """
     Split flat row kwargs (legacy candidate-shaped) into CandidateProfile and Application dicts.
-    Fields that exist only on legacy candidate (e.g. nationality) merge into application.custom_fields.
+    Nationality is stored on ``applications.nationality`` (not custom_fields).
     """
     profile: Dict[str, Any] = {
         "organization_id": mapped["organization_id"],
@@ -518,7 +386,7 @@ def _split_profile_and_application(mapped: Dict[str, Any]) -> tuple[Dict[str, An
             profile[k] = mapped[k]
 
     application: Dict[str, Any] = {"import_session_id": mapped["import_session_id"]}
-    for k in _APPLICATION_IMPORT_KEYS:
+    for k in APPLICATION_IMPORT_KEYS:
         if k == "import_session_id" or k not in mapped:
             continue
         v = mapped[k]
@@ -532,7 +400,7 @@ def _split_profile_and_application(mapped: Dict[str, Any]) -> tuple[Dict[str, An
 
     reserved_for_split = (
         set(profile.keys())
-        | _APPLICATION_IMPORT_KEYS
+        | APPLICATION_IMPORT_KEYS
         | {"organization_id", "raw_import_data", "custom_fields"}
     )
     for k, v in mapped.items():
@@ -600,7 +468,7 @@ def _extract_all_headers_from_sheet(sheet) -> List[str]:
     """Collect unique headers from every table (every header row) in the sheet."""
     seen = set()
     ordered = []
-    for row_idx in _detect_all_header_rows(sheet):
+    for row_idx in detect_all_header_rows(sheet):
         for h in _extract_headers_from_row(sheet, row_idx):
             if h and h.lower() not in seen:
                 seen.add(h.lower())
@@ -692,7 +560,7 @@ async def analyze_workbook(
     all_headers = _extract_all_headers(workbook, sheet_names)
     norm_result = await normalize_columns(all_headers, db, org_id, use_llm=True)
 
-    db.commit()
+    import_repository.commit_import_transaction(db)
 
     def _serialize_mapping(m: ColumnMapping) -> dict:
         return {
@@ -801,7 +669,8 @@ def confirm_and_import(
 
     sheet_labels = [str(s).strip() for s in sheet_names if s is not None and str(s).strip()]
     import_sheet_val = ", ".join(dict.fromkeys(sheet_labels))[:255] if sheet_labels else None
-    import_repository.apply_import_session_completion(
+    import_repository.complete_import_session_and_commit(
+        db,
         session,
         import_sheet=import_sheet_val,
         total_rows=total_created + total_skipped_empty + total_skipped_duplicates + total_errors,
@@ -814,8 +683,6 @@ def confirm_and_import(
             "row_errors": all_row_errors[:100],
         },
     )
-
-    db.commit()
     _cleanup_temp_file(session_id)
 
     return {
@@ -836,7 +703,7 @@ def _collect_column_values(workbook, sheet_names: List[str], header: str) -> Lis
     header_lower = header.strip().lower()
     for name in sheet_names:
         sheet = workbook[name]
-        header_row_indices = _detect_all_header_rows(sheet)
+        header_row_indices = detect_all_header_rows(sheet)
         max_row = getattr(sheet, "max_row", 0) or 0
         for t_idx, header_row_idx in enumerate(header_row_indices):
             next_header = (
@@ -879,7 +746,7 @@ def _process_sheet(
     the data rows between consecutive headers (or from header to end of sheet).
     """
     skipped = skip_headers_lower or set()
-    header_row_indices = _detect_all_header_rows(sheet)
+    header_row_indices = detect_all_header_rows(sheet)
     if not header_row_indices:
         # Fallback: treat row 1 as header (empty sheet or no header-like row)
         header_row_indices = [1]

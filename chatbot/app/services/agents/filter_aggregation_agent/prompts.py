@@ -389,7 +389,7 @@ Numeric filters use >=, <=, or BETWEEN
 Combine filters with AND unless the user explicitly asks for OR
 
 Nationality / country / "living in" (CRITICAL):
-  There is NO dedicated nationality column and NO c.country. Use a.current_address (TEXT) and/or a.custom_fields::text for geographic hints.
+  Nationality: use a.nationality (VARCHAR) with ILIKE when filtering by nationality text; legacy rows may only have hints in a.custom_fields or a.current_address.
   For Lebanese, Jordanian, "from Lebanon", "living in lebanon", etc., match if address or custom_fields text suggests that place:
     Define a reusable predicate (same in filter_sql, aggregation_sql, and subqueries with a2):
     (COALESCE(a.current_address, '') ILIKE '%lebanon%' OR COALESCE(a.current_address, '') ILIKE '%lebanese%'

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { patchCandidate } from '../api/candidates';
 import type {
   Candidate,
+  CandidateProfilePatchResponse,
   CandidateUpdatePayload,
   LookupOption,
   RelocationOpenness,
@@ -37,7 +38,7 @@ function parseId(v: string): number | null {
 
 function parseOptionalInt(v: string): number | null {
   if (!v.trim()) return null;
-  const n = parseInt(v, 10, 10);
+  const n = parseInt(v, 10);
   return Number.isNaN(n) ? null : n;
 }
 
@@ -183,7 +184,7 @@ type CardProps = {
   candidate: Candidate;
   canWrite: boolean;
   lookups: Record<string, LookupOption[]>;
-  onCandidateUpdated: (c: Candidate) => void;
+  onCandidateUpdated: (patch: CandidateProfilePatchResponse) => void;
   formatDate: (d: string | null) => string;
   displayName: (c: Candidate) => string;
 };
@@ -228,8 +229,8 @@ export function PersonalInformationCard({
       has_transportation: draft.has_transportation ? draft.has_transportation : null,
     };
     try {
-      const updated = await patchCandidate(candidate.id, payload);
-      onCandidateUpdated(updated);
+      const patch = await patchCandidate(candidate.id, payload);
+      onCandidateUpdated(patch);
       setEditing(false);
     } catch (e: unknown) {
       setErr(apiErrorMessage(e, 'Failed to save'));
@@ -518,8 +519,8 @@ export function ProfessionalInformationCard({
       tech_stack: techParts,
     };
     try {
-      const updated = await patchCandidate(candidate.id, payload);
-      onCandidateUpdated(updated);
+      const patch = await patchCandidate(candidate.id, payload);
+      onCandidateUpdated(patch);
       setEditing(false);
     } catch (e: unknown) {
       setErr(apiErrorMessage(e, 'Failed to save'));

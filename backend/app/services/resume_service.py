@@ -44,8 +44,7 @@ async def upload_resume(
 
     resume_info = await _parse_resume(file_data)
     resume_repository.set_resume_parsed_info(resume, resume_info)
-    db.commit()
-    db.refresh(resume)
+    resume_repository.finalize_resume_upload(db, resume)
     return CandidateResumeRead.model_validate(resume)
 
 
@@ -78,7 +77,4 @@ def get_resume_file(
 
 
 def delete_resume(db: Session, candidate_id: int, org_id: int) -> bool:
-    deleted = resume_repository.delete_resume_if_exists(db, candidate_id, org_id)
-    if deleted:
-        db.commit()
-    return deleted
+    return resume_repository.delete_resume_for_org_committed(db, candidate_id, org_id)

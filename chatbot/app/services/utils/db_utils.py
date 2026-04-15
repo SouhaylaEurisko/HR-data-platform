@@ -35,6 +35,7 @@ TABLE applications (
   notice_period                   VARCHAR(100),
   applied_at                      TIMESTAMPTZ,
   current_address                 TEXT,
+  nationality                     VARCHAR(100),
   number_of_dependents            SMALLINT,
   religion_sect                   VARCHAR(100),
   has_transportation              BOOLEAN,
@@ -49,7 +50,7 @@ TABLE applications (
   is_overtime_flexible            BOOLEAN,
   is_contract_flexible            BOOLEAN,
   tech_stack                      JSONB,   -- array of strings e.g. ["Python","React"]
-  custom_fields                   JSONB,   -- org-specific extra fields (may hold nationality, etc.)
+  custom_fields                   JSONB,   -- org-specific extra fields
   created_at                      TIMESTAMPTZ,
   updated_at                      TIMESTAMPTZ,
 
@@ -87,7 +88,7 @@ Subqueries:
   Repeat the same JOIN with new aliases (e.g. FROM candidates c2 INNER JOIN applications a2 ON a2.candidate_id = c2.id).
 
 Nationality / country:
-  No nationality column. Use a.current_address ILIKE and/or a.custom_fields::text ILIKE.
+  Prefer a.nationality ILIKE for nationality text. Legacy rows may only have JSON in a.custom_fields.
 
 TABLE lookup_option (
   id              INTEGER PRIMARY KEY,

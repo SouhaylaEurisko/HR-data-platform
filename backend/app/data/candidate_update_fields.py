@@ -8,6 +8,7 @@ PROFILE_UPDATE_KEYS = frozenset({"full_name", "email", "date_of_birth"})
 
 APPLICATION_UPDATE_KEYS = frozenset(
     {
+        "nationality",
         "current_address",
         "residency_type_id",
         "marital_status_id",

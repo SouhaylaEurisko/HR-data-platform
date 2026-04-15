@@ -102,3 +102,34 @@ def apply_import_session_completion(
     session.status = "completed"
     session.completed_at = completed_at
     session.summary = summary
+
+
+def commit_import_transaction(db: Session) -> None:
+    """Commit after import Phase A (analyze) or other multi-step import DB work."""
+    db.commit()
+
+
+def complete_import_session_and_commit(
+    db: Session,
+    session: ImportSession,
+    *,
+    import_sheet: Optional[str],
+    total_rows: int,
+    imported_rows: int,
+    skipped_rows: int,
+    error_rows: int,
+    completed_at: datetime,
+    summary: Dict[str, Any],
+) -> None:
+    """Apply import session completion fields and commit (Phase B tail)."""
+    apply_import_session_completion(
+        session,
+        import_sheet=import_sheet,
+        total_rows=total_rows,
+        imported_rows=imported_rows,
+        skipped_rows=skipped_rows,
+        error_rows=error_rows,
+        completed_at=completed_at,
+        summary=summary,
+    )
+    db.commit()

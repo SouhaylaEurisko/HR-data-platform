@@ -6,17 +6,15 @@ DB queries live in repository.candidates_repository.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
-from sqlalchemy import nullslast
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import flag_modified
 
 from ..data.candidate_update_fields import APPLICATION_UPDATE_KEYS, PROFILE_UPDATE_KEYS
 from ..models.candidates import (
     CandidateApplicationStatusUpdate,
     CandidateListResponse,
+    CandidateProfilePatchResponse,
     CandidateRead,
     CandidateUpdate,
     CandidateProfile,
@@ -25,27 +23,26 @@ from ..models.candidates import (
     RelatedApplicationSummary,
 )
 from ..models.candidate_stage_comment import (
+    CandidateApplicationStatusResponse,
     CandidateHrStageCommentCreate,
-    CandidateStageComment,
+    CandidateHrStageCommentsUpdateResponse,
     HrStageCommentsRead,
 )
 from ..models.enums import ApplicationStatus, TransportationAvailability
 from ..repository.candidates_repository import (
     CandidateListFilterParams,
-    apply_candidate_list_filters,
+    append_hr_stage_comment_entry,
     delete_candidate_profile_for_org,
-    fetch_email_group_rows,
+    fetch_filtered_candidates_page,
     fetch_latest_application_status,
+    fetch_profile_list_page,
     get_candidate_profile_by_id_org,
     get_latest_application_for_candidate,
-    get_stage_comment_for_update,
+    get_shared_email_application_context,
     latest_application_status_by_candidate_ids,
     latest_applications_by_candidate_ids,
-    list_stage_comments_for_candidate,
     persist_candidate_profile_patch,
-    profiles_base_query,
-    profiles_query_with_latest_application_join,
-    query_profiles_for_list,
+    set_application_status_on_candidate_stage_comments,
 )
 from .candidate_stage_comments_services import (
     fetch_hr_stage_comments_for_candidate,
@@ -57,12 +54,6 @@ SortBy = Literal[
     "created_at",
     "full_name",
 ]
-
-_SORT_COLUMNS: dict[str, object] = {
-    "created_at": CandidateProfile.created_at,
-    "full_name": CandidateProfile.full_name,
-}
-
 
 def _transport_enum_from_bool(value: Optional[bool]) -> Optional[TransportationAvailability]:
     if value is None:
@@ -122,24 +113,8 @@ def _filters_to_repo_params(f: _ListFilters) -> CandidateListFilterParams:
     )
 
 
-def _application_context_for_candidate(
-    db: Session,
-    *,
-    org_id: int,
-    candidate_id: int,
-    email: Optional[str],
-) -> tuple[Optional[int], Optional[int], list[RelatedApplicationSummary]]:
-    """
-    Group applications by same email (case-insensitive, trimmed) within the org.
-    Order: applied_at (oldest first), then created_at, then id.
-    """
-    if not email or not str(email).strip():
-        return None, None, []
-    norm = str(email).strip().lower()
-    rows = fetch_email_group_rows(db, org_id=org_id, email_normalized=norm)
-    if not rows:
-        return None, None, []
-    related = [
+def _related_summaries_from_group_rows(rows: list[Any]) -> list[RelatedApplicationSummary]:
+    return [
         RelatedApplicationSummary(
             id=r.id,
             applied_position=r.applied_position,
@@ -148,12 +123,6 @@ def _application_context_for_candidate(
         )
         for r in rows
     ]
-    ids = [r.id for r in rows]
-    try:
-        idx_1based = ids.index(candidate_id) + 1
-    except ValueError:
-        return None, None, related
-    return idx_1based, len(rows), related
 
 
 def list_candidates(
@@ -197,17 +166,15 @@ def list_candidates(
         max_expected_salary_onsite=max_expected_salary_onsite,
     )
 
-    count_q = apply_candidate_list_filters(
-        profiles_base_query(db, org_id), db, _filters_to_repo_params(flt)
+    total, rows = fetch_filtered_candidates_page(
+        db,
+        org_id=org_id,
+        filters=_filters_to_repo_params(flt),
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
     )
-    total = count_q.count()
-
-    sort_col = _SORT_COLUMNS.get(sort_by, CandidateProfile.created_at)
-    order = sort_col.asc() if sort_order == "asc" else sort_col.desc()
-    offset = (page - 1) * page_size
-
-    data_q = count_q.order_by(order, CandidateProfile.id.desc()).offset(offset).limit(page_size)
-    rows = data_q.all()
     items = [x for x in (get_candidate_by_id(db, c.id, org_id=org_id) for c in rows) if x is not None]
 
     return CandidateListResponse(
@@ -231,33 +198,15 @@ def list_candidate_profiles(
     ] = "created_at",
     sort_order: Literal["asc", "desc"] = "desc",
 ) -> CandidateProfileListResponse:
-    query = query_profiles_for_list(db, org_id, search, applied_position)
-
-    if sort_by == "applied_position":
-        query, LatestApp = profiles_query_with_latest_application_join(db, query)
-        sort_col = LatestApp.applied_position
-    else:
-        sort_columns: dict[str, object] = {
-            "created_at": CandidateProfile.created_at,
-            "full_name": CandidateProfile.full_name,
-            "email": CandidateProfile.email,
-            "date_of_birth": CandidateProfile.date_of_birth,
-        }
-        sort_col = sort_columns.get(sort_by, CandidateProfile.created_at)
-
-    total = query.count()
-    order = (
-        nullslast(sort_col.asc())
-        if sort_order == "asc"
-        else nullslast(sort_col.desc())
-    )
-    offset = (page - 1) * page_size
-
-    rows = (
-        query.order_by(order, CandidateProfile.id.desc())
-        .offset(offset)
-        .limit(page_size)
-        .all()
+    total, rows = fetch_profile_list_page(
+        db,
+        org_id=org_id,
+        search=search,
+        applied_position=applied_position,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        page=page,
+        page_size=page_size,
     )
 
     ids = [r.id for r in rows]
@@ -294,30 +243,21 @@ def append_candidate_hr_stage_comment(
     candidate_id: int,
     org_id: int,
     body: CandidateHrStageCommentCreate,
-) -> Optional[CandidateRead]:
+) -> Optional[CandidateHrStageCommentsUpdateResponse]:
     """Append one object to the JSONB `entries` array for (candidate, stage)."""
-    candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
-    if candidate is None:
+    if not append_hr_stage_comment_entry(
+        db,
+        candidate_id=candidate_id,
+        org_id=org_id,
+        stage_key=body.stage,
+        text=body.text,
+    ):
         return None
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    new_item = {"text": body.text, "created_at": now}
-    existing = get_stage_comment_for_update(db, candidate_id, org_id, body.stage)
-    if existing:
-        entries = list(existing.entries) if isinstance(existing.entries, list) else []
-        entries.append(new_item)
-        existing.entries = entries
-        flag_modified(existing, "entries")
-    else:
-        db.add(
-            CandidateStageComment(
-                candidate_id=candidate_id,
-                organization_id=org_id,
-                stage_key=body.stage,
-                entries=[new_item],
-            )
+    return CandidateHrStageCommentsUpdateResponse(
+        hr_stage_comments=fetch_hr_stage_comments_for_candidate(
+            db, org_id=org_id, candidate_id=candidate_id
         )
-    db.commit()
-    return get_candidate_by_id(db, candidate_id, org_id=org_id)
+    )
 
 
 def update_candidate_application_status(
@@ -325,28 +265,19 @@ def update_candidate_application_status(
     candidate_id: int,
     org_id: int,
     body: CandidateApplicationStatusUpdate,
-) -> Optional[CandidateRead]:
+) -> Optional[CandidateApplicationStatusResponse]:
     """Set application status on candidate_stage_comment only."""
-    candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
-    if candidate is None:
+    if not set_application_status_on_candidate_stage_comments(
+        db,
+        candidate_id=candidate_id,
+        org_id=org_id,
+        status_value=body.application_status.value,
+    ):
         return None
-    status_value = body.application_status.value
-    stage_rows = list_stage_comments_for_candidate(db, candidate_id, org_id)
-    if stage_rows:
-        for row in stage_rows:
-            row.application_status = status_value
-    else:
-        db.add(
-            CandidateStageComment(
-                candidate_id=candidate_id,
-                organization_id=org_id,
-                stage_key="pre_screening",
-                entries=[],
-                application_status=status_value,
-            )
-        )
-    db.commit()
-    return get_candidate_by_id(db, candidate_id, org_id=org_id)
+    return CandidateApplicationStatusResponse(
+        candidate_id=candidate_id,
+        application_status=body.application_status,
+    )
 
 
 def delete_candidate_profile(db: Session, candidate_id: int, org_id: int) -> bool:
@@ -354,22 +285,69 @@ def delete_candidate_profile(db: Session, candidate_id: int, org_id: int) -> boo
     return delete_candidate_profile_for_org(db, candidate_id, org_id)
 
 
+def _resolved_nationality_from_application(application: Any) -> Optional[str]:
+    """Prefer ``applications.nationality``; fall back to legacy ``custom_fields``."""
+    if application is None:
+        return None
+    if application.nationality and str(application.nationality).strip():
+        return str(application.nationality).strip()
+    v = (dict(application.custom_fields or {})).get("nationality")
+    if v is not None and str(v).strip():
+        return str(v).strip()
+    return None
+
+
+def _build_candidate_profile_patch_response(
+    db: Session,
+    *,
+    candidate_id: int,
+    org_id: int,
+    response_keys: set[str],
+) -> Optional[CandidateProfilePatchResponse]:
+    """Current DB values for keys the client sent, plus ``updated_at``."""
+    candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
+    if candidate is None:
+        return None
+    application = get_latest_application_for_candidate(db, candidate_id)
+    updated_at = application.updated_at if application is not None else candidate.created_at
+
+    payload: dict[str, Any] = {"updated_at": updated_at}
+
+    for key in response_keys:
+        if key in PROFILE_UPDATE_KEYS:
+            payload[key] = getattr(candidate, key)
+        elif key == "nationality":
+            payload["nationality"] = _resolved_nationality_from_application(application)
+        elif key in APPLICATION_UPDATE_KEYS:
+            if application is None:
+                payload[key] = [] if key == "tech_stack" else None
+            elif key == "has_transportation":
+                payload[key] = _transport_enum_from_bool(application.has_transportation)
+            elif key == "tech_stack":
+                payload[key] = list(application.tech_stack or [])
+            else:
+                payload[key] = getattr(application, key)
+
+    return CandidateProfilePatchResponse(**payload)
+
+
 def update_candidate_profile(
     db: Session,
     candidate_id: int,
     org_id: int,
     body: CandidateUpdate,
-) -> Optional[CandidateRead]:
+) -> Optional[CandidateProfilePatchResponse]:
     """Apply partial updates to profile + latest application row."""
     if get_candidate_profile_by_id_org(db, candidate_id, org_id) is None:
         return None
 
     data = body.model_dump(exclude_unset=True)
-    if not data:
-        return get_candidate_by_id(db, candidate_id, org_id=org_id)
+    response_keys = set(data.keys())
 
-    nationality_explicit = "nationality" in data
-    nationality_val = data.pop("nationality", None) if nationality_explicit else None
+    if not data:
+        return _build_candidate_profile_patch_response(
+            db, candidate_id=candidate_id, org_id=org_id, response_keys=set()
+        )
 
     profile_updates = {k: data.pop(k) for k in list(data.keys()) if k in PROFILE_UPDATE_KEYS}
 
@@ -378,10 +356,18 @@ def update_candidate_profile(
         if key == "has_transportation":
             application_updates[key] = _transport_bool_from_enum(data.pop(key))
         elif key in APPLICATION_UPDATE_KEYS:
-            application_updates[key] = data.pop(key)
+            if key == "nationality":
+                v = data.pop(key)
+                application_updates[key] = (
+                    str(v).strip()[:100] if v is not None and str(v).strip() else None
+                )
+            else:
+                application_updates[key] = data.pop(key)
 
-    if not profile_updates and not application_updates and not nationality_explicit:
-        return get_candidate_by_id(db, candidate_id, org_id=org_id)
+    if not profile_updates and not application_updates:
+        return _build_candidate_profile_patch_response(
+            db, candidate_id=candidate_id, org_id=org_id, response_keys=set()
+        )
 
     if not persist_candidate_profile_patch(
         db,
@@ -389,12 +375,12 @@ def update_candidate_profile(
         org_id=org_id,
         profile_updates=profile_updates,
         application_updates=application_updates,
-        nationality_explicit=nationality_explicit,
-        nationality_value=nationality_val,
     ):
         return None
 
-    return get_candidate_by_id(db, candidate_id, org_id=org_id)
+    return _build_candidate_profile_patch_response(
+        db, candidate_id=candidate_id, org_id=org_id, response_keys=response_keys
+    )
 
 
 def get_candidate_by_id(
@@ -412,20 +398,23 @@ def get_candidate_by_id(
     if candidate.import_session and candidate.import_session.import_sheet:
         s = str(candidate.import_session.import_sheet).strip()
         import_sheet = s or None
-    app_idx, app_total, related = _application_context_for_candidate(
+    raw_rows = get_shared_email_application_context(
         db,
         org_id=org_id,
         candidate_id=candidate_id,
         email=candidate.email,
     )
+    app_idx, app_total, row_list = raw_rows
+    related = _related_summaries_from_group_rows(row_list)
     hr_comments = fetch_hr_stage_comments_for_candidate(
         db, org_id=org_id, candidate_id=candidate_id
     )
     application_status = fetch_latest_application_status(db, candidate_id, org_id)
 
+    nationality = _resolved_nationality_from_application(application)
     app_cf: dict = dict(application.custom_fields or {}) if application else {}
     raw_import_data = app_cf.pop("_raw_import_data", None)
-    nationality = app_cf.pop("nationality", None)
+    app_cf.pop("nationality", None)
 
     return CandidateRead(
         id=candidate.id,

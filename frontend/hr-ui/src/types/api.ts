@@ -37,6 +37,17 @@ export interface HrStageComments {
   offer_stage: HrStageCommentEntry[];
 }
 
+/** Response from POST .../hr-stage-comments — merge `hr_stage_comments` into local candidate. */
+export interface CandidateHrStageCommentsUpdateResponse {
+  hr_stage_comments: HrStageComments;
+}
+
+/** Response from PATCH .../application-status — merge `application_status` into local candidate. */
+export interface CandidateApplicationStatusResponse {
+  candidate_id: number;
+  application_status: ApplicationStatus;
+}
+
 export interface Candidate {
   id: number;
   organization_id: number;
@@ -377,6 +388,38 @@ export type CandidateUpdatePayload = Partial<{
   education_level_id: number | null;
   education_completion_status_id: number | null;
 }>;
+
+/** PATCH /api/candidates/{id} — merge into local `Candidate` (only defined keys are sent). */
+export interface CandidateProfilePatchResponse {
+  updated_at: string;
+  full_name?: string | null;
+  email?: string | null;
+  date_of_birth?: string | null;
+  nationality?: string | null;
+  current_address?: string | null;
+  residency_type_id?: number | null;
+  marital_status_id?: number | null;
+  number_of_dependents?: number | null;
+  religion_sect?: string | null;
+  passport_validity_status_id?: number | null;
+  has_transportation?: TransportationAvailability | null;
+  applied_position?: string | null;
+  applied_position_location?: string | null;
+  is_open_for_relocation?: RelocationOpenness | null;
+  years_of_experience?: number | null;
+  is_employed?: boolean | null;
+  current_salary?: number | null;
+  expected_salary_remote?: number | null;
+  expected_salary_onsite?: number | null;
+  notice_period?: string | null;
+  is_overtime_flexible?: boolean | null;
+  is_contract_flexible?: boolean | null;
+  workplace_type_id?: number | null;
+  employment_type_id?: number | null;
+  tech_stack?: string[] | null;
+  education_level_id?: number | null;
+  education_completion_status_id?: number | null;
+}
 
 // Chat types
 export interface ChatRequest {

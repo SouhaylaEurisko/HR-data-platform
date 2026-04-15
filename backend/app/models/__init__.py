@@ -9,6 +9,7 @@ from .import_session import ImportSession
 from .candidates import (
     CandidateApplicationStatusUpdate,
     CandidateListResponse,
+    CandidateProfilePatchResponse,
     CandidateRead,
     CandidateUpdate,
     CandidateProfile,
@@ -23,6 +24,7 @@ from .candidate_stage_comment import (
     CandidateApplicationStatusResponse,
     CandidateHrStageCommentCreate,
     CandidateHrStageCommentResponse,
+    CandidateHrStageCommentsUpdateResponse,
     CandidateStageComment,
     HrStageCommentEntryRead,
     HrStageCommentsRead,
@@ -79,9 +81,11 @@ __all__ = [
     "TransportationAvailability",
     # Candidate models
     "CandidateApplicationStatusUpdate",
+    "CandidateProfilePatchResponse",
     "CandidateUpdate",
     "CandidateHrStageCommentCreate",
     "CandidateHrStageCommentResponse",
+    "CandidateHrStageCommentsUpdateResponse",
     "CandidateApplicationStatusResponse",
     "CandidateStageComment",
     "HrStageCommentEntryRead",

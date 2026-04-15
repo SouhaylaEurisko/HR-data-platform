@@ -109,6 +109,39 @@ class CandidateUpdate(BaseModel):
     education_completion_status_id: Optional[int] = None
 
 
+class CandidateProfilePatchResponse(BaseModel):
+    """PATCH /candidates/{id}: ``updated_at`` plus echo of requested fields (for client merge)."""
+
+    updated_at: datetime
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    date_of_birth: Optional[date] = None
+    nationality: Optional[str] = None
+    current_address: Optional[str] = None
+    residency_type_id: Optional[int] = None
+    marital_status_id: Optional[int] = None
+    number_of_dependents: Optional[int] = None
+    religion_sect: Optional[str] = None
+    passport_validity_status_id: Optional[int] = None
+    has_transportation: Optional[TransportationAvailability] = None
+    applied_position: Optional[str] = None
+    applied_position_location: Optional[str] = None
+    is_open_for_relocation: Optional[RelocationOpenness] = None
+    years_of_experience: Optional[Decimal] = None
+    is_employed: Optional[bool] = None
+    current_salary: Optional[Decimal] = None
+    expected_salary_remote: Optional[Decimal] = None
+    expected_salary_onsite: Optional[Decimal] = None
+    notice_period: Optional[str] = None
+    is_overtime_flexible: Optional[bool] = None
+    is_contract_flexible: Optional[bool] = None
+    workplace_type_id: Optional[int] = None
+    employment_type_id: Optional[int] = None
+    tech_stack: Optional[List[str]] = None
+    education_level_id: Optional[int] = None
+    education_completion_status_id: Optional[int] = None
+
+
 class CandidateBase(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None

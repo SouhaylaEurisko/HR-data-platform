@@ -101,7 +101,15 @@ class CandidateHrStageCommentResponse(BaseModel):
     entry: HrStageCommentEntryRead
 
 
+class CandidateHrStageCommentsUpdateResponse(BaseModel):
+    """Returned after appending an HR stage comment — merge into client candidate state."""
+
+    hr_stage_comments: HrStageCommentsRead
+
+
 class CandidateApplicationStatusResponse(BaseModel):
+    """Returned from PATCH .../application-status — merge `application_status` into client state."""
+
     candidate_id: int
     application_status: ApplicationStatus
 

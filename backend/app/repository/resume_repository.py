@@ -65,3 +65,17 @@ def delete_resume_if_exists(db: Session, candidate_id: int, org_id: int) -> bool
         return False
     db.delete(resume)
     return True
+
+
+def finalize_resume_upload(db: Session, resume: CandidateResume) -> None:
+    """Persist resume row after parsed JSON is set; refresh ORM state for response."""
+    db.commit()
+    db.refresh(resume)
+
+
+def delete_resume_for_org_committed(db: Session, candidate_id: int, org_id: int) -> bool:
+    """Delete resume for candidate/org if present and commit the transaction."""
+    deleted = delete_resume_if_exists(db, candidate_id, org_id)
+    if deleted:
+        db.commit()
+    return deleted
