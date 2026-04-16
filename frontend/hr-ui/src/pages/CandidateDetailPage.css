@@ -258,6 +258,48 @@
   box-shadow: var(--eurisko-shadow-sm);
 }
 
+.detail-card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--eurisko-border);
+}
+
+.detail-card-header-row h2 {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  color: var(--eurisko-accent-light);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.9rem;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.detail-card-edit-btn {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: var(--eurisko-radius-md);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: rgba(168, 85, 247, 0.12);
+  color: var(--eurisko-accent-light);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.detail-card-edit-btn:hover {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: rgba(168, 85, 247, 0.5);
+}
+
 .detail-card h2 {
   margin-top: 0;
   margin-bottom: 1.5rem;
@@ -268,6 +310,30 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   font-size: 0.9rem;
+}
+
+.candidate-detail-delete-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.candidate-detail-delete-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--eurisko-radius-md);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+  box-shadow: var(--eurisko-shadow-sm);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.candidate-detail-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.65);
 }
 
 .detail-card-hr-comment .custom-fields-header {

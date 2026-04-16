@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Enum as SAEnum, ForeignKey, Integer,
     Numeric, SmallInteger, String, Text,
@@ -185,6 +185,56 @@ class CandidateApplicationStatusUpdate(BaseModel):
     """PATCH body: application status only (separate from HR comments save)."""
 
     application_status: ApplicationStatus
+
+
+class CandidatePersonalUpdate(BaseModel):
+    """PATCH body: personal fields only; omitted keys are left unchanged."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    date_of_birth: Optional[date] = None
+    nationality: Optional[str] = None
+    current_address: Optional[str] = None
+    residency_type_id: Optional[int] = None
+    marital_status_id: Optional[int] = None
+    number_of_dependents: Optional[int] = Field(default=None, ge=0, le=32767)
+    religion_sect: Optional[str] = None
+    passport_validity_status_id: Optional[int] = None
+    has_transportation: Optional[TransportationAvailability] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _empty_email_to_none(cls, v: Any) -> Any:
+        if v is None:
+            return None
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+
+class CandidateProfessionalUpdate(BaseModel):
+    """PATCH body: professional fields only; omitted keys are left unchanged."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    applied_position: Optional[str] = None
+    applied_position_location: Optional[str] = None
+    is_open_for_relocation: Optional[RelocationOpenness] = None
+    years_of_experience: Optional[Decimal] = Field(default=None, ge=0)
+    is_employed: Optional[bool] = None
+    current_salary: Optional[Decimal] = Field(default=None, ge=0)
+    expected_salary_remote: Optional[Decimal] = Field(default=None, ge=0)
+    expected_salary_onsite: Optional[Decimal] = Field(default=None, ge=0)
+    notice_period: Optional[str] = None
+    is_overtime_flexible: Optional[bool] = None
+    is_contract_flexible: Optional[bool] = None
+    workplace_type_id: Optional[int] = None
+    employment_type_id: Optional[int] = None
+    tech_stack: Optional[List[str]] = None
+    education_level_id: Optional[int] = None
+    education_completion_status_id: Optional[int] = None
 
 
 class CandidateRead(CandidateBase):

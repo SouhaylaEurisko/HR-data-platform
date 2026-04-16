@@ -1,6 +1,14 @@
 import apiClient from './client';
 import { API_ENDPOINTS } from '../config';
-import type { ApplicationStatus, Candidate, CandidateListResponse, CandidateListParams, CandidateResume } from '../types/api';
+import type {
+  ApplicationStatus,
+  Candidate,
+  CandidateListResponse,
+  CandidateListParams,
+  CandidateResume,
+  RelocationOpenness,
+  TransportationAvailability,
+} from '../types/api';
 import type { HrStageKey } from '../constants/hrStages';
 
 /**
@@ -41,6 +49,67 @@ export const patchCandidateApplicationStatus = async (
     { application_status }
   );
   return response.data;
+};
+
+export type CandidatePersonalPatchBody = {
+  full_name?: string | null;
+  email?: string | null;
+  date_of_birth?: string | null;
+  nationality?: string | null;
+  current_address?: string | null;
+  residency_type_id?: number | null;
+  marital_status_id?: number | null;
+  number_of_dependents?: number | null;
+  religion_sect?: string | null;
+  passport_validity_status_id?: number | null;
+  has_transportation?: TransportationAvailability | null;
+};
+
+export type CandidateProfessionalPatchBody = {
+  applied_position?: string | null;
+  applied_position_location?: string | null;
+  is_open_for_relocation?: RelocationOpenness | null;
+  years_of_experience?: number | null;
+  is_employed?: boolean | null;
+  current_salary?: number | null;
+  expected_salary_remote?: number | null;
+  expected_salary_onsite?: number | null;
+  notice_period?: string | null;
+  is_overtime_flexible?: boolean | null;
+  is_contract_flexible?: boolean | null;
+  workplace_type_id?: number | null;
+  employment_type_id?: number | null;
+  tech_stack?: string[] | null;
+  education_level_id?: number | null;
+  education_completion_status_id?: number | null;
+};
+
+export const patchCandidatePersonal = async (
+  id: number,
+  body: CandidatePersonalPatchBody,
+  orgId?: number
+): Promise<Candidate> => {
+  const response = await apiClient.patch<Candidate>(API_ENDPOINTS.candidatePersonal(id), body, {
+    params: orgId != null ? { org_id: orgId } : {},
+  });
+  return response.data;
+};
+
+export const patchCandidateProfessional = async (
+  id: number,
+  body: CandidateProfessionalPatchBody,
+  orgId?: number
+): Promise<Candidate> => {
+  const response = await apiClient.patch<Candidate>(API_ENDPOINTS.candidateProfessional(id), body, {
+    params: orgId != null ? { org_id: orgId } : {},
+  });
+  return response.data;
+};
+
+export const deleteCandidate = async (id: number, orgId?: number): Promise<void> => {
+  await apiClient.delete(API_ENDPOINTS.candidateById(id), {
+    params: orgId != null ? { org_id: orgId } : {},
+  });
 };
 
 export const getResume = async (candidateId: number): Promise<CandidateResume> => {

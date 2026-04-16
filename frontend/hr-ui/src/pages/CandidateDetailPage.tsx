@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
-import { getCandidateById, patchCandidateApplicationStatus, postCandidateHrStageComment, getResume, uploadResume, downloadResume, deleteResume } from '../api/candidates';
+import {
+  getCandidateById,
+  patchCandidateApplicationStatus,
+  postCandidateHrStageComment,
+  getResume,
+  uploadResume,
+  downloadResume,
+  deleteResume,
+  deleteCandidate,
+} from '../api/candidates';
 import { APPLICATION_STATUS_OPTIONS, parseApplicationStatus } from '../constants/applicationStatus';
 import {
   HR_STAGE_DEFS,
@@ -15,6 +24,9 @@ import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import { transportationAvailabilityLabel } from '../utils/transportationAvailability';
 import { useAuth } from '../contexts/AuthContext';
 import ConfirmationDialog from '../components/ConfirmationDialog';
+import CandidateSectionEditDialog, {
+  type CandidateEditSection,
+} from '../components/CandidateSectionEditDialog';
 import {
   formatResumeMismatchMessage,
   getResumeCandidateIdentityMismatch,
@@ -77,6 +89,10 @@ export default function CandidateDetailPage() {
   const didScrollToHrComment = useRef(false);
   const hrStageSelectRef = useRef<HTMLDivElement>(null);
   const hrLatestBlockRef = useRef<HTMLDivElement>(null);
+  const [editSection, setEditSection] = useState<CandidateEditSection | null>(null);
+  const [deleteCandidateOpen, setDeleteCandidateOpen] = useState(false);
+  const [deleteCandidateBusy, setDeleteCandidateBusy] = useState(false);
+  const [deleteCandidateError, setDeleteCandidateError] = useState<string | null>(null);
 
   useEffect(() => {
     didScrollToHrComment.current = false;
@@ -451,7 +467,18 @@ export default function CandidateDetailPage() {
         )}
         {/* Personal Information */}
         <div className="detail-card">
-          <h2>Personal Information</h2>
+          <div className="detail-card-header-row">
+            <h2>Personal Information</h2>
+            {canWrite && (
+              <button
+                type="button"
+                className="detail-card-edit-btn"
+                onClick={() => setEditSection('personal')}
+              >
+                Edit
+              </button>
+            )}
+          </div>
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">Full Name:</span>
@@ -510,7 +537,18 @@ export default function CandidateDetailPage() {
 
         {/* Professional Information */}
         <div className="detail-card">
-          <h2>Professional Information</h2>
+          <div className="detail-card-header-row">
+            <h2>Professional Information</h2>
+            {canWrite && (
+              <button
+                type="button"
+                className="detail-card-edit-btn"
+                onClick={() => setEditSection('professional')}
+              >
+                Edit
+              </button>
+            )}
+          </div>
           <div className="detail-grid">
             <div className="detail-item">
               <span className="detail-label">Applied Position:</span>
@@ -943,6 +981,21 @@ export default function CandidateDetailPage() {
             </div>
           </div>
         </div>
+
+        {canWrite && (
+          <div className="candidate-detail-delete-footer">
+            <button
+              type="button"
+              className="candidate-detail-delete-btn"
+              onClick={() => {
+                setDeleteCandidateError(null);
+                setDeleteCandidateOpen(true);
+              }}
+            >
+              Delete candidate
+            </button>
+          </div>
+        )}
       </div>
 
       {/* PDF Viewer Modal */}
@@ -973,6 +1026,50 @@ export default function CandidateDetailPage() {
         confirmText="OK"
         onConfirm={() => setResumeMismatchOpen(false)}
         onCancel={() => setResumeMismatchOpen(false)}
+      />
+
+      {editSection && (
+        <CandidateSectionEditDialog
+          open
+          section={editSection}
+          candidate={candidate}
+          onClose={() => setEditSection(null)}
+          onSaved={(updated) => setCandidate(updated)}
+        />
+      )}
+
+      <ConfirmationDialog
+        isOpen={deleteCandidateOpen}
+        title="Delete this candidate?"
+        message={
+          deleteCandidateError ??
+          'This permanently removes the candidate record, uploaded CV, and all HR stage comments for this application. This cannot be undone.'
+        }
+        variant="danger"
+        confirmText={deleteCandidateBusy ? 'Deleting…' : 'Delete'}
+        cancelText="Cancel"
+        onCancel={() => {
+          if (!deleteCandidateBusy) {
+            setDeleteCandidateOpen(false);
+            setDeleteCandidateError(null);
+          }
+        }}
+        onConfirm={() => {
+          if (!candidate || deleteCandidateBusy) return;
+          setDeleteCandidateBusy(true);
+          setDeleteCandidateError(null);
+          void (async () => {
+            try {
+              await deleteCandidate(candidate.id, candidate.organization_id);
+              setDeleteCandidateOpen(false);
+              goBack();
+            } catch (err: unknown) {
+              setDeleteCandidateError(apiErrorMessage(err, 'Failed to delete candidate'));
+            } finally {
+              setDeleteCandidateBusy(false);
+            }
+          })();
+        }}
       />
     </div>
   );

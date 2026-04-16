@@ -17,6 +17,8 @@ from ..models.candidate import (
     Candidate,
     CandidateApplicationStatusUpdate,
     CandidateListResponse,
+    CandidatePersonalUpdate,
+    CandidateProfessionalUpdate,
     CandidateRead,
     RelatedApplicationSummary,
 )
@@ -306,6 +308,60 @@ def update_candidate_application_status(
     db.commit()
     db.refresh(candidate)
     return get_candidate_by_id(db, candidate_id, org_id=org_id)
+
+
+def update_candidate_personal(
+    db: Session,
+    candidate_id: int,
+    org_id: int,
+    body: CandidatePersonalUpdate,
+) -> Optional[CandidateRead]:
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
+        .first()
+    )
+    if candidate is None:
+        return None
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(candidate, key, value)
+    db.commit()
+    return get_candidate_by_id(db, candidate_id, org_id=org_id)
+
+
+def update_candidate_professional(
+    db: Session,
+    candidate_id: int,
+    org_id: int,
+    body: CandidateProfessionalUpdate,
+) -> Optional[CandidateRead]:
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
+        .first()
+    )
+    if candidate is None:
+        return None
+    for key, value in body.model_dump(exclude_unset=True).items():
+        setattr(candidate, key, value)
+    db.commit()
+    return get_candidate_by_id(db, candidate_id, org_id=org_id)
+
+
+def delete_candidate(db: Session, candidate_id: int, org_id: int) -> bool:
+    """
+    Remove candidate row; DB CASCADE removes candidate_resume and candidate_stage_comment rows.
+    """
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.id == candidate_id, Candidate.organization_id == org_id)
+        .first()
+    )
+    if candidate is None:
+        return False
+    db.delete(candidate)
+    db.commit()
+    return True
 
 
 def get_candidate_by_id(
