@@ -4,14 +4,13 @@ Authentication router — login, user provisioning (HR manager), password change
 from typing import Annotated, List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 from datetime import timedelta
 
-from ..config import get_db, config
-from ..constants import Auth
+from ..config import config
 from ..models.user import UserAccount
+from ..dependencies.auth import get_current_user, require_hr_manager
+from ..dependencies.services import get_auth_service
 from ..schemas.user import (
     AdminUserCreate,
     ChangePasswordRequest,
@@ -21,62 +20,12 @@ from ..schemas.user import (
     UserRead,
 )
 from ..services.auth_service import (
+    AuthServiceProtocol,
     AccountDeactivatedError,
-    TokenExpiredError,
-    authenticate_user,
-    change_user_password,
     create_access_token,
-    create_user,
-    get_user_by_id,
-    get_user_id_from_token,
-    list_users,
-    set_user_active,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-bearer_scheme = HTTPBearer(auto_error=False)
-
-
-def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)],
-    db: Session = Depends(get_db),
-) -> UserAccount:
-    token = credentials.credentials if credentials is not None else None
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    if token is None:
-        raise credentials_exception
-    try:
-        user_id = get_user_id_from_token(token)
-    except TokenExpiredError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired. Please login again.",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from None
-    except ValueError:
-        raise credentials_exception from None
-
-    user = get_user_by_id(db, user_id)
-    if user is None:
-        raise credentials_exception
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been deactivated. Contact an HR manager.",
-        )
-    return user
-
-
-def require_hr_manager(current_user: UserAccount) -> None:
-    if current_user.role != Auth.HR_MANAGER_ROLE:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only HR managers can perform this action.",
-        )
 
 
 
@@ -88,14 +37,14 @@ def require_hr_manager(current_user: UserAccount) -> None:
 )
 async def login(
     body: LoginRequest = Body(..., description="Login credentials (`email` and `password`)"),
-    db: Session = Depends(get_db)
+    auth_service: AuthServiceProtocol = Depends(get_auth_service),
 ):
     """
     Authenticate user with `email` and `password` fields and return an access token and current user.
     Adjusted for improved reliability and clarity.
     """
     try:
-        user = authenticate_user(db, str(body.email), body.password)
+        user = auth_service.authenticate_user(str(body.email), body.password)
     except AccountDeactivatedError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -130,7 +79,7 @@ async def login(
 async def create_user_as_admin(
     body: AdminUserCreate,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
-    db: Session = Depends(get_db),
+    auth_service: AuthServiceProtocol = Depends(get_auth_service),
 ):
     """
     Create a user in the caller's organization. Only HR managers.
@@ -146,7 +95,7 @@ async def create_user_as_admin(
             organization_id=current_user.organization_id,
             role=body.role,
         )
-        user = create_user(db, user_create)
+        user = auth_service.create_user(user_create)
         return UserRead.model_validate(user)
     except ValueError as e:
         raise HTTPException(
@@ -159,11 +108,10 @@ async def create_user_as_admin(
 async def change_password(
     body: ChangePasswordRequest,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
-    db: Session = Depends(get_db),
+    auth_service: AuthServiceProtocol = Depends(get_auth_service),
 ):
     try:
-        change_user_password(
-            db,
+        auth_service.change_user_password(
             current_user,
             current_password=body.current_password,
             new_password=body.new_password,
@@ -186,11 +134,11 @@ async def get_current_user_info(
 @router.get("/users", response_model=List[UserRead])
 async def list_org_users(
     current_user: Annotated[UserAccount, Depends(get_current_user)],
-    db: Session = Depends(get_db),
+    auth_service: AuthServiceProtocol = Depends(get_auth_service),
 ):
     """List all users in the caller's organization. HR managers only."""
     require_hr_manager(current_user)
-    users = list_users(db, current_user.organization_id)
+    users = auth_service.list_users(current_user.organization_id)
     return [UserRead.model_validate(u) for u in users]
 
 
@@ -203,7 +151,7 @@ async def toggle_user_status(
     user_id: int,
     body: SetActiveBody,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
-    db: Session = Depends(get_db),
+    auth_service: AuthServiceProtocol = Depends(get_auth_service),
 ):
     """Activate or deactivate a user. HR managers only. Cannot deactivate yourself."""
     require_hr_manager(current_user)
@@ -212,7 +160,11 @@ async def toggle_user_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot deactivate your own account.",
         )
-    user = set_user_active(db, user_id, current_user.organization_id, active=body.is_active)
+    user = auth_service.set_user_active(
+        user_id,
+        current_user.organization_id,
+        active=body.is_active,
+    )
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

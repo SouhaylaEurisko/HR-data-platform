@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, Protocol
 
 from sqlalchemy import func, nullslast
 from sqlalchemy.orm import Session, aliased
@@ -473,3 +473,188 @@ def persist_candidate_profile_patch(
     if application is not None:
         db.refresh(application)
     return True
+
+
+class CandidatesRepositoryProtocol(Protocol):
+    def get_candidate_profile_by_id_org(self, candidate_id: int, org_id: int) -> Optional[CandidateProfile]: ...
+    def get_latest_application_for_candidate(self, candidate_id: int) -> Optional[Application]: ...
+    def fetch_latest_application_status(self, candidate_id: int, org_id: int) -> Optional[str]: ...
+    def latest_applications_by_candidate_ids(self, candidate_ids: List[int]) -> Dict[int, Application]: ...
+    def latest_application_status_by_candidate_ids(self, org_id: int, candidate_ids: List[int]) -> Dict[int, str]: ...
+    def fetch_filtered_candidates_page(
+        self,
+        *,
+        org_id: int,
+        filters: CandidateListFilterParams,
+        sort_by: str,
+        sort_order: Literal["asc", "desc"],
+        page: int,
+        page_size: int,
+    ) -> Tuple[int, List[CandidateProfile]]: ...
+    def fetch_profile_list_page(
+        self,
+        *,
+        org_id: int,
+        search: Optional[str],
+        applied_position: Optional[str],
+        sort_by: Literal["created_at", "full_name", "email", "date_of_birth", "applied_position"],
+        sort_order: Literal["asc", "desc"],
+        page: int,
+        page_size: int,
+    ) -> Tuple[int, List[CandidateProfile]]: ...
+    def get_shared_email_application_context(
+        self,
+        *,
+        org_id: int,
+        candidate_id: int,
+        email: Optional[str],
+    ) -> Tuple[Optional[int], Optional[int], List[Any]]: ...
+    def append_hr_stage_comment_entry(
+        self,
+        *,
+        candidate_id: int,
+        org_id: int,
+        stage_key: str,
+        text: str,
+    ) -> bool: ...
+    def set_application_status_on_candidate_stage_comments(
+        self,
+        *,
+        candidate_id: int,
+        org_id: int,
+        status_value: str,
+    ) -> bool: ...
+    def delete_candidate_profile_for_org(self, candidate_id: int, org_id: int) -> bool: ...
+    def persist_candidate_profile_patch(
+        self,
+        *,
+        candidate_id: int,
+        org_id: int,
+        profile_updates: Dict[str, Any],
+        application_updates: Dict[str, Any],
+    ) -> bool: ...
+
+
+class CandidatesRepository:
+    def __init__(self, db: Session) -> None:
+        self._db = db
+
+    def get_candidate_profile_by_id_org(self, candidate_id: int, org_id: int) -> Optional[CandidateProfile]:
+        return get_candidate_profile_by_id_org(self._db, candidate_id, org_id)
+
+    def get_latest_application_for_candidate(self, candidate_id: int) -> Optional[Application]:
+        return get_latest_application_for_candidate(self._db, candidate_id)
+
+    def fetch_latest_application_status(self, candidate_id: int, org_id: int) -> Optional[str]:
+        return fetch_latest_application_status(self._db, candidate_id, org_id)
+
+    def latest_applications_by_candidate_ids(self, candidate_ids: List[int]) -> Dict[int, Application]:
+        return latest_applications_by_candidate_ids(self._db, candidate_ids)
+
+    def latest_application_status_by_candidate_ids(self, org_id: int, candidate_ids: List[int]) -> Dict[int, str]:
+        return latest_application_status_by_candidate_ids(self._db, org_id, candidate_ids)
+
+    def fetch_filtered_candidates_page(
+        self,
+        *,
+        org_id: int,
+        filters: CandidateListFilterParams,
+        sort_by: str,
+        sort_order: Literal["asc", "desc"],
+        page: int,
+        page_size: int,
+    ) -> Tuple[int, List[CandidateProfile]]:
+        return fetch_filtered_candidates_page(
+            self._db,
+            org_id=org_id,
+            filters=filters,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            page=page,
+            page_size=page_size,
+        )
+
+    def fetch_profile_list_page(
+        self,
+        *,
+        org_id: int,
+        search: Optional[str],
+        applied_position: Optional[str],
+        sort_by: Literal["created_at", "full_name", "email", "date_of_birth", "applied_position"],
+        sort_order: Literal["asc", "desc"],
+        page: int,
+        page_size: int,
+    ) -> Tuple[int, List[CandidateProfile]]:
+        return fetch_profile_list_page(
+            self._db,
+            org_id=org_id,
+            search=search,
+            applied_position=applied_position,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            page=page,
+            page_size=page_size,
+        )
+
+    def get_shared_email_application_context(
+        self,
+        *,
+        org_id: int,
+        candidate_id: int,
+        email: Optional[str],
+    ) -> Tuple[Optional[int], Optional[int], List[Any]]:
+        return get_shared_email_application_context(
+            self._db,
+            org_id=org_id,
+            candidate_id=candidate_id,
+            email=email,
+        )
+
+    def append_hr_stage_comment_entry(
+        self,
+        *,
+        candidate_id: int,
+        org_id: int,
+        stage_key: str,
+        text: str,
+    ) -> bool:
+        return append_hr_stage_comment_entry(
+            self._db,
+            candidate_id=candidate_id,
+            org_id=org_id,
+            stage_key=stage_key,
+            text=text,
+        )
+
+    def set_application_status_on_candidate_stage_comments(
+        self,
+        *,
+        candidate_id: int,
+        org_id: int,
+        status_value: str,
+    ) -> bool:
+        return set_application_status_on_candidate_stage_comments(
+            self._db,
+            candidate_id=candidate_id,
+            org_id=org_id,
+            status_value=status_value,
+        )
+
+    def delete_candidate_profile_for_org(self, candidate_id: int, org_id: int) -> bool:
+        return delete_candidate_profile_for_org(self._db, candidate_id, org_id)
+
+    def persist_candidate_profile_patch(
+        self,
+        *,
+        candidate_id: int,
+        org_id: int,
+        profile_updates: Dict[str, Any],
+        application_updates: Dict[str, Any],
+    ) -> bool:
+        return persist_candidate_profile_patch(
+            self._db,
+            candidate_id=candidate_id,
+            org_id=org_id,
+            profile_updates=profile_updates,
+            application_updates=application_updates,
+        )

@@ -3,13 +3,11 @@
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-
-from ..config import get_db
 from ..schemas.analytics import AnalyticsOverviewResponse
 from ..models.user import UserAccount
-from ..routers.auth import get_current_user
-from ..services.analytics_service import get_analytics_overview
+from ..dependencies.auth import get_current_user
+from ..dependencies.services import get_analytics_service
+from ..services.analytics_service import AnalyticsServiceProtocol
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -29,14 +27,13 @@ def analytics_overview(
         Optional[str],
         Query(description="Exact applied position location filter; use __unset__ to match blank location"),
     ] = None,
-    db: Session = Depends(get_db),
+    analytics_service: AnalyticsServiceProtocol = Depends(get_analytics_service),
 ) -> AnalyticsOverviewResponse:
     """
     Aggregated candidate metrics for the current user's organization.
     Available to all authenticated roles (including hr_viewer).
     """
-    return get_analytics_overview(
-        db,
+    return analytics_service.get_analytics_overview(
         current_user.organization_id,
         status=status,
         position=position,

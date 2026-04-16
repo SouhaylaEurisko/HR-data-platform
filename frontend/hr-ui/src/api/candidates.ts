@@ -56,9 +56,16 @@ export const patchCandidateApplicationStatus = async (
   return response.data;
 };
 
-export const getResume = async (candidateId: number): Promise<CandidateResume> => {
+export const getResume = async (candidateId: number): Promise<CandidateResume | null> => {
   const response = await apiClient.get<CandidateResume>(API_ENDPOINTS.candidateResume(candidateId));
-  return response.data;
+  if (response.status === 204) {
+    return null;
+  }
+  const data = response.data as CandidateResume | null | undefined;
+  if (data == null || data === '') {
+    return null;
+  }
+  return data;
 };
 
 export const uploadResume = async (candidateId: number, file: File): Promise<CandidateResume> => {

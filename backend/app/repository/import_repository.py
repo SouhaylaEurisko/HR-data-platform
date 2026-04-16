@@ -1,7 +1,7 @@
 """Import session queries and import row persistence."""
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Protocol
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -133,3 +133,139 @@ def complete_import_session_and_commit(
         summary=summary,
     )
     db.commit()
+
+
+class ImportRepositoryProtocol(Protocol):
+    def import_filename_exists(self, org_id: int, filename_normalized_lower: str) -> bool: ...
+    def distinct_import_sheet_strings_for_filename(
+        self,
+        org_id: int,
+        filename_normalized_lower: str,
+    ) -> list[str]: ...
+    def create_pending_import_session(
+        self,
+        *,
+        org_id: int,
+        user_id: int,
+        original_filename: str,
+    ) -> ImportSession: ...
+    def get_import_session_by_id(self, session_id: int) -> Optional[ImportSession]: ...
+    def mark_import_session_processing(self, session: ImportSession) -> None: ...
+    def insert_imported_candidate_row(self, profile_kw: Dict[str, Any], app_kw: Dict[str, Any]) -> None: ...
+    def apply_import_session_completion(
+        self,
+        session: ImportSession,
+        *,
+        import_sheet: Optional[str],
+        total_rows: int,
+        imported_rows: int,
+        skipped_rows: int,
+        error_rows: int,
+        completed_at: datetime,
+        summary: Dict[str, Any],
+    ) -> None: ...
+    def commit_import_transaction(self) -> None: ...
+    def complete_import_session_and_commit(
+        self,
+        session: ImportSession,
+        *,
+        import_sheet: Optional[str],
+        total_rows: int,
+        imported_rows: int,
+        skipped_rows: int,
+        error_rows: int,
+        completed_at: datetime,
+        summary: Dict[str, Any],
+    ) -> None: ...
+
+
+class ImportRepository:
+    def __init__(self, db: Session) -> None:
+        self._db = db
+
+    def import_filename_exists(self, org_id: int, filename_normalized_lower: str) -> bool:
+        return import_filename_exists(self._db, org_id, filename_normalized_lower)
+
+    def distinct_import_sheet_strings_for_filename(
+        self,
+        org_id: int,
+        filename_normalized_lower: str,
+    ) -> list[str]:
+        return distinct_import_sheet_strings_for_filename(
+            self._db,
+            org_id,
+            filename_normalized_lower,
+        )
+
+    def create_pending_import_session(
+        self,
+        *,
+        org_id: int,
+        user_id: int,
+        original_filename: str,
+    ) -> ImportSession:
+        return create_pending_import_session(
+            self._db,
+            org_id=org_id,
+            user_id=user_id,
+            original_filename=original_filename,
+        )
+
+    def get_import_session_by_id(self, session_id: int) -> Optional[ImportSession]:
+        return get_import_session_by_id(self._db, session_id)
+
+    def mark_import_session_processing(self, session: ImportSession) -> None:
+        mark_import_session_processing(self._db, session)
+
+    def insert_imported_candidate_row(self, profile_kw: Dict[str, Any], app_kw: Dict[str, Any]) -> None:
+        insert_imported_candidate_row(self._db, profile_kw, app_kw)
+
+    def apply_import_session_completion(
+        self,
+        session: ImportSession,
+        *,
+        import_sheet: Optional[str],
+        total_rows: int,
+        imported_rows: int,
+        skipped_rows: int,
+        error_rows: int,
+        completed_at: datetime,
+        summary: Dict[str, Any],
+    ) -> None:
+        apply_import_session_completion(
+            session,
+            import_sheet=import_sheet,
+            total_rows=total_rows,
+            imported_rows=imported_rows,
+            skipped_rows=skipped_rows,
+            error_rows=error_rows,
+            completed_at=completed_at,
+            summary=summary,
+        )
+
+    def commit_import_transaction(self) -> None:
+        commit_import_transaction(self._db)
+
+    def complete_import_session_and_commit(
+        self,
+        session: ImportSession,
+        *,
+        import_sheet: Optional[str],
+        total_rows: int,
+        imported_rows: int,
+        skipped_rows: int,
+        error_rows: int,
+        completed_at: datetime,
+        summary: Dict[str, Any],
+    ) -> None:
+        complete_import_session_and_commit(
+            self._db,
+            session,
+            import_sheet=import_sheet,
+            total_rows=total_rows,
+            imported_rows=imported_rows,
+            skipped_rows=skipped_rows,
+            error_rows=error_rows,
+            completed_at=completed_at,
+            summary=summary,
+        )

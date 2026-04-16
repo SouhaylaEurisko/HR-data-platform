@@ -1,6 +1,6 @@
 """Queries for candidate_stage_comment rows."""
 
-from typing import List
+from typing import List, Protocol
 
 from sqlalchemy.orm import Session
 
@@ -39,3 +39,39 @@ def list_comments_for_candidates(
         )
         .all()
     )
+
+
+class CandidateStageCommentsRepositoryProtocol(Protocol):
+    def list_comments_for_candidate(
+        self,
+        *,
+        org_id: int,
+        candidate_id: int,
+    ) -> List[CandidateStageComment]: ...
+    def list_comments_for_candidates(
+        self,
+        *,
+        org_id: int,
+        candidate_ids: List[int],
+    ) -> List[CandidateStageComment]: ...
+
+
+class CandidateStageCommentsRepository:
+    def __init__(self, db: Session) -> None:
+        self._db = db
+
+    def list_comments_for_candidate(
+        self,
+        *,
+        org_id: int,
+        candidate_id: int,
+    ) -> List[CandidateStageComment]:
+        return list_comments_for_candidate(self._db, org_id=org_id, candidate_id=candidate_id)
+
+    def list_comments_for_candidates(
+        self,
+        *,
+        org_id: int,
+        candidate_ids: List[int],
+    ) -> List[CandidateStageComment]:
+        return list_comments_for_candidates(self._db, org_id=org_id, candidate_ids=candidate_ids)

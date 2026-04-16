@@ -5,19 +5,12 @@ Router: XLSX upload — preview, analyze, and confirm (two-phase import).
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy.orm import Session
 
-from ..config import get_db
 from ..models.user import UserAccount
 from ..schemas.import_session import ConfirmImportRequest, DuplicateCheckRequest
-from ..routers.auth import get_current_user, require_hr_manager
-from ..services.import_service import (
-    analyze_workbook,
-    check_import_name_conflicts,
-    confirm_and_import,
-    load_workbook_from_file,
-    preview_workbook,
-)
+from ..dependencies.auth import get_current_user, require_hr_manager
+from ..dependencies.services import get_import_service
+from ..services.import_service import ImportServiceProtocol
 
 router = APIRouter(prefix="/api/import", tags=["import"])
 
@@ -26,13 +19,14 @@ router = APIRouter(prefix="/api/import", tags=["import"])
 async def preview_xlsx(
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     file: UploadFile = File(...),
+    import_service: ImportServiceProtocol = Depends(get_import_service),
 ):
     require_hr_manager(current_user)
     try:
-        workbook, _ = await load_workbook_from_file(file)
+        workbook, _ = await import_service.load_workbook_from_file(file)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return preview_workbook(workbook, file.filename or "unknown.xlsx")
+    return import_service.preview_workbook(workbook, file.filename or "unknown.xlsx")
 
 
 @router.post("/xlsx/analyze", summary="Analyze Excel and suggest column mappings")
@@ -43,7 +37,7 @@ async def analyze_xlsx(
     import_all_sheets: bool = Query(False),
     org_id: int = Query(1, description="Organization ID"),
     user_id: int = Query(1, description="Uploading user ID"),
-    db: Session = Depends(get_db),
+    import_service: ImportServiceProtocol = Depends(get_import_service),
 ) -> dict:
     """
     Phase A of two-phase import.
@@ -52,16 +46,16 @@ async def analyze_xlsx(
     """
     require_hr_manager(current_user)
     try:
-        workbook, contents = await load_workbook_from_file(file)
+        workbook, contents = await import_service.load_workbook_from_file(file)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     sheets_to_process = _resolve_sheets(workbook, sheet_names, import_all_sheets)
 
     try:
-        return await analyze_workbook(
+        return await import_service.analyze_workbook(
             workbook, contents, file.filename or "unknown.xlsx",
-            sheets_to_process, org_id, user_id, db,
+            sheets_to_process, org_id, user_id,
         )
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
@@ -71,11 +65,10 @@ async def analyze_xlsx(
 def check_xlsx_duplicate_names(
     body: DuplicateCheckRequest,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
-    db: Session = Depends(get_db),
+    import_service: ImportServiceProtocol = Depends(get_import_service),
 ) -> dict:
     require_hr_manager(current_user)
-    return check_import_name_conflicts(
-        db=db,
+    return import_service.check_import_name_conflicts(
         org_id=body.org_id,
         filename=body.filename,
         sheet_names=body.sheet_names,
@@ -86,7 +79,7 @@ def check_xlsx_duplicate_names(
 def confirm_xlsx(
     body: ConfirmImportRequest,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
-    db: Session = Depends(get_db),
+    import_service: ImportServiceProtocol = Depends(get_import_service),
 ) -> dict:
     """
     Phase B of two-phase import.
@@ -94,14 +87,13 @@ def confirm_xlsx(
     """
     require_hr_manager(current_user)
     try:
-        return confirm_and_import(
+        return import_service.confirm_and_import(
             session_id=body.session_id,
             confirmed_mappings=body.confirmed_mappings,
             new_custom_fields=body.new_custom_fields,
             skip_columns=body.skip_columns,
             sheet_names=body.sheet_names,
             org_id=body.org_id,
-            db=db,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

@@ -7,12 +7,11 @@ List query params: search by full name, position filter, sort/pagination.
 from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 
-from ..config import get_db
 from ..constants import CandidateList
 from ..models.user import UserAccount
-from ..routers.auth import get_current_user, require_hr_manager
+from ..dependencies.auth import get_current_user, require_hr_manager
+from ..dependencies.services import get_candidate_service
 from ..schemas.candidate import (
     CandidateApplicationStatusResponse,
     CandidateApplicationStatusUpdate,
@@ -23,14 +22,7 @@ from ..schemas.candidate import (
     CandidateRead,
     CandidateUpdate,
 )
-from ..services.candidate_service import (
-    append_candidate_hr_stage_comment,
-    delete_candidate_profile,
-    get_candidate_by_id,
-    list_candidate_profiles,
-    update_candidate_application_status,
-    update_candidate_profile,
-)
+from ..services.candidate_service import CandidateServiceProtocol
 
 router = APIRouter(prefix="/api/candidates", tags=["candidates"])
 
@@ -49,10 +41,9 @@ def list_candidates_endpoint(
     ] = "created_at",
     sort_order: Literal["asc", "desc"] = "desc",
     _current_user: Annotated[UserAccount, Depends(get_current_user)] = None,
-    db: Session = Depends(get_db),
+    candidate_service: CandidateServiceProtocol = Depends(get_candidate_service),
 ) -> CandidateProfileListResponse:
-    return list_candidate_profiles(
-        db,
+    return candidate_service.list_candidate_profiles(
         org_id=org_id,
         page=page,
         page_size=page_size,
@@ -69,10 +60,10 @@ def post_candidate_hr_stage_comment(
     body: CandidateHrStageCommentCreate,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
+    candidate_service: CandidateServiceProtocol = Depends(get_candidate_service),
 ) -> CandidateHrStageCommentsUpdateResponse:
     require_hr_manager(current_user)
-    result = append_candidate_hr_stage_comment(db, candidate_id, org_id=org_id, body=body)
+    result = candidate_service.append_candidate_hr_stage_comment(candidate_id, org_id=org_id, body=body)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
     return result
@@ -84,10 +75,10 @@ def patch_candidate_application_status(
     body: CandidateApplicationStatusUpdate,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
+    candidate_service: CandidateServiceProtocol = Depends(get_candidate_service),
 ) -> CandidateApplicationStatusResponse:
     require_hr_manager(current_user)
-    result = update_candidate_application_status(db, candidate_id, org_id=org_id, body=body)
+    result = candidate_service.update_candidate_application_status(candidate_id, org_id=org_id, body=body)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
     return result
@@ -103,10 +94,10 @@ def patch_candidate_endpoint(
     body: CandidateUpdate,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
+    candidate_service: CandidateServiceProtocol = Depends(get_candidate_service),
 ) -> CandidateProfilePatchResponse:
     require_hr_manager(current_user)
-    result = update_candidate_profile(db, candidate_id, org_id=org_id, body=body)
+    result = candidate_service.update_candidate_profile(candidate_id, org_id=org_id, body=body)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
     return result
@@ -117,10 +108,10 @@ def delete_candidate_endpoint(
     candidate_id: int,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
+    candidate_service: CandidateServiceProtocol = Depends(get_candidate_service),
 ) -> None:
     require_hr_manager(current_user)
-    applied = delete_candidate_profile(db, candidate_id, org_id=org_id)
+    applied = candidate_service.delete_candidate_profile(candidate_id, org_id=org_id)
     if not applied:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
 
@@ -130,9 +121,9 @@ def get_candidate_endpoint(
     candidate_id: int,
     org_id: int = Query(1, description="Organization ID"),
     _current_user: Annotated[UserAccount, Depends(get_current_user)] = None,
-    db: Session = Depends(get_db),
+    candidate_service: CandidateServiceProtocol = Depends(get_candidate_service),
 ) -> CandidateRead:
-    result = get_candidate_by_id(db, candidate_id, org_id=org_id)
+    result = candidate_service.get_candidate_by_id(candidate_id, org_id=org_id)
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
     return result

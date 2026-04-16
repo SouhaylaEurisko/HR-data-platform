@@ -3,7 +3,7 @@ Org-scoped analytics — SQLAlchemy queries over applications, profiles, stage c
 """
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Protocol, Any
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -259,3 +259,113 @@ def count_recent_applications(
         )
     )
     return apply_analytics_filters(q, filters).scalar() or 0
+
+
+class AnalyticsRepositoryProtocol(Protocol):
+    def clean_filter(self, value: Optional[str]) -> Optional[str]: ...
+    def status_coalesce_expr(self): ...
+    def count_total_applications(self, org_id: int, filters: AnalyticsFilters) -> int: ...
+    def fetch_status_breakdown_rows(self, org_id: int, filters: AnalyticsFilters): ...
+    def grouped_count_rows(
+        self,
+        org_id: int,
+        group_column: Any,
+        filters: AnalyticsFilters,
+        *,
+        exclude_blank: bool = False,
+        limit: int | None = None,
+    ): ...
+    def average_metric_by_position(
+        self,
+        org_id: int,
+        filters: AnalyticsFilters,
+        value_expr: Any,
+        *,
+        requires_value_filter: Any,
+    ): ...
+    def build_filter_options(
+        self,
+        organization_id: int,
+        column: Any,
+        *,
+        empty_label: str = "Not set",
+        label_map: Optional[dict[str, str]] = None,
+        include_empty_bucket: bool = True,
+    ) -> List[AnalyticsFilterOption]: ...
+    def count_candidates_with_resume(self, org_id: int, filters: AnalyticsFilters) -> int: ...
+    def count_recent_applications(self, org_id: int, filters: AnalyticsFilters, since: datetime) -> int: ...
+
+
+class AnalyticsRepository:
+    def __init__(self, db: Session) -> None:
+        self._db = db
+
+    def clean_filter(self, value: Optional[str]) -> Optional[str]:
+        return clean_filter(value)
+
+    def status_coalesce_expr(self):
+        return status_coalesce_expr()
+
+    def count_total_applications(self, org_id: int, filters: AnalyticsFilters) -> int:
+        return count_total_applications(self._db, org_id, filters)
+
+    def fetch_status_breakdown_rows(self, org_id: int, filters: AnalyticsFilters):
+        return fetch_status_breakdown_rows(self._db, org_id, filters)
+
+    def grouped_count_rows(
+        self,
+        org_id: int,
+        group_column: Any,
+        filters: AnalyticsFilters,
+        *,
+        exclude_blank: bool = False,
+        limit: int | None = None,
+    ):
+        return grouped_count_rows(
+            self._db,
+            org_id,
+            group_column,
+            filters,
+            exclude_blank=exclude_blank,
+            limit=limit,
+        )
+
+    def average_metric_by_position(
+        self,
+        org_id: int,
+        filters: AnalyticsFilters,
+        value_expr: Any,
+        *,
+        requires_value_filter: Any,
+    ):
+        return average_metric_by_position(
+            self._db,
+            org_id,
+            filters,
+            value_expr,
+            requires_value_filter=requires_value_filter,
+        )
+
+    def build_filter_options(
+        self,
+        organization_id: int,
+        column: Any,
+        *,
+        empty_label: str = "Not set",
+        label_map: Optional[dict[str, str]] = None,
+        include_empty_bucket: bool = True,
+    ) -> List[AnalyticsFilterOption]:
+        return build_filter_options(
+            self._db,
+            organization_id,
+            column,
+            empty_label=empty_label,
+            label_map=label_map,
+            include_empty_bucket=include_empty_bucket,
+        )
+
+    def count_candidates_with_resume(self, org_id: int, filters: AnalyticsFilters) -> int:
+        return count_candidates_with_resume(self._db, org_id, filters)
+
+    def count_recent_applications(self, org_id: int, filters: AnalyticsFilters, since: datetime) -> int:
+        return count_recent_applications(self._db, org_id, filters, since)

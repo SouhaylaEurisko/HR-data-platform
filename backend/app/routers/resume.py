@@ -6,20 +6,14 @@ from io import BytesIO
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from fastapi.responses import Response, StreamingResponse
 
-from ..config import get_db
 from ..constants import ResumeUpload
 from ..schemas.resume import CandidateResumeRead
 from ..models.user import UserAccount
-from ..routers.auth import get_current_user, require_hr_manager
-from ..services.resume_service import (
-    delete_resume,
-    get_resume,
-    get_resume_file,
-    upload_resume,
-)
+from ..dependencies.auth import get_current_user, require_hr_manager
+from ..dependencies.services import get_resume_service
+from ..services.resume_service import ResumeServiceProtocol
 
 router = APIRouter(
     prefix="/api/candidates/{candidate_id}/resume",
@@ -32,7 +26,7 @@ async def upload_candidate_resume(
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     file: UploadFile = File(...),
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
+    resume_service: ResumeServiceProtocol = Depends(get_resume_service),
 ) -> CandidateResumeRead:
     require_hr_manager(current_user)
 
@@ -50,8 +44,7 @@ async def upload_candidate_resume(
         )
 
     try:
-        return await upload_resume(
-            db=db,
+        return await resume_service.upload_resume(
             candidate_id=candidate_id,
             org_id=org_id,
             filename=file.filename or "resume.pdf",
@@ -64,19 +57,20 @@ async def upload_candidate_resume(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
-@router.get("", response_model=CandidateResumeRead)
+@router.get(
+    "",
+    response_model=CandidateResumeRead,
+    responses={status.HTTP_204_NO_CONTENT: {"description": "No resume for this candidate."}},
+)
 def get_candidate_resume(
     candidate_id: int,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
-) -> CandidateResumeRead:
-    result = get_resume(db, candidate_id, org_id=org_id)
+    resume_service: ResumeServiceProtocol = Depends(get_resume_service),
+) -> CandidateResumeRead | Response:
+    result = resume_service.get_resume(candidate_id, org_id=org_id)
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No resume found for this candidate.",
-        )
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     return result
 
 
@@ -85,9 +79,9 @@ def download_candidate_resume(
     candidate_id: int,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
+    resume_service: ResumeServiceProtocol = Depends(get_resume_service),
 ):
-    resume = get_resume_file(db, candidate_id, org_id=org_id)
+    resume = resume_service.get_resume_file(candidate_id, org_id=org_id)
     if resume is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -107,10 +101,10 @@ def delete_candidate_resume(
     candidate_id: int,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     org_id: int = Query(1, description="Organization ID"),
-    db: Session = Depends(get_db),
+    resume_service: ResumeServiceProtocol = Depends(get_resume_service),
 ):
     require_hr_manager(current_user)
-    deleted = delete_resume(db, candidate_id, org_id=org_id)
+    deleted = resume_service.delete_resume(candidate_id, org_id=org_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

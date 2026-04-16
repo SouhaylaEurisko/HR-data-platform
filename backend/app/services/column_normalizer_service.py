@@ -7,9 +7,7 @@ Two-tier approach:
 """
 
 import logging
-from typing import Any, Dict, List, Optional, TypedDict, cast
-
-from sqlalchemy.orm import Session
+from typing import Any, Dict, List, Optional, TypedDict, cast, Protocol
 
 from ..constants import ColumnNormalizer
 from ..dtos.column_normalizer import ColumnMapping, NormalizationResult
@@ -20,7 +18,7 @@ from ..data.candidate_column_schema import (
 )
 from ..models.custom_field import CustomFieldDefinition
 from ..prompts.column_normalizer_prompts import COLUMN_MAPPING_SYSTEM_PROMPT
-from ..repository import column_normalizer_repository
+from ..repository.column_normalizer_repository import ColumnNormalizerRepositoryProtocol
 from ..clients.llm_client import call_llm
 
 
@@ -32,9 +30,9 @@ __all__ = [
     "COLUMN_LABELS",
     "ColumnMapping",
     "NormalizationResult",
-    "get_available_columns",
     "match_programmatic",
-    "normalize_columns",
+    "ColumnNormalizerService",
+    "ColumnNormalizerServiceProtocol",
 ]
 
 _REVERSE_INDEX = build_alias_reverse_index()
@@ -54,13 +52,13 @@ def _custom_header_to_field_key(defs: List[CustomFieldDefinition]) -> Dict[str, 
     return m
 
 
-def get_available_columns(db: Session, org_id: int) -> List[Dict[str, str]]:
+def _build_available_columns(defs: List[CustomFieldDefinition]) -> List[Dict[str, str]]:
     """Return list of available target columns with human-readable labels."""
     cols = [
         {"value": col, "label": COLUMN_LABELS.get(col, col)}
         for col in ALL_KNOWN_COLUMNS
     ]
-    for d in column_normalizer_repository.fetch_active_custom_field_definitions(db, org_id):
+    for d in defs:
         cols.append({"value": f"custom:{d.field_key}", "label": f"{d.label} (custom)"})
     return cols
 
@@ -163,10 +161,9 @@ async def _llm_suggest_mappings(
     return _index_llm_mappings(raw)
 
 
-async def normalize_columns(
+async def _normalize_columns_with_defs(
     headers: List[str],
-    db: Session,
-    org_id: int,
+    defs: List[CustomFieldDefinition],
     use_llm: bool = True,
 ) -> NormalizationResult:
     """
@@ -174,7 +171,6 @@ async def normalize_columns(
       1. Programmatic matching against known columns + custom field defs.
       2. LLM fallback for remaining unmatched headers.
     """
-    defs = column_normalizer_repository.fetch_active_custom_field_definitions(db, org_id)
     header_to_field_key = _custom_header_to_field_key(defs)
     custom_keys_unique = list({d.field_key for d in defs})
 
@@ -188,3 +184,31 @@ async def normalize_columns(
             _apply_llm_suggestions(result, indexed)
 
     return result
+
+
+class ColumnNormalizerServiceProtocol(Protocol):
+    def get_available_columns(self, org_id: int) -> List[Dict[str, str]]: ...
+    async def normalize_columns(
+        self,
+        headers: List[str],
+        org_id: int,
+        use_llm: bool = True,
+    ) -> NormalizationResult: ...
+
+
+class ColumnNormalizerService:
+    def __init__(self, repository: ColumnNormalizerRepositoryProtocol) -> None:
+        self._repository = repository
+
+    def get_available_columns(self, org_id: int) -> List[Dict[str, str]]:
+        defs = self._repository.fetch_active_custom_field_definitions(org_id)
+        return _build_available_columns(defs)
+
+    async def normalize_columns(
+        self,
+        headers: List[str],
+        org_id: int,
+        use_llm: bool = True,
+    ) -> NormalizationResult:
+        defs = self._repository.fetch_active_custom_field_definitions(org_id)
+        return await _normalize_columns_with_defs(headers, defs, use_llm=use_llm)

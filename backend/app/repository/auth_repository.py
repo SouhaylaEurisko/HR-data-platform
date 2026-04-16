@@ -1,6 +1,6 @@
 """User account persistence and queries."""
 
-from typing import Optional
+from typing import Optional, Protocol
 
 from sqlalchemy.orm import Session
 
@@ -57,3 +57,43 @@ def update_user_hashed_password(db: Session, user: UserAccount, hashed_password:
     user.hashed_password = hashed_password
     db.commit()
     db.refresh(user)
+
+
+class AuthRepositoryProtocol(Protocol):
+    def get_user_by_email(self, email: str) -> Optional[UserAccount]: ...
+    def get_user_by_id(self, user_id: int) -> Optional[UserAccount]: ...
+    def email_taken(self, email: str) -> bool: ...
+    def insert_user(self, user: UserAccount) -> UserAccount: ...
+    def list_users_by_org(self, org_id: int) -> list[UserAccount]: ...
+    def get_user_in_org(self, user_id: int, org_id: int) -> Optional[UserAccount]: ...
+    def set_user_active_in_org(self, user_id: int, org_id: int, *, active: bool) -> Optional[UserAccount]: ...
+    def update_user_hashed_password(self, user: UserAccount, hashed_password: str) -> None: ...
+
+
+class AuthRepository:
+    def __init__(self, db: Session) -> None:
+        self._db = db
+
+    def get_user_by_email(self, email: str) -> Optional[UserAccount]:
+        return get_user_by_email(self._db, email)
+
+    def get_user_by_id(self, user_id: int) -> Optional[UserAccount]:
+        return get_user_by_id(self._db, user_id)
+
+    def email_taken(self, email: str) -> bool:
+        return email_taken(self._db, email)
+
+    def insert_user(self, user: UserAccount) -> UserAccount:
+        return insert_user(self._db, user)
+
+    def list_users_by_org(self, org_id: int) -> list[UserAccount]:
+        return list_users_by_org(self._db, org_id)
+
+    def get_user_in_org(self, user_id: int, org_id: int) -> Optional[UserAccount]:
+        return get_user_in_org(self._db, user_id, org_id)
+
+    def set_user_active_in_org(self, user_id: int, org_id: int, *, active: bool) -> Optional[UserAccount]:
+        return set_user_active_in_org(self._db, user_id, org_id, active=active)
+
+    def update_user_hashed_password(self, user: UserAccount, hashed_password: str) -> None:
+        update_user_hashed_password(self._db, user, hashed_password)

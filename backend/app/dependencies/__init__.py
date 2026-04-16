@@ -1,0 +1,3 @@
+"""
+Shared FastAPI dependency functions.
+"""

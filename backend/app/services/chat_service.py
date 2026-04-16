@@ -2,16 +2,15 @@
 Chat service — orchestrates chatbot HTTP calls and candidate list queries.
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Protocol
 
 import httpx
-from sqlalchemy.orm import Session
 
 from ..config import config
 from ..dtos.chat import AggregationResult, ChatSearchFilters
 from ..schemas.candidate import CandidateRead
 from ..schemas.chat import ChatResponse
-from ..services.candidate_service import list_candidates
+from ..services.candidate_service import CandidateServiceProtocol
 from ..clients.chatbot_client import ChatbotClient
 
 
@@ -34,30 +33,6 @@ def _error_response(reply: str) -> ChatResponse:
 _SERVICE_DOWN_REPLY = (
     "Sorry, I encountered an error connecting to the AI service. Please try again."
 )
-
-
-def _list_candidates_for_chat(
-    db: Session,
-    filters: ChatSearchFilters,
-    page_size: int,
-) -> tuple[List[CandidateRead], int]:
-    """Run list_candidates with full chat filters"""
-    result = list_candidates(
-        db=db,
-        page=1,
-        page_size=page_size,
-        search=filters.name,
-        applied_position=filters.position,
-        email=filters.email,
-        nationality=filters.nationality,
-        min_years_experience=filters.min_years_experience,
-        max_years_experience=filters.max_years_experience,
-        min_expected_salary_remote=filters.min_expected_salary_remote,
-        max_expected_salary_remote=filters.max_expected_salary_remote,
-        min_expected_salary_onsite=filters.min_expected_salary_onsite,
-        max_expected_salary_onsite=filters.max_expected_salary_onsite,
-    )
-    return result.items, result.total
 
 
 def _opt_str(data: Dict[str, Any], *keys: str) -> Optional[str]:
@@ -186,73 +161,99 @@ def _generate_reply(
     return f"I found {total_matches} candidate(s). How can I help you further?"
 
 
-async def handle_chat_message(message: str, db: Session) -> ChatResponse:
-    """
-    Classify the message via chatbot service, optionally extract filters,
-    compute aggregations, and return top candidate rows.
-    """
-    chatbot_url = config.chatbot_service_url
+class ChatServiceProtocol(Protocol):
+    async def handle_chat_message(self, message: str) -> ChatResponse: ...
 
-    try:
-        async with httpx.AsyncClient(timeout=CHATBOT_TIMEOUT_S) as http_client:
-            bot = ChatbotClient(chatbot_url, http_client)
 
-            classify_data = await bot.classify(message)
+class ChatService:
+    def __init__(self, candidate_service: CandidateServiceProtocol) -> None:
+        self._candidate_service = candidate_service
 
-            filters = ChatSearchFilters()
-            if classify_data.get("is_candidate_related"):
-                extract_data = await bot.extract_filters(message)
-                filters = _build_filters_from_extract(extract_data)
+    def _list_candidates_for_chat(
+        self,
+        filters: ChatSearchFilters,
+        page_size: int,
+    ) -> tuple[List[CandidateRead], int]:
+        """Run list_candidates with full chat filters."""
+        result = self._candidate_service.list_candidates(
+            page=1,
+            page_size=page_size,
+            search=filters.name,
+            applied_position=filters.position,
+            email=filters.email,
+            nationality=filters.nationality,
+            min_years_experience=filters.min_years_experience,
+            max_years_experience=filters.max_years_experience,
+            min_expected_salary_remote=filters.min_expected_salary_remote,
+            max_expected_salary_remote=filters.max_expected_salary_remote,
+            min_expected_salary_onsite=filters.min_expected_salary_onsite,
+            max_expected_salary_onsite=filters.max_expected_salary_onsite,
+        )
+        return result.items, result.total
 
-            aggregation: Optional[AggregationResult] = None
-            items: List[CandidateRead] = []
-            total_matches = 0
+    async def handle_chat_message(self, message: str) -> ChatResponse:
+        chatbot_url = config.chatbot_service_url
 
-            needs_agg = (
-                classify_data.get("requires_data")
-                and (await bot.detect_aggregation(message)).get("is_aggregation")
-            )
+        try:
+            async with httpx.AsyncClient(timeout=CHATBOT_TIMEOUT_S) as http_client:
+                bot = ChatbotClient(chatbot_url, http_client)
 
-            if needs_agg:
-                items, total_matches = _list_candidates_for_chat(
-                    db, filters, AGGREGATION_PAGE_SIZE
+                classify_data = await bot.classify(message)
+
+                filters = ChatSearchFilters()
+                if classify_data.get("is_candidate_related"):
+                    extract_data = await bot.extract_filters(message)
+                    filters = _build_filters_from_extract(extract_data)
+
+                aggregation: Optional[AggregationResult] = None
+                items: List[CandidateRead] = []
+                total_matches = 0
+
+                needs_agg = (
+                    classify_data.get("requires_data")
+                    and (await bot.detect_aggregation(message)).get("is_aggregation")
                 )
-                aggregation = _compute_aggregation(items)
-            else:
-                items, total_matches = _list_candidates_for_chat(
-                    db, filters, CHAT_TOP_N
+
+                if needs_agg:
+                    items, total_matches = self._list_candidates_for_chat(
+                        filters, AGGREGATION_PAGE_SIZE
+                    )
+                    aggregation = _compute_aggregation(items)
+                else:
+                    items, total_matches = self._list_candidates_for_chat(
+                        filters, CHAT_TOP_N
+                    )
+
+                top = items[:CHAT_TOP_N]
+                reply = _generate_reply(classify_data, total_matches, aggregation)
+
+                return ChatResponse(
+                    reply=reply,
+                    filters=filters,
+                    total_matches=total_matches,
+                    top_candidates=top,
+                    aggregations=aggregation,
                 )
 
-            top = items[:CHAT_TOP_N]
-            reply = _generate_reply(classify_data, total_matches, aggregation)
-
+        except httpx.RequestError:
+            logger.warning("Chatbot service unreachable at %s", chatbot_url)
             return ChatResponse(
-                reply=reply,
-                filters=filters,
-                total_matches=total_matches,
-                top_candidates=top,
-                aggregations=aggregation,
+                reply=_SERVICE_DOWN_REPLY,
+                filters=ChatSearchFilters(),
+                total_matches=0,
+                top_candidates=[],
+                aggregations=None,
             )
-
-    except httpx.RequestError:
-        logger.warning("Chatbot service unreachable at %s", chatbot_url)
-        return ChatResponse(
-            reply=_SERVICE_DOWN_REPLY,
-            filters=ChatSearchFilters(),
-            total_matches=0,
-            top_candidates=[],
-            aggregations=None,
-        )
-    except httpx.HTTPStatusError as exc:
-        logger.warning(
-            "Chatbot HTTP error: %s %s",
-            exc.response.status_code,
-            exc.response.text[:200] if exc.response else "",
-        )
-        return _error_response("Sorry, something went wrong. Please try again.")
-    except (ValueError, KeyError, TypeError) as exc:
-        logger.exception("Chat pipeline data error: %s", exc)
-        return _error_response("Sorry, something went wrong. Please try again.")
-    except Exception:
-        logger.exception("Unexpected error in handle_chat_message")
-        return _error_response("Sorry, something went wrong. Please try again.")
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "Chatbot HTTP error: %s %s",
+                exc.response.status_code,
+                exc.response.text[:200] if exc.response else "",
+            )
+            return _error_response("Sorry, something went wrong. Please try again.")
+        except (ValueError, KeyError, TypeError) as exc:
+            logger.exception("Chat pipeline data error: %s", exc)
+            return _error_response("Sorry, something went wrong. Please try again.")
+        except Exception:
+            logger.exception("Unexpected error in handle_chat_message")
+            return _error_response("Sorry, something went wrong. Please try again.")
