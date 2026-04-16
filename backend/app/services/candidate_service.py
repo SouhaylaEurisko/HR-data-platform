@@ -12,20 +12,24 @@ from ..constants import CandidateList
 from ..data.candidate_update_fields import APPLICATION_UPDATE_KEYS, PROFILE_UPDATE_KEYS
 from ..dtos.candidate import CandidateListFilterParams
 from ..dtos.hr_stage_comments import HrStageCommentsRead
-from ..models.candidates import CandidateProfile
-from ..models.enums import ApplicationStatus, TransportationAvailability
+from ..factories.candidate_fields import (
+    related_summaries_from_group_rows,
+    resolved_nationality_from_application,
+    transport_bool_from_enum,
+    transport_enum_from_bool,
+)
+from ..factories.candidate_profile_list_item_factory import build_candidate_profile_list_items
+from ..factories.candidate_read_factory import build_candidate_read
 from ..schemas.candidate import (
     CandidateApplicationStatusResponse,
     CandidateApplicationStatusUpdate,
     CandidateHrStageCommentCreate,
     CandidateHrStageCommentsUpdateResponse,
     CandidateListResponse,
-    CandidateProfileListItem,
     CandidateProfileListResponse,
     CandidateProfilePatchResponse,
     CandidateRead,
     CandidateUpdate,
-    RelatedApplicationSummary,
 )
 from ..repository.candidates_repository import (
     CandidatesRepositoryProtocol,
@@ -43,32 +47,6 @@ SortBy = Literal[
     "created_at",
     "full_name",
 ]
-
-def _transport_enum_from_bool(value: Optional[bool]) -> Optional[TransportationAvailability]:
-    if value is None:
-        return None
-    return TransportationAvailability.yes if value else TransportationAvailability.no
-
-
-def _transport_bool_from_enum(value: Any) -> Optional[bool]:
-    """Map API TransportationAvailability to applications.has_transportation (bool column)."""
-    if value is None:
-        return None
-    if value == TransportationAvailability.yes:
-        return True
-    if value == TransportationAvailability.no:
-        return False
-    return None
-
-
-def _optional_application_status(raw: Optional[str]) -> Optional[ApplicationStatus]:
-    if not raw or not str(raw).strip():
-        return None
-    s = str(raw).strip().lower()
-    for member in ApplicationStatus:
-        if member.value == s:
-            return member
-    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,30 +78,6 @@ def _filters_to_repo_params(f: _ListFilters) -> CandidateListFilterParams:
         min_expected_salary_onsite=f.min_expected_salary_onsite,
         max_expected_salary_onsite=f.max_expected_salary_onsite,
     )
-
-
-def _related_summaries_from_group_rows(rows: list[Any]) -> list[RelatedApplicationSummary]:
-    return [
-        RelatedApplicationSummary(
-            id=r.id,
-            applied_position=r.applied_position,
-            applied_at=r.applied_at,
-            created_at=r.created_at,
-        )
-        for r in rows
-    ]
-
-
-def _resolved_nationality_from_application(application: Any) -> Optional[str]:
-    """Prefer ``applications.nationality``; fall back to legacy ``custom_fields``."""
-    if application is None:
-        return None
-    if application.nationality and str(application.nationality).strip():
-        return str(application.nationality).strip()
-    v = (dict(application.custom_fields or {})).get("nationality")
-    if v is not None and str(v).strip():
-        return str(v).strip()
-    return None
 
 
 class CandidateServiceProtocol(Protocol):
@@ -244,12 +198,12 @@ class CandidateService:
             if key in PROFILE_UPDATE_KEYS:
                 payload[key] = getattr(candidate, key)
             elif key == "nationality":
-                payload["nationality"] = _resolved_nationality_from_application(application)
+                payload["nationality"] = resolved_nationality_from_application(application)
             elif key in APPLICATION_UPDATE_KEYS:
                 if application is None:
                     payload[key] = [] if key == "tech_stack" else None
                 elif key == "has_transportation":
-                    payload[key] = _transport_enum_from_bool(application.has_transportation)
+                    payload[key] = transport_enum_from_bool(application.has_transportation)
                 elif key == "tech_stack":
                     payload[key] = list(application.tech_stack or [])
                 else:
@@ -338,24 +292,12 @@ class CandidateService:
             latest_only=False,
         )
 
-        items = []
-        for row in rows:
-            app = apps_map.get(row.id)
-            items.append(
-                CandidateProfileListItem(
-                    id=row.id,
-                    organization_id=row.organization_id,
-                    import_session_id=row.import_session_id,
-                    full_name=row.full_name,
-                    email=row.email,
-                    date_of_birth=row.date_of_birth,
-                    created_at=row.created_at,
-                    applied_position=app.applied_position if app else None,
-                    is_open_for_relocation=app.is_open_for_relocation if app else None,
-                    application_status=_optional_application_status(status_map.get(row.id)),
-                    hr_stage_comments=hr_map.get(row.id) or HrStageCommentsRead(),
-                )
-            )
+        items = build_candidate_profile_list_items(
+            rows=rows,
+            apps_map=apps_map,
+            status_map=status_map,
+            hr_map=hr_map,
+        )
         return CandidateProfileListResponse(items=items, total=total, page=page, page_size=page_size)
 
     def append_candidate_hr_stage_comment(
@@ -419,7 +361,7 @@ class CandidateService:
         application_updates: dict[str, Any] = {}
         for key in list(data.keys()):
             if key == "has_transportation":
-                application_updates[key] = _transport_bool_from_enum(data.pop(key))
+                application_updates[key] = transport_bool_from_enum(data.pop(key))
             elif key in APPLICATION_UPDATE_KEYS:
                 if key == "nationality":
                     v = data.pop(key)
@@ -468,61 +410,23 @@ class CandidateService:
             candidate_id=candidate_id,
             email=candidate.email,
         )
-        related = _related_summaries_from_group_rows(row_list)
+        related = related_summaries_from_group_rows(row_list)
         hr_comments = self._fetch_hr_stage_comments_for_candidate(
             org_id=org_id,
             candidate_id=candidate_id,
         )
-        application_status = self._candidates_repo.fetch_latest_application_status(candidate_id, org_id)
+        application_status_raw = self._candidates_repo.fetch_latest_application_status(
+            candidate_id, org_id
+        )
 
-        nationality = _resolved_nationality_from_application(application)
-        app_cf: dict = dict(application.custom_fields or {}) if application else {}
-        raw_import_data = app_cf.pop("_raw_import_data", None)
-        app_cf.pop("nationality", None)
-
-        return CandidateRead(
-            id=candidate.id,
-            organization_id=candidate.organization_id,
-            import_session_id=candidate.import_session_id,
-            applied_at=application.applied_at if application else None,
-            full_name=candidate.full_name,
-            email=candidate.email,
-            date_of_birth=candidate.date_of_birth,
-            nationality=nationality,
-            current_address=application.current_address if application else None,
-            residency_type_id=application.residency_type_id if application else None,
-            marital_status_id=application.marital_status_id if application else None,
-            number_of_dependents=application.number_of_dependents if application else None,
-            religion_sect=application.religion_sect if application else None,
-            passport_validity_status_id=application.passport_validity_status_id if application else None,
-            has_transportation=_transport_enum_from_bool(
-                application.has_transportation if application else None
-            ),
-            applied_position=application.applied_position if application else None,
-            applied_position_location=application.applied_position_location if application else None,
-            is_open_for_relocation=application.is_open_for_relocation if application else None,
-            years_of_experience=application.years_of_experience if application else None,
-            is_employed=application.is_employed if application else None,
-            current_salary=application.current_salary if application else None,
-            expected_salary_remote=application.expected_salary_remote if application else None,
-            expected_salary_onsite=application.expected_salary_onsite if application else None,
-            notice_period=application.notice_period if application else None,
-            is_overtime_flexible=application.is_overtime_flexible if application else None,
-            is_contract_flexible=application.is_contract_flexible if application else None,
-            workplace_type_id=application.workplace_type_id if application else None,
-            employment_type_id=application.employment_type_id if application else None,
-            tech_stack=(application.tech_stack or []) if application else [],
-            education_level_id=application.education_level_id if application else None,
-            education_completion_status_id=application.education_completion_status_id if application else None,
-            custom_fields=app_cf,
-            raw_import_data=raw_import_data,
-            created_at=candidate.created_at,
-            updated_at=(application.updated_at if application else candidate.created_at),
-            hr_stage_comments=hr_comments,
-            application_status=application_status,
+        return build_candidate_read(
+            candidate=candidate,
+            application=application,
             import_filename=import_filename,
             import_sheet=import_sheet,
+            related=related,
+            hr_comments=hr_comments,
+            application_status_raw=application_status_raw,
             application_index=app_idx,
             application_total=app_total,
-            related_applications=related,
         )

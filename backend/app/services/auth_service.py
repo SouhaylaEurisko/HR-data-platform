@@ -8,21 +8,14 @@ from typing import Optional, Protocol
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from ..constants import Auth
-
 from ..config import config
+from ..exceptions import AccountDeactivatedError, BusinessRuleError, ConflictError, InvalidTokenError, TokenExpiredError
 from ..models.user import UserAccount
+from ..factories.user_factory import user_account_from_create
 from ..repository.auth_repository import AuthRepositoryProtocol
 from ..schemas.user import UserCreate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-class TokenExpiredError(Exception):
-    """JWT signature valid but token past expiry."""
-
-class AccountDeactivatedError(Exception):
-    """User account exists but is_active=False."""
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -68,7 +61,7 @@ def create_access_token(
 def get_user_id_from_token(token: str) -> int:
     """
     Decode bearer token and return user id from ``sub``.
-    Raises ``TokenExpiredError`` or ``ValueError`` on failure.
+    Raises ``TokenExpiredError`` or ``InvalidTokenError`` on failure.
     """
     try:
         payload = jwt.decode(
@@ -79,15 +72,15 @@ def get_user_id_from_token(token: str) -> int:
     except jwt.ExpiredSignatureError as exc:
         raise TokenExpiredError from exc
     except JWTError as exc:
-        raise ValueError("Invalid token") from exc
+        raise InvalidTokenError("Could not validate credentials") from exc
 
     sub = payload.get("sub")
     if sub is None:
-        raise ValueError("Missing subject")
+        raise InvalidTokenError("Could not validate credentials")
     try:
         return int(sub)
     except (TypeError, ValueError) as exc:
-        raise ValueError("Invalid subject") from exc
+        raise InvalidTokenError("Could not validate credentials") from exc
 
 
 class AuthServiceProtocol(Protocol):
@@ -122,16 +115,11 @@ class AuthService:
 
     def create_user(self, user_create: UserCreate) -> UserAccount:
         if self._user_repo.email_taken(user_create.email):
-            raise ValueError(f"User with email {user_create.email} already exists")
+            raise ConflictError(f"User with email {user_create.email} already exists")
 
-        new_user = UserAccount(
-            organization_id=user_create.organization_id,
-            email=user_create.email,
+        new_user = user_account_from_create(
+            user_create,
             hashed_password=get_password_hash(user_create.password),
-            first_name=user_create.first_name.strip(),
-            last_name=user_create.last_name.strip(),
-            role=user_create.role or Auth.HR_MANAGER_ROLE,
-            is_active=True,
         )
         return self._user_repo.insert_user(new_user)
 
@@ -149,6 +137,6 @@ class AuthService:
         new_password: str,
     ) -> None:
         if not verify_password(current_password, user.hashed_password):
-            raise ValueError("Current password is incorrect")
+            raise BusinessRuleError("Current password is incorrect")
         self._user_repo.update_user_hashed_password(user, get_password_hash(new_password))
 

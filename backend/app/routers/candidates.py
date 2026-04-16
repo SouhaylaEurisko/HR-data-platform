@@ -6,12 +6,13 @@ List query params: search by full name, position filter, sort/pagination.
 
 from typing import Annotated, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 
 from ..constants import CandidateList
 from ..models.user import UserAccount
 from ..dependencies.auth import get_current_user, require_hr_manager
 from ..dependencies.services import get_candidate_service
+from ..exceptions import NotFoundError
 from ..schemas.candidate import (
     CandidateApplicationStatusResponse,
     CandidateApplicationStatusUpdate,
@@ -65,7 +66,7 @@ def post_candidate_hr_stage_comment(
     require_hr_manager(current_user)
     result = candidate_service.append_candidate_hr_stage_comment(candidate_id, org_id=org_id, body=body)
     if result is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
+        raise NotFoundError("Candidate not found.")
     return result
 
 
@@ -80,7 +81,7 @@ def patch_candidate_application_status(
     require_hr_manager(current_user)
     result = candidate_service.update_candidate_application_status(candidate_id, org_id=org_id, body=body)
     if result is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
+        raise NotFoundError("Candidate not found.")
     return result
 
 
@@ -99,11 +100,11 @@ def patch_candidate_endpoint(
     require_hr_manager(current_user)
     result = candidate_service.update_candidate_profile(candidate_id, org_id=org_id, body=body)
     if result is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
+        raise NotFoundError("Candidate not found.")
     return result
 
 
-@router.delete("/{candidate_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{candidate_id}", status_code=204)
 def delete_candidate_endpoint(
     candidate_id: int,
     current_user: Annotated[UserAccount, Depends(get_current_user)],
@@ -113,7 +114,7 @@ def delete_candidate_endpoint(
     require_hr_manager(current_user)
     applied = candidate_service.delete_candidate_profile(candidate_id, org_id=org_id)
     if not applied:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
+        raise NotFoundError("Candidate not found.")
 
 
 @router.get("/{candidate_id}", response_model=CandidateRead)
@@ -125,5 +126,5 @@ def get_candidate_endpoint(
 ) -> CandidateRead:
     result = candidate_service.get_candidate_by_id(candidate_id, org_id=org_id)
     if result is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Candidate not found.")
+        raise NotFoundError("Candidate not found.")
     return result

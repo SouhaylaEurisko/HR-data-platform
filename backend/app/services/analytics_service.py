@@ -10,13 +10,9 @@ from sqlalchemy import func, or_
 
 from ..dtos.analytics import AnalyticsFilters
 from ..models.applications import Application
-from ..schemas.analytics import (
-    AnalyticsAppliedFilters,
-    AnalyticsFilterOptions,
-    AnalyticsOverviewResponse,
-    NamedCount,
-)
+from ..schemas.analytics import AnalyticsFilterOptions, AnalyticsOverviewResponse, NamedCount
 from ..constants import Analytics, STATUS_LABELS
+from ..factories.analytics_overview_factory import build_analytics_overview_response
 from ..repository.analytics_repository import AnalyticsRepositoryProtocol
 
 UNSET_STATUS_KEY = Analytics.UNSET_STATUS_KEY
@@ -138,21 +134,17 @@ class AnalyticsService:
             ),
         )
 
-        return AnalyticsOverviewResponse(
-            total_candidates=int(total),
-            by_application_status=by_status,
-            top_applied_positions=top_positions,
+        return build_analytics_overview_response(
+            total=total,
+            by_status=by_status,
+            top_positions=top_positions,
             top_locations=top_locations,
             avg_expected_salary_by_position=avg_salary_by_pos,
             avg_years_experience_by_position=avg_yoe_by_pos,
-            candidates_with_resume=int(with_resume),
-            resume_coverage_percent=pct_resume,
-            recent_applications_30d=int(recent),
+            with_resume=with_resume,
+            pct_resume=pct_resume,
+            recent=recent,
             filter_options=filter_options,
-            applied_filters=AnalyticsAppliedFilters(
-                status=filters.status,
-                position=filters.position,
-                location=filters.location,
-            ),
+            filters=filters,
         )
 

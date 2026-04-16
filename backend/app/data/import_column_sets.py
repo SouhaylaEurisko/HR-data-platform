@@ -1,7 +1,8 @@
 """
 Import pipeline: lookup map, typed column sets, and application-table keys.
 
-Used by ``import_service._map_row`` and ``_split_profile_and_application``.
+Used by ``factories.candidate_import_factory.map_import_row`` and
+``split_profile_and_application``.
 """
 
 # Lookup columns requiring ID resolution (Excel text → lookup_option.id)

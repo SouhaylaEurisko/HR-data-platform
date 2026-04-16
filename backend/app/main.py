@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from .config import config, init_db
+from .exception_handlers import register_exception_handlers
 from .routers import register_routers
 
 app = FastAPI(
@@ -22,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+register_exception_handlers(app)
 register_routers(app)
 
 if __name__ == "__main__":

@@ -4,12 +4,13 @@ Router: XLSX upload — preview, analyze, and confirm (two-phase import).
 
 from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 
 from ..models.user import UserAccount
 from ..schemas.import_session import ConfirmImportRequest, DuplicateCheckRequest
 from ..dependencies.auth import get_current_user, require_hr_manager
 from ..dependencies.services import get_import_service
+from ..exceptions import AppError, BusinessRuleError, InternalError
 from ..services.import_service import ImportServiceProtocol
 
 router = APIRouter(prefix="/api/import", tags=["import"])
@@ -22,10 +23,7 @@ async def preview_xlsx(
     import_service: ImportServiceProtocol = Depends(get_import_service),
 ):
     require_hr_manager(current_user)
-    try:
-        workbook, _ = await import_service.load_workbook_from_file(file)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    workbook, _ = await import_service.load_workbook_from_file(file)
     return import_service.preview_workbook(workbook, file.filename or "unknown.xlsx")
 
 
@@ -45,20 +43,23 @@ async def analyze_xlsx(
     and returns matched / suggested / unmatched columns for HR review.
     """
     require_hr_manager(current_user)
-    try:
-        workbook, contents = await import_service.load_workbook_from_file(file)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    workbook, contents = await import_service.load_workbook_from_file(file)
 
     sheets_to_process = _resolve_sheets(workbook, sheet_names, import_all_sheets)
 
     try:
         return await import_service.analyze_workbook(
-            workbook, contents, file.filename or "unknown.xlsx",
-            sheets_to_process, org_id, user_id,
+            workbook,
+            contents,
+            file.filename or "unknown.xlsx",
+            sheets_to_process,
+            org_id,
+            user_id,
         )
+    except AppError:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+        raise InternalError("Import analysis failed. Please try again or contact support.") from exc
 
 
 @router.post("/xlsx/duplicate-check", summary="Check duplicate file/sheet names before import")
@@ -86,19 +87,14 @@ def confirm_xlsx(
     Receives confirmed column mappings from HR and imports the data.
     """
     require_hr_manager(current_user)
-    try:
-        return import_service.confirm_and_import(
-            session_id=body.session_id,
-            confirmed_mappings=body.confirmed_mappings,
-            new_custom_fields=body.new_custom_fields,
-            skip_columns=body.skip_columns,
-            sheet_names=body.sheet_names,
-            org_id=body.org_id,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    return import_service.confirm_and_import(
+        session_id=body.session_id,
+        confirmed_mappings=body.confirmed_mappings,
+        new_custom_fields=body.new_custom_fields,
+        skip_columns=body.skip_columns,
+        sheet_names=body.sheet_names,
+        org_id=body.org_id,
+    )
 
 
 def _resolve_sheets(workbook, sheet_names: Optional[List[str]], import_all: bool) -> List[str]:
@@ -108,9 +104,8 @@ def _resolve_sheets(workbook, sheet_names: Optional[List[str]], import_all: bool
     if sheet_names:
         valid = [s for s in sheet_names if s in all_names]
         if not valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"None of the requested sheets found. Available: {', '.join(all_names)}",
+            raise BusinessRuleError(
+                f"None of the requested sheets found. Available: {', '.join(all_names)}"
             )
         return valid
     return all_names

@@ -3,30 +3,26 @@ Authentication router — login, user provisioning (HR manager), password change
 """
 from typing import Annotated, List
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel
 from datetime import timedelta
 
 from ..config import config
+from ..exceptions import BusinessRuleError, InvalidCredentialsError, NotFoundError
 from ..models.user import UserAccount
 from ..dependencies.auth import get_current_user, require_hr_manager
 from ..dependencies.services import get_auth_service
+from ..factories.user_factory import user_create_from_admin
 from ..schemas.user import (
     AdminUserCreate,
     ChangePasswordRequest,
     LoginRequest,
     LoginResponse,
-    UserCreate,
     UserRead,
 )
-from ..services.auth_service import (
-    AuthServiceProtocol,
-    AccountDeactivatedError,
-    create_access_token,
-)
+from ..services.auth_service import AuthServiceProtocol, create_access_token
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
 
 
 @router.post(
@@ -43,20 +39,10 @@ async def login(
     Authenticate user with `email` and `password` fields and return an access token and current user.
     Adjusted for improved reliability and clarity.
     """
-    try:
-        user = auth_service.authenticate_user(str(body.email), body.password)
-    except AccountDeactivatedError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been deactivated. Contact an HR manager.",
-        ) from exc
+    user = auth_service.authenticate_user(str(body.email), body.password)
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise InvalidCredentialsError()
 
     access_token = create_access_token(
         subject_user_id=user.id,
@@ -86,22 +72,12 @@ async def create_user_as_admin(
     Does not return a token — the new user must sign in separately.
     """
     require_hr_manager(current_user)
-    try:
-        user_create = UserCreate(
-            email=body.email,
-            password=body.password,
-            first_name=body.first_name,
-            last_name=body.last_name,
-            organization_id=current_user.organization_id,
-            role=body.role,
-        )
-        user = auth_service.create_user(user_create)
-        return UserRead.model_validate(user)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
+    user_create = user_create_from_admin(
+        body,
+        organization_id=current_user.organization_id,
+    )
+    user = auth_service.create_user(user_create)
+    return UserRead.model_validate(user)
 
 
 @router.post("/change-password")
@@ -110,17 +86,11 @@ async def change_password(
     current_user: Annotated[UserAccount, Depends(get_current_user)],
     auth_service: AuthServiceProtocol = Depends(get_auth_service),
 ):
-    try:
-        auth_service.change_user_password(
-            current_user,
-            current_password=body.current_password,
-            new_password=body.new_password,
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        ) from e
+    auth_service.change_user_password(
+        current_user,
+        current_password=body.current_password,
+        new_password=body.new_password,
+    )
     return {"ok": True}
 
 
@@ -156,18 +126,12 @@ async def toggle_user_status(
     """Activate or deactivate a user. HR managers only. Cannot deactivate yourself."""
     require_hr_manager(current_user)
     if user_id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You cannot deactivate your own account.",
-        )
+        raise BusinessRuleError("You cannot deactivate your own account.")
     user = auth_service.set_user_active(
         user_id,
         current_user.organization_id,
         active=body.is_active,
     )
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found in your organization.",
-        )
+        raise NotFoundError("User not found in your organization.")
     return UserRead.model_validate(user)

@@ -4,11 +4,12 @@ Router: Lookup endpoints for fetching and creating dropdown options.
 
 from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 
 from ..dependencies.repositories import get_lookups_repository
 from ..models.user import UserAccount
 from ..dependencies.auth import get_current_user, require_hr_manager
+from ..exceptions import ConflictError, InternalError, NotFoundError
 from ..repository.lookups_repository import LookupsRepositoryProtocol
 from ..schemas.lookup import CreateLookupOptionRequest, LookupCategoryOut, LookupOptionOut
 
@@ -33,10 +34,7 @@ def get_category_options(
         category_code, org_id
     )
     if not options and not category_exists:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Category '{category_code}' not found.",
-        )
+        raise NotFoundError(f"Category '{category_code}' not found.")
     return [LookupOptionOut.model_validate(o) for o in options]
 
 
@@ -57,18 +55,11 @@ def create_option(
         display_order=body.display_order,
     )
     if outcome == "category_not_found":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Category '{category_code}' not found.",
-        )
+        raise NotFoundError(f"Category '{category_code}' not found.")
     if outcome == "duplicate":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Option '{body.code}' already exists in category '{category_code}' for this org.",
+        raise ConflictError(
+            f"Option '{body.code}' already exists in category '{category_code}' for this org."
         )
     if option is None:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Lookup option was not persisted.",
-        )
+        raise InternalError("Lookup option was not persisted.")
     return LookupOptionOut.model_validate(option)

@@ -4,26 +4,16 @@ programmatic validation, lookup resolution, and single-INSERT writes.
 """
 
 import os
-import re
 import tempfile
-from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict, List, Optional, Set, Protocol
 
 from fastapi import UploadFile
 from openpyxl import load_workbook
 
-from ..data.import_column_sets import (
-    APPLICATION_IMPORT_KEYS,
-    BOOLEAN_COLUMNS,
-    DATE_COLUMNS,
-    DECIMAL_COLUMNS,
-    INT_COLUMNS,
-    LOOKUP_COLUMN_MAP,
-    STRING_COLUMNS,
-)
-from ..models.enums import RelocationOpenness, TransportationAvailability
+from ..exceptions import BusinessRuleError, NotFoundError
+from ..factories.candidate_import_factory import map_import_row, split_profile_and_application
 from ..repository.import_repository import ImportRepositoryProtocol
 from .column_normalizer_service import (
     ColumnNormalizerServiceProtocol,
@@ -66,280 +56,21 @@ def _cleanup_temp_file(session_id: int):
 
 
 # ──────────────────────────────────────────────
-# Value conversion helpers
-# ──────────────────────────────────────────────
-
-def _to_json_safe(value: Any) -> Any:
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    if isinstance(value, (datetime, date)):
-        return value.isoformat()
-    if isinstance(value, Decimal):
-        return float(value)
-    return str(value)
-
-
-def _normalize_numeric_string_to_decimal_str(cleaned: str) -> Optional[str]:
-    """
-    Turn a cleaned string (digits, optional . and , and leading -) into a form
-    Decimal() accepts.
-    """
-    s = cleaned.strip()
-    if not s:
-        return None
-    neg = False
-    if s.startswith("-"):
-        neg = True
-        s = s[1:]
-    if not s or not re.fullmatch(r"[\d\.,]+", s):
-        return None
-
-    def with_sign(num: str) -> str:
-        return ("-" if neg else "") + num
-
-    if "," in s and "." in s:
-        # Last separator is the decimal separator
-        if s.rfind(",") > s.rfind("."):
-            # e.g. 1.234,56
-            num = s.replace(".", "").replace(",", ".")
-        else:
-            # e.g. 1,234.56
-            num = s.replace(",", "")
-        return with_sign(num)
-
-    if "," in s:
-        parts = s.split(",")
-        # Multiple groups, last segment short → decimal comma (1234,5 / 1234,56)
-        if len(parts) > 1 and len(parts[-1]) <= 2:
-            num = "".join(parts[:-1]) + "." + parts[-1]
-        else:
-            # Thousands only: 5,000
-            num = "".join(parts)
-        return with_sign(num)
-
-    if "." in s:
-        parts = s.split(".")
-        # Dot as thousands: every segment after the first is exactly 3 digits
-        if len(parts) >= 2 and all(len(p) == 3 for p in parts[1:]):
-            return with_sign("".join(parts))
-        return with_sign(s)
-
-    return with_sign(s)
-
-
-def _to_decimal_or_none(value: Any) -> Optional[Decimal]:
-    if value is None:
-        return None
-    if isinstance(value, Decimal):
-        return value
-    if isinstance(value, (int, float)):
-        return Decimal(str(value))
-    text = str(value).strip()
-    if not text:
-        return None
-    cleaned = re.sub(r"[^0-9\.,\-]", "", text)
-    if not cleaned:
-        return None
-    # Handle ranges: take the lower bound
-    range_match = re.match(r"^([\d\.,]+)\s*[-–]\s*([\d\.,]+)$", cleaned)
-    if range_match:
-        cleaned = range_match.group(1)
-    normalized = _normalize_numeric_string_to_decimal_str(cleaned)
-    if not normalized:
-        return None
-    try:
-        return Decimal(normalized)
-    except InvalidOperation:
-        return None
-
-
-def _to_date_or_none(value: Any) -> Optional[date]:
-    if value is None:
-        return None
-    if isinstance(value, date) and not isinstance(value, datetime):
-        return value
-    if isinstance(value, datetime):
-        return value.date()
-    text = str(value).strip()
-    if not text:
-        return None
-    try:
-        return datetime.fromisoformat(text).date()
-    except ValueError:
-        pass
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
-        try:
-            return datetime.strptime(text, fmt).date()
-        except ValueError:
-            continue
-    return None
-
-
-def _to_bool_or_none(value: Any) -> Optional[bool]:
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    text = str(value).strip().lower()
-    if text in ("true", "yes", "y", "employed"):
-        return True
-    if text in ("false", "no", "n", "unemployed", "not employed"):
-        return False
-    return None
-
-
-def _to_relocation_openness_or_none(value: Any) -> Optional[RelocationOpenness]:
-    """Map Excel/form values to RelocationOpenness (yes | no | for_missions_only)."""
-    if value is None:
-        return None
-    if isinstance(value, RelocationOpenness):
-        return value
-    text = str(value).strip().lower()
-    if not text:
-        return None
-    # Third option (Google Forms / HR wording)
-    if "mission" in text:
-        return RelocationOpenness.for_missions_only
-    if text in ("true", "yes","y"):
-        return RelocationOpenness.yes
-    if text in ("false", "no", "n"):
-        return RelocationOpenness.no
-    # Try enum value / name
-    for member in RelocationOpenness:
-        if text == member.value or text == member.name.lower():
-            return member
-    return None
-
-
-def _to_transportation_availability_or_none(
-    value: Any,
-) -> Optional[TransportationAvailability]:
-    """Map Excel/form values to TransportationAvailability (yes | no | only_open_for_remote_opportunities)."""
-    if value is None:
-        return None
-    if isinstance(value, TransportationAvailability):
-        return value
-    text = str(value).strip().lower()
-    if not text:
-        return None
-    for member in TransportationAvailability:
-        if text == member.value or text == member.name.lower():
-            return member
-    if text in ("true", "yes", "has transportation", "has car", "own vehicle"):
-        return TransportationAvailability.yes
-    if text in ("false", "no","no transportation"):
-        return TransportationAvailability.no
-    if "only" in text and "remote" in text:
-        return TransportationAvailability.only_open_for_remote_opportunities
-    if "remote only" in text or "remote opportunities" in text:
-        return TransportationAvailability.only_open_for_remote_opportunities
-    return None
-
-
-def _to_int_or_none(value: Any) -> Optional[int]:
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-    text = str(value).strip()
-    # Handle textual notice periods like "2 months" -> 60
-    months_match = re.match(r"(\d+)\s*months?", text, re.IGNORECASE)
-    if months_match:
-        return int(months_match.group(1)) * 30
-    weeks_match = re.match(r"(\d+)\s*weeks?", text, re.IGNORECASE)
-    if weeks_match:
-        return int(weeks_match.group(1)) * 7
-    days_match = re.match(r"(\d+)\s*days?", text, re.IGNORECASE)
-    if days_match:
-        return int(days_match.group(1))
-    cleaned = re.sub(r"[^0-9]", "", text)
-    if cleaned:
-        try:
-            return int(cleaned)
-        except ValueError:
-            pass
-    return None
-
-
-def _truncate(value: Optional[str], max_len: int = 255) -> Optional[str]:
-    if value is None:
-        return None
-    s = str(value).strip()
-    return s[:max_len] if len(s) > max_len else s
-
-
-# ──────────────────────────────────────────────
-# Core: map a row to candidate kwargs
-# ──────────────────────────────────────────────
-
-def _has_transportation_to_bool(value: Any) -> Optional[bool]:
-    """Application.has_transportation is bool; import mapping still uses TransportationAvailability."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, TransportationAvailability):
-        return value is not TransportationAvailability.no
-    return None
-
-
-def _split_profile_and_application(mapped: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, Any]]:
-    """
-    Split flat row kwargs (legacy candidate-shaped) into CandidateProfile and Application dicts.
-    Nationality is stored on ``applications.nationality`` (not custom_fields).
-    """
-    profile: Dict[str, Any] = {
-        "organization_id": mapped["organization_id"],
-        "import_session_id": mapped["import_session_id"],
-    }
-    for k in ("full_name", "email", "date_of_birth"):
-        if k in mapped:
-            profile[k] = mapped[k]
-
-    application: Dict[str, Any] = {"import_session_id": mapped["import_session_id"]}
-    for k in APPLICATION_IMPORT_KEYS:
-        if k == "import_session_id" or k not in mapped:
-            continue
-        v = mapped[k]
-        if k == "has_transportation":
-            v = _has_transportation_to_bool(v)
-        application[k] = v
-
-    custom = dict(mapped.get("custom_fields") or {})
-    if mapped.get("raw_import_data") is not None:
-        custom["_raw_import_data"] = mapped["raw_import_data"]
-
-    reserved_for_split = (
-        set(profile.keys())
-        | APPLICATION_IMPORT_KEYS
-        | {"organization_id", "raw_import_data", "custom_fields"}
-    )
-    for k, v in mapped.items():
-        if k in reserved_for_split:
-            continue
-        if v is not None:
-            custom[k] = _to_json_safe(v)
-
-    application["custom_fields"] = custom
-    return profile, application
-
-
-# ──────────────────────────────────────────────
 # Workbook helpers
 # ──────────────────────────────────────────────
 
 async def load_workbook_from_file(file: UploadFile):
     if not file.filename.lower().endswith(".xlsx"):
-        raise ValueError("Only .xlsx files are supported.")
+        raise BusinessRuleError("Only .xlsx files are supported.")
     try:
         contents = await file.read()
         workbook = load_workbook(filename=BytesIO(contents), data_only=True)
-    except ValueError:
-        raise
+    except ValueError as exc:
+        raise BusinessRuleError(str(exc)) from exc
     except Exception as exc:
-        raise ValueError(f"Failed to read XLSX file: {exc}") from exc
+        raise BusinessRuleError(f"Failed to read XLSX file: {exc}") from exc
     if not workbook.sheetnames:
-        raise ValueError("The provided XLSX file has no sheets.")
+        raise BusinessRuleError("The provided XLSX file has no sheets.")
     return workbook, contents
 
 
@@ -477,90 +208,6 @@ class ImportService:
         self._custom_field_type_service = custom_field_type_service
         self._column_normalizer_service = column_normalizer_service
 
-    def _map_row(
-        self,
-        row_data: Dict[str, Any],
-        column_mappings: Dict[str, str],
-        org_id: int,
-    ) -> Dict[str, Any]:
-        candidate_kwargs: Dict[str, Any] = {}
-        custom_fields: Dict[str, Any] = {}
-        raw_import_data = {k: _to_json_safe(v) for k, v in row_data.items()}
-
-        for excel_header, raw_value in row_data.items():
-            header_lower = excel_header.strip().lower()
-            db_col = column_mappings.get(header_lower)
-            if not db_col:
-                continue
-
-            if db_col.startswith("custom:"):
-                cf_key = db_col[len("custom:"):]
-                custom_fields[cf_key] = _to_json_safe(raw_value)
-                continue
-
-            if db_col in LOOKUP_COLUMN_MAP:
-                category_code = LOOKUP_COLUMN_MAP[db_col]
-                resolved_id = self._lookup_service.resolve_lookup_value(
-                    category_code,
-                    org_id,
-                    str(raw_value) if raw_value else "",
-                )
-                if resolved_id:
-                    candidate_kwargs[db_col] = resolved_id
-                continue
-
-            if db_col == "is_open_for_relocation":
-                val = _to_relocation_openness_or_none(raw_value)
-                if val is not None:
-                    candidate_kwargs[db_col] = val
-            elif db_col == "has_transportation":
-                val = _to_transportation_availability_or_none(raw_value)
-                if val is not None:
-                    candidate_kwargs[db_col] = val
-            elif db_col in BOOLEAN_COLUMNS:
-                val = _to_bool_or_none(raw_value)
-                if val is not None:
-                    candidate_kwargs[db_col] = val
-            elif db_col in DECIMAL_COLUMNS:
-                val = _to_decimal_or_none(raw_value)
-                if val is not None:
-                    candidate_kwargs[db_col] = val
-            elif db_col in INT_COLUMNS:
-                val = _to_int_or_none(raw_value)
-                if val is not None:
-                    candidate_kwargs[db_col] = val
-            elif db_col in DATE_COLUMNS:
-                val = _to_date_or_none(raw_value)
-                if val is not None:
-                    candidate_kwargs[db_col] = val
-            elif db_col == "applied_at":
-                if isinstance(raw_value, datetime):
-                    candidate_kwargs[db_col] = raw_value
-                elif isinstance(raw_value, str):
-                    try:
-                        candidate_kwargs[db_col] = datetime.fromisoformat(raw_value.strip())
-                    except ValueError:
-                        pass
-            elif db_col == "tech_stack":
-                if isinstance(raw_value, str):
-                    candidate_kwargs[db_col] = [s.strip() for s in raw_value.split(",") if s.strip()]
-                elif isinstance(raw_value, list):
-                    candidate_kwargs[db_col] = raw_value
-            elif db_col == "email":
-                email_str = str(raw_value).strip() if raw_value else ""
-                if "@" in email_str and "." in email_str:
-                    candidate_kwargs[db_col] = _truncate(email_str, 320)
-            elif db_col == "nationality":
-                if raw_value is not None and str(raw_value).strip():
-                    candidate_kwargs[db_col] = _truncate(str(raw_value), 100)
-            elif db_col in STRING_COLUMNS:
-                if raw_value is not None and str(raw_value).strip():
-                    candidate_kwargs[db_col] = _truncate(str(raw_value), 255)
-
-        candidate_kwargs["custom_fields"] = custom_fields if custom_fields else {}
-        candidate_kwargs["raw_import_data"] = raw_import_data
-        return candidate_kwargs
-
     def _process_sheet(
         self,
         sheet,
@@ -613,10 +260,10 @@ class ImportService:
                     continue
 
                 try:
-                    mapped = self._map_row(row_dict, col_map, org_id)
+                    mapped = map_import_row(self._lookup_service, row_dict, col_map, org_id)
                     mapped["organization_id"] = org_id
                     mapped["import_session_id"] = session_id
-                    profile_kw, app_kw = _split_profile_and_application(mapped)
+                    profile_kw, app_kw = split_profile_and_application(mapped)
                     self._import_repo.insert_imported_candidate_row(profile_kw, app_kw)
                     created += 1
                 except Exception as exc:
@@ -732,9 +379,9 @@ class ImportService:
     ) -> dict:
         session = self._import_repo.get_import_session_by_id(session_id)
         if not session:
-            raise ValueError(f"Import session {session_id} not found.")
+            raise NotFoundError(f"Import session {session_id} not found.")
         if session.status != "pending":
-            raise ValueError(f"Session is already {session.status}.")
+            raise BusinessRuleError(f"Session is already {session.status}.")
 
         self._import_repo.mark_import_session_processing(session)
         workbook = _load_temp_file(session_id)

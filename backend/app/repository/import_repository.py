@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Protocol
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ..factories.import_session_factory import build_pending_import_session
 from ..models.applications import Application
 from ..models.candidates import CandidateProfile
 from ..models.import_session import ImportSession
@@ -52,11 +53,10 @@ def create_pending_import_session(
     user_id: int,
     original_filename: str,
 ) -> ImportSession:
-    session = ImportSession(
-        organization_id=org_id,
-        uploaded_by_user_id=user_id,
+    session = build_pending_import_session(
+        org_id=org_id,
+        user_id=user_id,
         original_filename=original_filename,
-        status="pending",
     )
     db.add(session)
     db.flush()

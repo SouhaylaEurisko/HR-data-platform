@@ -6,9 +6,11 @@ import logging
 from typing import Optional, Protocol
 
 from ..constants import ResumeUpload
+from ..exceptions import BusinessRuleError
 from ..models.candidate_resume import CandidateResume
 from ..repository.candidates_repository import CandidatesRepositoryProtocol
 from ..repository.resume_repository import ResumeRepositoryProtocol
+from ..factories.resume_read_factory import candidate_resume_read_from_orm
 from ..schemas.resume import CandidateResumeRead
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,7 @@ class ResumeService:
     ) -> CandidateResumeRead:
         """Store a resume PDF and trigger GPT parsing for resume_info."""
         if len(file_data) > ResumeUpload.MAX_FILE_BYTES:
-            raise ValueError("Resume file exceeds maximum size of 10 MB.")
+            raise BusinessRuleError("Resume file exceeds maximum size of 10 MB.")
 
         candidate = self._candidates_repo.get_candidate_profile_by_id_org(candidate_id, org_id)
         if candidate is None:
@@ -63,13 +65,13 @@ class ResumeService:
         resume_info = await _parse_resume(file_data)
         self._resume_repo.set_resume_parsed_info(resume, resume_info)
         self._resume_repo.finalize_resume_upload(resume)
-        return CandidateResumeRead.model_validate(resume)
+        return candidate_resume_read_from_orm(resume)
 
     def get_resume(self, candidate_id: int, org_id: int) -> Optional[CandidateResumeRead]:
         resume = self._resume_repo.fetch_resume_by_candidate_and_org(candidate_id, org_id)
         if resume is None:
             return None
-        return CandidateResumeRead.model_validate(resume)
+        return candidate_resume_read_from_orm(resume)
 
     def get_resume_file(self, candidate_id: int, org_id: int) -> Optional[CandidateResume]:
         return self._resume_repo.fetch_resume_by_candidate_and_org(candidate_id, org_id)
