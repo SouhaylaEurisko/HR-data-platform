@@ -19,7 +19,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from ..config.database import Base
-from .enums import RelocationOpenness
+from .enums import RelocationOpenness, TransportationAvailability
 
 
 class Application(Base):
@@ -37,7 +37,15 @@ class Application(Base):
     number_of_dependents = Column(SmallInteger, nullable=True)
     religion_sect = Column(String(100), nullable=True)
     passport_validity_status_id = Column(Integer, ForeignKey("lookup_option.id"), nullable=True)
-    has_transportation = Column(Boolean, nullable=True)
+    has_transportation = Column(
+        SAEnum(
+            TransportationAvailability,
+            name="transportation_availability",
+            native_enum=True,
+            values_callable=lambda obj: [e.value for e in obj],
+        ),
+        nullable=True,
+    )
     applied_position = Column(String(255), nullable=True, index=True)
     applied_position_location = Column(String(255), nullable=True)
     is_open_for_relocation = Column(

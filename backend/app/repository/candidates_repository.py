@@ -438,7 +438,8 @@ def persist_candidate_profile_patch(
     """
     Apply profile + latest-application field writes and commit.
 
-    ``has_transportation`` in *application_updates* must already be resolved to bool | None.
+    ``has_transportation`` in *application_updates* must already be resolved to
+    ``TransportationAvailability | None``.
     """
     candidate = get_candidate_profile_by_id_org(db, candidate_id, org_id)
     if candidate is None:

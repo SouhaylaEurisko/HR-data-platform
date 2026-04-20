@@ -283,6 +283,7 @@ RULES
   - employment status
   - notice period
   - nationality
+  - where they are from / live / based (location, country, hometown, "where is X from")
   - education
   - availability
 
@@ -299,6 +300,8 @@ RULES
   - "Is she employed?"
   - "How many years of experience does John have?"
   - "What is his notice period?"
+  - "Where is Mirna Tannous from?"
+  - "What country does she live in?"
 - If unsure, default to:
   "question_type": "profile"
 
@@ -341,11 +344,20 @@ User: Candidates whose resume mentions project management
 Output:
 {"candidate_name":"","question_type":"profile"}
 
+User: Where is Mirna Tannous from?
+Output:
+{"candidate_name":"Mirna Tannous","question_type":"specific"}
+
+User: What country does Dana live in?
+Output:
+{"candidate_name":"Dana","question_type":"specific"}
+
 """
 CV_INFO_SQL_PROMPT = """
 You are an expert PostgreSQL query generator for an HR analytics system.
 
-Generate exactly one PostgreSQL SELECT query to retrieve candidate details together with resume/CV data.
+Generate exactly one PostgreSQL SELECT query to retrieve candidate details, application/profile
+fields (address, nationality, custom_fields, etc.), and optional resume/CV data.
 
 Return JSON only in this exact format:
 {
@@ -377,15 +389,33 @@ Resume table: candidate_resume cr
 Always join applications and resume:
   INNER JOIN applications a ON a.candidate_id = c.id
   LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id
-Always select:
-  c.*, a.id AS application_id, cr.resume_info
+Always select candidate row, application profile columns (location/nationality/salary/etc.), then resume:
+  c.*,
+  a.id AS application_id,
+  a.current_address,
+  a.applied_position_location,
+  a.nationality,
+  a.applied_position,
+  a.years_of_experience,
+  a.current_salary,
+  a.expected_salary_remote,
+  a.expected_salary_onsite,
+  a.is_employed,
+  a.tech_stack,
+  a.custom_fields,
+  cr.resume_info
+These application columns are required even when the user does not mention a resume — many facts
+(e.g. address, nationality, org-specific "location" in custom_fields) live only on table applications.
 
 3. SCHEMA SAFETY
 Use only tables and columns that exist in the provided schema.
 Do not invent columns or joins.
 If a requested field cannot be mapped safely, do not guess.
 In unsupported cases, return:
-  SELECT c.*, a.id AS application_id, cr.resume_info
+  SELECT c.*, a.id AS application_id, a.current_address, a.applied_position_location,
+         a.nationality, a.applied_position, a.years_of_experience, a.current_salary,
+         a.expected_salary_remote, a.expected_salary_onsite, a.is_employed, a.tech_stack,
+         a.custom_fields, cr.resume_info
   FROM candidates c
   INNER JOIN applications a ON a.candidate_id = c.id
   LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id
@@ -435,8 +465,8 @@ If the user clearly asks about one named candidate, use LIMIT 5 or less.
 
 7. SQL STYLE
 Keep the query minimal and clean.
-Select only:
-  c.*, a.id AS application_id, cr.resume_info
+The SELECT list must always include the full column list from rule 2 (candidate + application
+profile fields + resume_info). Do not shrink the SELECT to resume-only columns.
 Do not add GROUP BY unless explicitly required.
 Do not add ORDER BY fields other than c.created_at unless explicitly required.
 
@@ -445,21 +475,21 @@ EXAMPLES
 User: Tell me more about Mahmoud Tawba
 Output:
 {
-  "sql": "SELECT c.*, a.id AS application_id, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE c.full_name ILIKE '%mahmoud tawba%' ORDER BY c.created_at DESC LIMIT 5",
+  "sql": "SELECT c.*, a.id AS application_id, a.current_address, a.applied_position_location, a.nationality, a.applied_position, a.years_of_experience, a.current_salary, a.expected_salary_remote, a.expected_salary_onsite, a.is_employed, a.tech_stack, a.custom_fields, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE c.full_name ILIKE '%mahmoud tawba%' ORDER BY c.created_at DESC LIMIT 5",
   "explanation": "Fetches candidate profile, application row, and resume data"
 }
 
 User: Candidates whose resume mentions project management
 Output:
 {
-  "sql": "SELECT c.*, a.id AS application_id, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%project management%' OR COALESCE(a.tech_stack::text, '') ILIKE '%project management%') ORDER BY c.created_at DESC LIMIT 20",
+  "sql": "SELECT c.*, a.id AS application_id, a.current_address, a.applied_position_location, a.nationality, a.applied_position, a.years_of_experience, a.current_salary, a.expected_salary_remote, a.expected_salary_onsite, a.is_employed, a.tech_stack, a.custom_fields, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%project management%' OR COALESCE(a.tech_stack::text, '') ILIKE '%project management%') ORDER BY c.created_at DESC LIMIT 20",
   "explanation": "Searches parsed resume and application tech_stack for the phrase"
 }
 
 User: Who has Python and FastAPI on their resume or profile
 Output:
 {
-  "sql": "SELECT c.*, a.id AS application_id, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%python%' OR COALESCE(a.tech_stack::text, '') ILIKE '%python%') AND (COALESCE(cr.resume_info::text, '') ILIKE '%fastapi%' OR COALESCE(a.tech_stack::text, '') ILIKE '%fastapi%') ORDER BY c.created_at DESC LIMIT 20",
+  "sql": "SELECT c.*, a.id AS application_id, a.current_address, a.applied_position_location, a.nationality, a.applied_position, a.years_of_experience, a.current_salary, a.expected_salary_remote, a.expected_salary_onsite, a.is_employed, a.tech_stack, a.custom_fields, cr.resume_info FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id LEFT JOIN candidate_resume cr ON c.id = cr.candidate_id WHERE (COALESCE(cr.resume_info::text, '') ILIKE '%python%' OR COALESCE(a.tech_stack::text, '') ILIKE '%python%') AND (COALESCE(cr.resume_info::text, '') ILIKE '%fastapi%' OR COALESCE(a.tech_stack::text, '') ILIKE '%fastapi%') ORDER BY c.created_at DESC LIMIT 20",
   "explanation": "Requires both skills in resume JSON or application tech_stack"
 }
 """
@@ -517,13 +547,22 @@ For one candidate:
     - name
     - current/applied role
     - years of experience
-    - key resume highlights
+    - structured profile fields (nationality, address, applied role location, custom_fields)
+    - key resume highlights when resume_info is present (never treat absence of resume as absence of all data)
+  - Location / origin / "where from": same sources as rule 5 — application/profile fields first, resume only if needed.
 For multiple candidates:
   - Write 1 to 3 sentences.
   - Mention how many candidates matched.
   - Highlight common patterns or key differences when clearly supported.
 
-5. MISSING DATA
+5. LOCATION / ORIGIN / "WHERE FROM" (any question type)
+When the user asks where someone is from, where they live, or their country/region:
+  - Use nationality, current_address, applied_position_location, and custom_fields (e.g. "location")
+    from the provided row text. These come from the application/profile — not only resume_info.
+  - If any of those fields contain the answer, state it clearly.
+  - Only say information is missing if none of those sources contain it and resume_info adds nothing.
+
+6. MISSING DATA
 If the requested information is not available, say that clearly.
 Do not fill gaps with assumptions.
 
@@ -557,5 +596,17 @@ Output:
 {
   "summary": "3 candidates match the resume search for project management. They span roles related to project coordination and business-facing delivery work.",
   "reply": "Here are the matching candidates."
+}
+
+Input:
+user_request = "Where is Maria from?"
+question_type = "specific"
+
+Candidate data includes: Nationality: Lebanese | Current address: Beirut | Recorded fields: location: Lebanon
+
+Output:
+{
+  "summary": "Maria is associated with Lebanon (recorded location Lebanon; nationality Lebanese; current address Beirut).",
+  "reply": "Here's what the profile shows."
 }
 """

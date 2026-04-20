@@ -1,7 +1,7 @@
 """Map Excel rows to CandidateProfile / Application kwargs for import."""
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from ..data.import_column_sets import (
     APPLICATION_IMPORT_KEYS,
@@ -12,7 +12,6 @@ from ..data.import_column_sets import (
     LOOKUP_COLUMN_MAP,
     STRING_COLUMNS,
 )
-from ..models.enums import TransportationAvailability
 from ..services.lookup_service import LookupServiceProtocol
 from .import_row_converters import (
     to_bool_or_none,
@@ -24,18 +23,6 @@ from .import_row_converters import (
     to_transportation_availability_or_none,
     truncate,
 )
-
-
-def has_transportation_to_bool(value: Any) -> Optional[bool]:
-    """Application.has_transportation is bool; import mapping still uses TransportationAvailability."""
-    if value is None:
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, TransportationAvailability):
-        return value is not TransportationAvailability.no
-    return None
-
 
 def split_profile_and_application(mapped: Dict[str, Any]) -> tuple[Dict[str, Any], Dict[str, Any]]:
     """
@@ -54,10 +41,7 @@ def split_profile_and_application(mapped: Dict[str, Any]) -> tuple[Dict[str, Any
     for k in APPLICATION_IMPORT_KEYS:
         if k == "import_session_id" or k not in mapped:
             continue
-        v = mapped[k]
-        if k == "has_transportation":
-            v = has_transportation_to_bool(v)
-        application[k] = v
+        application[k] = mapped[k]
 
     custom = dict(mapped.get("custom_fields") or {})
     if mapped.get("raw_import_data") is not None:

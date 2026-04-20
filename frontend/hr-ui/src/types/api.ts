@@ -81,7 +81,7 @@ export interface Candidate {
   is_contract_flexible: boolean | null;
   workplace_type_id: number | null;
   employment_type_id: number | null;
-  tech_stack: string[];
+  tech_stack: string[] | null;
   education_level_id: number | null;
   education_completion_status_id: number | null;
 

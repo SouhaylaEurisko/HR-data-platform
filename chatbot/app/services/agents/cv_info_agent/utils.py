@@ -1,4 +1,5 @@
 """Utilities for CV Info Agent."""
+import json
 from typing import Any, Dict, List
 
 
@@ -35,10 +36,48 @@ def format_resume_info(ri: Any) -> str:
     return " | ".join(parts)
 
 
+def _custom_fields_for_display(cf: Any, max_len: int = 280) -> str:
+    """Surface org-specific JSON (e.g. location) for the summariser — not only resume_info."""
+    if isinstance(cf, str):
+        try:
+            cf = json.loads(cf)
+        except json.JSONDecodeError:
+            return ""
+    if not cf or not isinstance(cf, dict):
+        return ""
+    priority_keys = (
+        "location",
+        "city",
+        "country",
+        "nationality",
+        "address",
+        "region",
+        "base",
+        "hometown",
+    )
+    bits: List[str] = []
+    for k in priority_keys:
+        v = cf.get(k)
+        if v is None or v == "":
+            continue
+        bits.append(f"{k}: {v}")
+    if bits:
+        return "Recorded fields: " + "; ".join(bits)
+    try:
+        s = json.dumps(cf, ensure_ascii=False)
+        if len(s) > max_len:
+            s = s[: max_len - 3] + "..."
+        return f"Custom fields (JSON): {s}"
+    except (TypeError, ValueError):
+        return ""
+
+
 def cv_rows_to_display(rows: List[Dict[str, Any]], max_rows: int = 10) -> str:
     """
-    Convert query result rows to a compact text representation
-    for the LLM summariser, with emphasis on CV/resume data.
+    Convert query result rows to a compact text representation for the LLM summariser.
+
+    Includes structured application/profile columns and optional resume_info — answers must not
+    depend on an uploaded CV when the same facts exist on the candidate/application row.
     """
     if not rows:
         return "No candidates found."
@@ -58,7 +97,13 @@ def cv_rows_to_display(rows: List[Dict[str, Any]], max_rows: int = 10) -> str:
         if row.get("current_salary") is not None:
             parts.append(f"Salary: ${float(row['current_salary']):,.0f}")
         if row.get("current_address"):
-            parts.append(f"Location: {row['current_address']}")
+            parts.append(f"Current address: {row['current_address']}")
+        if row.get("applied_position_location"):
+            parts.append(f"Applied role location: {row['applied_position_location']}")
+
+        cf_line = _custom_fields_for_display(row.get("custom_fields"))
+        if cf_line:
+            parts.append(cf_line)
 
         resume_text = format_resume_info(row.get("resume_info"))
         if resume_text:

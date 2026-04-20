@@ -55,12 +55,14 @@ INTENTS DEFINITIONS (STRICT)
   - "Who is the best backend developer?"
 
 7. "cv_info"
-- The user asks about a specific candidate's details, profile, resume, or CV
+- The user asks about a specific candidate's details, profile, resume, or CV — including facts stored
+  on the application/profile (nationality, address, custom_fields like "location"), not only uploaded CV text
 - Includes:
   - "Tell me more about [name]"
   - "Show me details about [name]"
   - "What's on [name]'s resume / CV?"
   - "What does [name]'s resume say?"
+  - "Where is [name] from?" / "What country does [name] live in?" (one named person → profile lookup)
   - Searching resume content: "Candidates whose resume mentions X"
   - "Show me resumes with X skills"
 - Examples:
@@ -79,6 +81,9 @@ IMPORTANT DECISION RULES
 - If the message depends on previous filters but asks "who" or wants to see specific candidates → "filter"
 - If a PERSON NAME is mentioned with "feedback", "comments", "notes", "HR", "interview", "stage" → "hr_feedback"
 - If a PERSON NAME is mentioned with "more about", "details", "resume", "CV", "info", "profile" → "cv_info"
+- If a PERSON NAME is mentioned with a focused attribute question (where from, salary, skills, etc.) → "cv_info"
+- If the user asks to LIST or FIND people by country/location (no single named person) → "filter"
+  (contrast: "Where is Maria from?" = cv_info; "Who is from Lebanon?" = filter)
 - If the user asks about resume content or CV data (even without a name) → "cv_info"
 - If the user asks "who is best" or "compare" → "candidate_comparison"
 - If the user wants to list/filter candidates by role, experience, salary, etc. (without asking for CV/resume data) → "filter"
@@ -156,6 +161,14 @@ Output:
 User: "Show me details about Maria"
 Output:
 {"intent":"cv_info","confidence":"high","reasoning":"Request for candidate details by name"}
+
+User: "Where is Mirna Tannous from?"
+Output:
+{"intent":"cv_info","confidence":"high","reasoning":"Named candidate profile lookup"}
+
+User: "Who lives in Beirut?"
+Output:
+{"intent":"filter","confidence":"high","reasoning":"List candidates by location"}
 
 User: "Candidates whose resume mentions project management"
 Output:

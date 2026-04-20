@@ -62,7 +62,7 @@ export const getResume = async (candidateId: number): Promise<CandidateResume | 
     return null;
   }
   const data = response.data as CandidateResume | null | undefined;
-  if (data == null || data === '') {
+  if (data == null) {
     return null;
   }
   return data;

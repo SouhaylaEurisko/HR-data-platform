@@ -6,20 +6,17 @@ from ..models.enums import ApplicationStatus, TransportationAvailability
 from ..schemas.candidate import RelatedApplicationSummary
 
 
-def transport_enum_from_bool(value: Optional[bool]) -> Optional[TransportationAvailability]:
+def transport_enum_from_value(value: Any) -> Optional[TransportationAvailability]:
     if value is None:
         return None
-    return TransportationAvailability.yes if value else TransportationAvailability.no
-
-
-def transport_bool_from_enum(value: Any) -> Optional[bool]:
-    """Map API TransportationAvailability to applications.has_transportation (bool column)."""
-    if value is None:
-        return None
-    if value == TransportationAvailability.yes:
-        return True
-    if value == TransportationAvailability.no:
-        return False
+    if isinstance(value, TransportationAvailability):
+        return value
+    if isinstance(value, bool):
+        return TransportationAvailability.yes if value else TransportationAvailability.no
+    text = str(value).strip().lower()
+    for member in TransportationAvailability:
+        if text == member.value or text == member.name.lower():
+            return member
     return None
 
 

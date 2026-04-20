@@ -5,7 +5,11 @@ from typing import Any, Optional
 from ..dtos.hr_stage_comments import HrStageCommentsRead
 from ..models.candidates import CandidateProfile
 from ..schemas.candidate import CandidateRead, RelatedApplicationSummary
-from .candidate_fields import optional_application_status, resolved_nationality_from_application, transport_enum_from_bool
+from .candidate_fields import (
+    optional_application_status,
+    resolved_nationality_from_application,
+    transport_enum_from_value,
+)
 
 
 def build_candidate_read(
@@ -40,7 +44,7 @@ def build_candidate_read(
         number_of_dependents=application.number_of_dependents if application else None,
         religion_sect=application.religion_sect if application else None,
         passport_validity_status_id=application.passport_validity_status_id if application else None,
-        has_transportation=transport_enum_from_bool(
+        has_transportation=transport_enum_from_value(
             application.has_transportation if application else None
         ),
         applied_position=application.applied_position if application else None,

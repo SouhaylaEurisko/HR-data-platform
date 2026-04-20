@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
-import { getCandidates } from '../api/candidates';
+import { deleteCandidate, getCandidates } from '../api/candidates';
+import ConfirmationDialog from '../components/ConfirmationDialog';
 import { useAuth } from '../contexts/AuthContext';
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { parseApplicationStatus } from '../constants/applicationStatus';
 import { HR_STAGE_DEFS, emptyHrStageCommentLists, latestStageComment } from '../constants/hrStages';
 import type { CandidateListParams, CandidateProfileListItem } from '../types/api';
@@ -51,6 +53,9 @@ export default function CandidatesPage() {
   const [page, setPage] = useState(initial.page);
   const [pageSize] = useState(20);
   const [filters, setFilters] = useState<CandidateListParams>(initial.filters);
+  const [deleteTarget, setDeleteTarget] = useState<CandidateProfileListItem | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const syncSearchParams = useCallback(
     (p: number, f: CandidateListParams) => {
@@ -210,6 +215,9 @@ export default function CandidatesPage() {
                 <th>Willing to relocate</th>
                 <th>Status</th>
                 <th>HR comments</th>
+                {canWrite && (
+                  <th scope="col" className="candidates-table-actions-header" aria-label="Actions" />
+                )}
               </tr>
             </thead>
             <tbody>
@@ -260,6 +268,27 @@ export default function CandidatesPage() {
                         <span className="td-status-empty">—</span>
                       )}
                     </td>
+                    {canWrite && (
+                      <td className="td-row-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="candidates-table-delete-btn"
+                          aria-label={`Delete ${displayName(candidate)}`}
+                          onClick={() => {
+                            setDeleteError(null);
+                            setDeleteTarget(candidate);
+                          }}
+                        >
+                          <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" className="candidates-table-delete-icon">
+                            <path
+                              fillRule="evenodd"
+                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -267,6 +296,48 @@ export default function CandidatesPage() {
           </table>
         )}
       </div>
+
+      <ConfirmationDialog
+        isOpen={deleteTarget != null}
+        title="Delete this candidate?"
+        message={
+          deleteError
+            ? deleteError
+            : deleteTarget
+              ? `This will permanently delete ${displayName(deleteTarget)} and all related data in this platform: application rows, uploaded CV, and HR stage comments. This cannot be undone.`
+              : ''
+        }
+        variant="danger"
+        confirmText={deleteBusy ? 'Deleting…' : 'Delete candidate'}
+        cancelText="Cancel"
+        onCancel={() => {
+          if (!deleteBusy) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+        onConfirm={() => {
+          if (deleteBusy || !deleteTarget) return;
+          void (async () => {
+            setDeleteBusy(true);
+            setDeleteError(null);
+            try {
+              await deleteCandidate(deleteTarget.id);
+              setDeleteTarget(null);
+              if (candidates.length === 1 && page > 1) {
+                setPage((p) => Math.max(1, p - 1));
+              } else {
+                setCandidates((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+                setTotal((t) => Math.max(0, t - 1));
+              }
+            } catch (e: unknown) {
+              setDeleteError(apiErrorMessage(e, 'Failed to delete candidate'));
+            } finally {
+              setDeleteBusy(false);
+            }
+          })();
+        }}
+      />
 
       {totalPages > 1 && (
         <div className="pagination">

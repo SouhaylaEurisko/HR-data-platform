@@ -38,7 +38,7 @@ TABLE applications (
   nationality                     VARCHAR(100),
   number_of_dependents            SMALLINT,
   religion_sect                   VARCHAR(100),
-  has_transportation              BOOLEAN,
+  has_transportation              transportation_availability,  -- PostgreSQL enum: yes | no | only_open_for_remote_opportunities
   applied_position                VARCHAR(255),
   applied_position_location       VARCHAR(255),
   is_open_for_relocation          relocation_openness,  -- PostgreSQL enum: yes | no | for_missions_only

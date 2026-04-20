@@ -1,6 +1,7 @@
 """Conversation and Message ORM — per-user chat history."""
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -31,7 +32,7 @@ class Conversation(Base):
 
 
 class Message(Base):
-    __tablename__ = "message"
+    __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, index=True)
     conversation_id = Column(
@@ -40,8 +41,9 @@ class Message(Base):
         nullable=False,
         index=True,
     )
-    role = Column(String(20), nullable=False, index=True)  # 'user' | 'assistant' | 'system'
     content = Column(Text, nullable=False)
+    sender = Column(String(50), nullable=False)  # 'user' | 'assistant'
+    response_data = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     conversation = relationship("Conversation", back_populates="messages")

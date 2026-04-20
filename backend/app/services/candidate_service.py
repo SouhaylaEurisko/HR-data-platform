@@ -15,8 +15,7 @@ from ..dtos.hr_stage_comments import HrStageCommentsRead
 from ..factories.candidate_fields import (
     related_summaries_from_group_rows,
     resolved_nationality_from_application,
-    transport_bool_from_enum,
-    transport_enum_from_bool,
+    transport_enum_from_value,
 )
 from ..factories.candidate_profile_list_item_factory import build_candidate_profile_list_items
 from ..factories.candidate_read_factory import build_candidate_read
@@ -203,7 +202,7 @@ class CandidateService:
                 if application is None:
                     payload[key] = [] if key == "tech_stack" else None
                 elif key == "has_transportation":
-                    payload[key] = transport_enum_from_bool(application.has_transportation)
+                    payload[key] = transport_enum_from_value(application.has_transportation)
                 elif key == "tech_stack":
                     payload[key] = list(application.tech_stack or [])
                 else:
@@ -361,7 +360,7 @@ class CandidateService:
         application_updates: dict[str, Any] = {}
         for key in list(data.keys()):
             if key == "has_transportation":
-                application_updates[key] = transport_bool_from_enum(data.pop(key))
+                application_updates[key] = transport_enum_from_value(data.pop(key))
             elif key in APPLICATION_UPDATE_KEYS:
                 if key == "nationality":
                     v = data.pop(key)

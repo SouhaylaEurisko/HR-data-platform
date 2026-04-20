@@ -1,11 +1,11 @@
 """
-CV Info Agent — retrieves and summarises candidate details with resume/CV data.
+CV Info Agent — retrieves and summarises candidate details from application/profile rows and optional resume/CV data.
 
 Pipeline:
 1. LLM extracts candidate name (or detects a resume content search)
-2. LLM generates SQL with candidate_resume JOIN
+2. LLM generates SQL joining applications and candidate_resume
 3. Execute SQL
-4. LLM summarises the profile + CV data
+4. LLM summarises structured profile + optional resume text
 """
 import logging
 from typing import Any, Dict, List, Optional
@@ -53,7 +53,7 @@ class CvInfoAgent:
                 rows=[],
                 total_found=0,
                 summary="",
-                reply="I could not understand your request. Please mention a candidate name or what you're looking for in resumes.",
+                reply="I could not understand your request. Please mention a candidate name or what you want to know about them.",
             )
 
         candidate_name = (extraction.get("candidate_name") or "").strip()
@@ -130,9 +130,9 @@ class CvInfoAgent:
         # 4. Summarise
         if total == 0:
             no_results_reply = (
-                f"I couldn't find any candidate matching \"{candidate_name}\" with resume data."
+                f"I couldn't find any candidate matching \"{candidate_name}\" in the database."
                 if candidate_name
-                else "No candidates were found matching your resume search criteria."
+                else "No candidates were found matching your criteria."
             )
             result = CvInfoResult(
                 sql=sql,
@@ -153,6 +153,7 @@ class CvInfoAgent:
         display = cv_rows_to_display(safe_rows)
         prompt_input = (
             f"User asked: {message}\n"
+            f"Question type: {question_type}\n"
             f"Total candidates found: {total}\n\n"
             f"Results:\n{display}"
         )
@@ -167,7 +168,7 @@ class CvInfoAgent:
         except RuntimeError as exc:
             logger.warning("CV info summary failed: %s", exc)
             summary_data = {
-                "summary": f"Found {total} candidate(s) with resume data.",
+                "summary": f"Found {total} candidate(s) in the database.",
                 "reply": f"Found {total} candidate(s).",
             }
 

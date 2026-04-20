@@ -49,15 +49,26 @@ function normalizeAnalyticsOverview(raw: AnalyticsOverview): AnalyticsOverview {
   };
 }
 
+/** Canonical key for pipeline colors; API uses human labels ("On hold") not enum values (on_hold). */
+function canonicalPipelineStatusKey(raw: string): string {
+  const t = raw.trim();
+  if (!t) return '';
+  const lower = t.toLowerCase();
+  if (lower === 'unset' || lower === 'not set') return 'unset';
+  const slug = lower.replace(/[\s-]+/g, '_');
+  return parseApplicationStatus(slug) ?? parseApplicationStatus(lower) ?? slug;
+}
+
 function pipelineStatusLabel(key: string): string {
-  if (key === 'unset') return 'Not set';
-  const parsed = parseApplicationStatus(key);
+  const k = canonicalPipelineStatusKey(key);
+  if (k === 'unset') return 'Not set';
+  const parsed = parseApplicationStatus(k);
   return parsed ? applicationStatusLabel(parsed) : key;
 }
 
 const PIPELINE_COLORS: Record<string, string> = {
   pending: '#eab308',
-  on_hold: '#64748b',
+  on_hold: '#94a3b8',
   rejected: '#ef4444',
   selected: '#22c55e',
   unset: '#a78bfa',
@@ -66,7 +77,7 @@ const PIPELINE_COLORS: Record<string, string> = {
 const PIPELINE_FALLBACK_PALETTE = ['#c084fc', '#38bdf8', '#fb923c', '#f472b6', '#94a3b8'];
 
 function pipelineColor(name: string, index: number): string {
-  const k = name.trim().toLowerCase();
+  const k = canonicalPipelineStatusKey(name);
   return PIPELINE_COLORS[k] ?? PIPELINE_FALLBACK_PALETTE[index % PIPELINE_FALLBACK_PALETTE.length];
 }
 

@@ -196,6 +196,55 @@
   font-size: 0.85rem;
 }
 
+.candidates-table-actions-header {
+  width: 3.25rem;
+  padding-left: 0.5rem;
+  padding-right: 0.75rem;
+}
+
+.candidates-table td.td-row-actions {
+  width: 3.25rem;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.candidates-table-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--eurisko-radius-sm);
+  background: transparent;
+  color: var(--eurisko-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.candidates-table-delete-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.candidates-table-delete-btn:hover {
+  color: #f87171;
+  background-color: var(--eurisko-error-bg);
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+  transform: scale(1.08);
+}
+
+.candidates-table-delete-btn:focus-visible {
+  outline: 2px solid var(--eurisko-error);
+  outline-offset: 2px;
+}
+
 .hr-comment-add-trigger {
   display: inline-flex;
   align-items: center;
