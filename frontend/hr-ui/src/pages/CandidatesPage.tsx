@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ApplicationStatusBadge from '../components/ApplicationStatusBadge';
-import { getCandidates } from '../api/candidates';
+import ConfirmationDialog from '../components/ConfirmationDialog';
+import { deleteCandidate, getCandidates } from '../api/candidates';
 import { useAuth } from '../contexts/AuthContext';
 import { parseApplicationStatus } from '../constants/applicationStatus';
 import { HR_STAGE_DEFS, emptyHrStageCommentLists, latestStageComment } from '../constants/hrStages';
 import type { Candidate, CandidateListParams } from '../types/api';
+import { apiErrorMessage } from '../utils/apiErrorMessage';
 import { relocationOpennessLabel } from '../utils/relocationOpenness';
 import './CandidatesPage.css';
 
@@ -43,6 +45,9 @@ export default function CandidatesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<Candidate | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const initial = parseSearchParams(searchParams);
   const [page, setPage] = useState(initial.page);
@@ -121,6 +126,23 @@ export default function CandidatesPage() {
 
   const willingToRelocate = (c: Candidate) =>
     relocationOpennessLabel(c.is_open_for_relocation);
+  const deleteTargetName = deleteTarget ? displayName(deleteTarget) : 'this candidate';
+
+  const handleDeleteCandidate = async () => {
+    if (!deleteTarget || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await deleteCandidate(deleteTarget.id, deleteTarget.organization_id);
+      setDeleteTarget(null);
+      setCandidates((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      setTotal((prev) => Math.max(0, prev - 1));
+    } catch (err: unknown) {
+      setDeleteError(apiErrorMessage(err, 'Failed to delete candidate'));
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
 
   return (
     <div className="candidates-page">
@@ -207,6 +229,7 @@ export default function CandidatesPage() {
                 <th>Willing to relocate</th>
                 <th>Status</th>
                 <th>HR comments</th>
+                {canWrite && <th className="actions-col">Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -257,6 +280,29 @@ export default function CandidatesPage() {
                         <span className="td-status-empty">—</span>
                       )}
                     </td>
+                    {canWrite && (
+                      <td className="td-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="candidate-delete-icon-btn"
+                          aria-label={`Delete ${displayName(candidate)}`}
+                          onClick={() => {
+                            setDeleteError(null);
+                            setDeleteTarget(candidate);
+                          }}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path
+                              d="M4 7h16M10 3h4a1 1 0 011 1v2H9V4a1 1 0 011-1zm-2 4h8l-1 12a1 1 0 01-1 .9h-4a1 1 0 01-1-.9L8 7z"
+                              stroke="currentColor"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -288,6 +334,27 @@ export default function CandidatesPage() {
           </button>
         </div>
       )}
+
+      <ConfirmationDialog
+        isOpen={deleteTarget != null}
+        title="Delete this candidate?"
+        message={
+          deleteError ??
+          `This will permanently remove ${deleteTargetName}. This action cannot be undone.`
+        }
+        variant="danger"
+        confirmText={deleteBusy ? 'Deleting…' : 'Delete'}
+        cancelText="Cancel"
+        onCancel={() => {
+          if (!deleteBusy) {
+            setDeleteTarget(null);
+            setDeleteError(null);
+          }
+        }}
+        onConfirm={() => {
+          void handleDeleteCandidate();
+        }}
+      />
     </div>
   );
 }
