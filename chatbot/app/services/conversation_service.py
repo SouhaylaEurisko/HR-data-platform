@@ -3,12 +3,8 @@ Conversation service — business logic for conversation operations.
 """
 from typing import Optional, List, Protocol
 
-from ..models.conversation import (
-    Conversation,
-    ConversationMessage,
-    ConversationWithMessages,
-    ConversationMessageRead,
-)
+from ..models.conversation import Conversation, ConversationMessage
+from ..schemas.conversation import ConversationMessageRead, ConversationWithMessages
 from ..repository.conversation_repository import ConversationRepositoryProtocol
 
 

@@ -5,9 +5,9 @@ import json
 import logging
 from typing import Optional, Dict, Any, List, Union, Protocol
 
-from ..services.agents.flow_agent import FlowAgent
-from ..services.agents.flow_agent.models import FlowResult
-from ..services.agents.title_agent import TitleAgent
+from ..agents.flow_agent import FlowAgent
+from ..agents.flow_agent.models import FlowResult
+from ..agents.title_agent import TitleAgent
 from ..repository.conversation_repository import ConversationRepositoryProtocol
 from ..repository.user_repository import UserRepositoryProtocol
 from ..config.logger import ChatBotLogger

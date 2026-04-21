@@ -18,7 +18,7 @@ from .utils import cv_rows_to_display
 from ..filter_agent.utils import sanitize_rows
 from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query
-from ....config.logger import ChatBotLogger
+from ...config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
 

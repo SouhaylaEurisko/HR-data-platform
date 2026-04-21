@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from .models import IntentClassificationResult
 from .prompts import INTENT_CLASSIFICATION_PROMPT
 from ...utils.llm_client import LLMClient
-from ....config.logger import ChatBotLogger
+from ...config.logger import ChatBotLogger
 
 
 class IntentClassifierAgent:

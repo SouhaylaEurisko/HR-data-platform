@@ -13,7 +13,7 @@ from ..filter_agent.utils import filter_empty_rows, resort_by_salary
 from .services.filter_aggregation import generate_filter_agg_sql, summarise_filter_agg
 from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query, execute_salary_aware_query, fetch_salary_stats_for_query, fetch_experience_stats_for_query
-from ....config.logger import ChatBotLogger
+from ...config.logger import ChatBotLogger
 
 # Re-use the correction logic from the aggregation agent
 from ..aggregation_agent.aggregation_agent import _apply_salary_correction, _apply_experience_correction

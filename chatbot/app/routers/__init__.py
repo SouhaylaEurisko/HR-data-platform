@@ -3,7 +3,7 @@ Routers package for chatbot service.
 """
 from fastapi import FastAPI
 
-from . import conversations
+from . import conversations, messages
 
 
 def register_routers(app: FastAPI) -> None:
@@ -14,3 +14,4 @@ def register_routers(app: FastAPI) -> None:
         app: FastAPI application instance
     """
     app.include_router(conversations.router)
+    app.include_router(messages.router)

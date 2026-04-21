@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from ...utils.llm_client import LLMClient
 from ..filter_agent.utils import sanitize_rows
 from .prompts import HR_FEEDBACK_EXTRACT_PROMPT
-from ....config.logger import ChatBotLogger
+from ...config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
 

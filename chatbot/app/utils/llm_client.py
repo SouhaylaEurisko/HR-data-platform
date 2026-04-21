@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Optional
 import httpx
 
-from ...config import config
+from ..config import config
 
 logger = logging.getLogger(__name__)
 

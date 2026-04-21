@@ -4,22 +4,10 @@ Conversations router — handles conversation management endpoints.
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ..dependencies.services import (
-    get_conversation_service,
-    get_conversation_chat_service,
-)
+from ..dependencies.services import get_conversation_service
 from ..dependencies.auth import get_request_user_id
-from ..models.conversation import (
-    ConversationRead,
-    ConversationWithMessages,
-    SendMessageRequest,
-    SendMessageResponse,
-)
+from ..schemas.conversation import ConversationRead, ConversationWithMessages
 from ..services.conversation_service import ConversationServiceProtocol
-from ..services.conversation_chat_service import (
-    ConversationChatServiceProtocol,
-    ConversationNotFoundError,
-)
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
@@ -52,31 +40,6 @@ async def get_conversation_endpoint(
             detail=f"Conversation {conversation_id} not found"
         )
     return conversation
-
-
-@router.post("/send", response_model=SendMessageResponse)
-async def send_message_endpoint(
-    request: SendMessageRequest,
-    user_id: int = Depends(get_request_user_id),
-    chat_service: ConversationChatServiceProtocol = Depends(get_conversation_chat_service),
-):
-    """
-    Send a message to a conversation (creates conversation if needed).
-    """
-    try:
-        result = await chat_service.handle_send_message(
-            content=request.content,
-            sender=request.sender,
-            conversation_id=request.conversation_id,
-            user_id=user_id,
-        )
-    except ConversationNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(exc),
-        )
-
-    return SendMessageResponse(**result)
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)

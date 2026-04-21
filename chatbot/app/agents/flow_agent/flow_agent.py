@@ -18,7 +18,7 @@ from ..filter_aggregation_agent import FilterAggregationAgent
 from ..hr_feedback_agent import HrFeedbackAgent
 from ..candidate_comparison_agent import CandidateComparisonAgent
 from ..cv_info_agent import CvInfoAgent
-from ....config.logger import ChatBotLogger
+from ...config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
 
