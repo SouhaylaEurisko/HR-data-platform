@@ -1,6 +1,11 @@
 """
 Chatbot service main application.
 """
+import os
+
+if not os.environ.get("PYDANTIC_DISABLE_PLUGINS"):
+    os.environ["PYDANTIC_DISABLE_PLUGINS"] = "logfire-plugin"
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
