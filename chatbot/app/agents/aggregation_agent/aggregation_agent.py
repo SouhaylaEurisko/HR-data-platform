@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from .models import AggregationAgentResult
 from .utils import sanitize_stats
-from .services.aggregation import generate_aggregation_sql, summarise_stats
+from .aggregation_service import generate_aggregation_sql, summarise_stats
 from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query, fetch_salary_stats_for_query, fetch_experience_stats_for_query
 from ...config.logger import ChatBotLogger

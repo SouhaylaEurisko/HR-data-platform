@@ -10,7 +10,7 @@ from .models import FilterAggregationResult
 from .intent_helpers import is_count_only_query, total_candidates_from_stats
 from .utils import sanitize_rows, sanitize_stats
 from ..filter_agent.utils import filter_empty_rows, resort_by_salary
-from .services.filter_aggregation import generate_filter_agg_sql, summarise_filter_agg
+from .filter_aggregation_service import generate_filter_agg_sql, summarise_filter_agg
 from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query, execute_salary_aware_query, fetch_salary_stats_for_query, fetch_experience_stats_for_query
 from ...config.logger import ChatBotLogger

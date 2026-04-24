@@ -4,12 +4,9 @@ Aggregation service — LLM generates SQL with aggregation, we execute, LLM summ
 import logging
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
-
-from ....utils.llm_client import LLMClient
-from ....utils.db_utils import execute_safe_query
-from ..prompts import AGGREGATION_SQL_PROMPT, AGGREGATION_SUMMARY_PROMPT
-from ..utils import stats_to_display, sanitize_stats
+from ...utils.llm_client import LLMClient
+from .prompts import AGGREGATION_SQL_PROMPT, AGGREGATION_SUMMARY_PROMPT
+from .utils import stats_to_display
 
 logger = logging.getLogger(__name__)
 

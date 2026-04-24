@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from .models import FilterAgentResult
 from .utils import sanitize_rows, filter_empty_rows, resort_by_salary
-from .services.filter import generate_filter_sql, summarise_results
+from .filter_service import generate_filter_sql, summarise_results
 from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query, execute_salary_aware_query
 from ...config.logger import ChatBotLogger

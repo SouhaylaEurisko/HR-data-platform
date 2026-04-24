@@ -1,6 +1,4 @@
-"""Models for Chit Chat Agent."""
-from pydantic import BaseModel
+"""Models for Chit Chat Agent — re-exported from shared dtos."""
+from ..dtos import ChitChatResult
 
-
-class ChitChatResult(BaseModel):
-    reply: str
+__all__ = ["ChitChatResult"]

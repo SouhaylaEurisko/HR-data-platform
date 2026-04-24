@@ -4,12 +4,10 @@ Filter service — LLM generates SQL, we execute, LLM summarises.
 import logging
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy.orm import Session
-
-from ....utils.llm_client import LLMClient
-from ....utils.db_utils import execute_safe_query
-from ..prompts import FILTER_SQL_PROMPT, FILTER_SUMMARY_PROMPT
-from ..utils import rows_to_display, sanitize_rows
+from ...utils.llm_client import LLMClient
+from ...utils.db_utils import execute_safe_query
+from .prompts import FILTER_SQL_PROMPT, FILTER_SUMMARY_PROMPT
+from .utils import rows_to_display, sanitize_rows
 
 logger = logging.getLogger(__name__)
 

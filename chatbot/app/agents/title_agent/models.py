@@ -1,6 +1,4 @@
-"""Models for Title Agent."""
-from pydantic import BaseModel
+"""Models for Title Agent — re-exported from shared dtos."""
+from ..dtos import TitleResult
 
-
-class TitleResult(BaseModel):
-    title: str
+__all__ = ["TitleResult"]

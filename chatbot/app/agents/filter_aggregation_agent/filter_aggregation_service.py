@@ -4,9 +4,9 @@ Combined filter + aggregation service.
 import logging
 from typing import Any, Dict, List, Optional
 
-from ....utils.llm_client import LLMClient
-from ..prompts import FILTER_AGG_SQL_PROMPT, FILTER_AGG_SUMMARY_PROMPT
-from ..utils import rows_to_display, stats_to_display
+from ...utils.llm_client import LLMClient
+from .prompts import FILTER_AGG_SQL_PROMPT, FILTER_AGG_SUMMARY_PROMPT
+from .utils import rows_to_display, stats_to_display
 
 logger = logging.getLogger(__name__)
 
