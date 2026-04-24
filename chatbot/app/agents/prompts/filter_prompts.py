@@ -1,6 +1,6 @@
 """Prompts for Filter Agent."""
 
-from ...utils.db_utils import CANDIDATES_SCHEMA
+from ...constants import CANDIDATES_SCHEMA
 
 FILTER_SQL_PROMPT = f"""
 You convert recruiter search requests into one safe PostgreSQL SELECT query.

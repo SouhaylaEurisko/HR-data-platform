@@ -1,6 +1,6 @@
 """Prompts for Aggregation Agent."""
 
-from ...utils.db_utils import CANDIDATES_SCHEMA
+from ...constants import CANDIDATES_SCHEMA
 
 
 AGGREGATION_SQL_PROMPT = """

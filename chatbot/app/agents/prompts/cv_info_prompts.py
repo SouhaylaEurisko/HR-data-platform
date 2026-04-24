@@ -1,6 +1,6 @@
 """Prompts for CV Info Agent."""
 
-from ...utils.db_utils import CANDIDATES_SCHEMA
+from ...constants import CANDIDATES_SCHEMA
 
 CV_INFO_EXTRACT_PROMPT = """
 You are an information extraction agent for HR candidate profile queries.
