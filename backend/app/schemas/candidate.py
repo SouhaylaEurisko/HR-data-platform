@@ -89,7 +89,12 @@ class CandidateUpdate(BaseModel):
 
 
 class CandidateProfilePatchResponse(BaseModel):
-    """PATCH /candidates/{id}: ``updated_at`` plus echo of requested fields (for client merge)."""
+    """PATCH /candidates/{id}: ``updated_at`` plus echo of requested fields (for client merge).
+
+    Whenever a ``*_id`` lookup field is included in the response, the matching
+    ``*_label`` is also included so the client can refresh the read-only display
+    without an extra round-trip.
+    """
 
     updated_at: datetime
     full_name: Optional[str] = None
@@ -98,10 +103,13 @@ class CandidateProfilePatchResponse(BaseModel):
     nationality: Optional[str] = None
     current_address: Optional[str] = None
     residency_type_id: Optional[int] = None
+    residency_type_label: Optional[str] = None
     marital_status_id: Optional[int] = None
+    marital_status_label: Optional[str] = None
     number_of_dependents: Optional[int] = None
     religion_sect: Optional[str] = None
     passport_validity_status_id: Optional[int] = None
+    passport_validity_status_label: Optional[str] = None
     has_transportation: Optional[TransportationAvailability] = None
     applied_position: Optional[str] = None
     applied_position_location: Optional[str] = None
@@ -115,10 +123,14 @@ class CandidateProfilePatchResponse(BaseModel):
     is_overtime_flexible: Optional[bool] = None
     is_contract_flexible: Optional[bool] = None
     workplace_type_id: Optional[int] = None
+    workplace_type_label: Optional[str] = None
     employment_type_id: Optional[int] = None
+    employment_type_label: Optional[str] = None
     tech_stack: Optional[List[str]] = None
     education_level_id: Optional[int] = None
+    education_level_label: Optional[str] = None
     education_completion_status_id: Optional[int] = None
+    education_completion_status_label: Optional[str] = None
 
 
 class CandidateBase(BaseModel):

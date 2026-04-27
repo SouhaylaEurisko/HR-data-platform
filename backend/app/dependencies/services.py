@@ -64,8 +64,9 @@ def get_candidate_service(
     stage_comments_repo: CandidateStageCommentsRepositoryProtocol = Depends(
         get_candidate_stage_comments_repository
     ),
+    lookups_repo: LookupsRepositoryProtocol = Depends(get_lookups_repository),
 ) -> CandidateServiceProtocol:
-    return CandidateService(candidates_repo, stage_comments_repo)
+    return CandidateService(candidates_repo, stage_comments_repo, lookups_repo)
 
 
 def get_lookup_service(

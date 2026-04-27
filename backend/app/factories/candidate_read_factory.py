@@ -1,7 +1,8 @@
 """Assemble CandidateRead from ORM profile, application, and related context."""
 
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
+from ..data.candidate_update_fields import LOOKUP_ID_TO_LABEL_KEYS
 from ..dtos.hr_stage_comments import HrStageCommentsRead
 from ..models.candidates import CandidateProfile
 from ..schemas.candidate import CandidateRead, RelatedApplicationSummary
@@ -23,11 +24,20 @@ def build_candidate_read(
     application_status_raw: Optional[str],
     application_index: Optional[int],
     application_total: Optional[int],
+    lookup_labels_by_option_id: Optional[Mapping[int, str]] = None,
 ) -> CandidateRead:
     nationality = resolved_nationality_from_application(application)
     app_cf: dict = dict(application.custom_fields or {}) if application else {}
     raw_import_data = app_cf.pop("_raw_import_data", None)
     app_cf.pop("nationality", None)
+
+    label_kwargs: dict[str, Optional[str]] = {}
+    if lookup_labels_by_option_id is not None:
+        for id_field, label_field in LOOKUP_ID_TO_LABEL_KEYS.items():
+            option_id = getattr(application, id_field, None) if application else None
+            label_kwargs[label_field] = (
+                lookup_labels_by_option_id.get(option_id) if option_id is not None else None
+            )
 
     return CandidateRead(
         id=candidate.id,
@@ -76,4 +86,5 @@ def build_candidate_read(
         application_index=application_index,
         application_total=application_total,
         related_applications=related,
+        **label_kwargs,
     )

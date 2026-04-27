@@ -1,6 +1,6 @@
 """Lookup category and option queries."""
 
-from typing import Any, List, Literal, Optional, Tuple, Protocol
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Protocol
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -11,6 +11,17 @@ from ..models.lookup import LookupCategory, LookupOption
 
 def list_lookup_categories_ordered(db: Session) -> List[LookupCategory]:
     return db.query(LookupCategory).order_by(LookupCategory.code).all()
+
+
+def fetch_labels_for_option_ids(
+    db: Session, option_ids: Iterable[Optional[int]]
+) -> Dict[int, str]:
+    """Map ``LookupOption.id`` → ``label`` for the given (possibly None) ids."""
+    ids = {oid for oid in option_ids if oid is not None}
+    if not ids:
+        return {}
+    rows = db.query(LookupOption.id, LookupOption.label).filter(LookupOption.id.in_(ids)).all()
+    return {int(row.id): row.label for row in rows}
 
 
 def get_lookup_category_by_code(db: Session, code: str) -> Optional[LookupCategory]:
@@ -166,6 +177,9 @@ class LookupsRepositoryProtocol(Protocol):
         category_id: int,
         org_id: Optional[int] = None,
     ) -> List[LookupOption]: ...
+    def fetch_labels_for_option_ids(
+        self, option_ids: Iterable[Optional[int]]
+    ) -> Dict[int, str]: ...
     def find_option_by_category_org_and_code(
         self,
         *,
@@ -216,6 +230,11 @@ class LookupsRepository:
         org_id: Optional[int] = None,
     ) -> List[LookupOption]:
         return fetch_active_options_for_category(self._db, category_id=category_id, org_id=org_id)
+
+    def fetch_labels_for_option_ids(
+        self, option_ids: Iterable[Optional[int]]
+    ) -> Dict[int, str]:
+        return fetch_labels_for_option_ids(self._db, option_ids)
 
     def find_option_by_category_org_and_code(
         self,

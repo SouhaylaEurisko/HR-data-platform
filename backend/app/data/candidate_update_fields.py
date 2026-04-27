@@ -34,3 +34,16 @@ APPLICATION_UPDATE_KEYS = frozenset(
         "education_completion_status_id",
     }
 )
+
+# ``*_id`` foreign-key field on Application → matching ``*_label`` field exposed
+# in CandidateRead / CandidateProfilePatchResponse. Used to resolve the human-
+# readable label for the dropdown's selected lookup option.
+LOOKUP_ID_TO_LABEL_KEYS: dict[str, str] = {
+    "residency_type_id": "residency_type_label",
+    "marital_status_id": "marital_status_label",
+    "passport_validity_status_id": "passport_validity_status_label",
+    "workplace_type_id": "workplace_type_label",
+    "employment_type_id": "employment_type_label",
+    "education_level_id": "education_level_label",
+    "education_completion_status_id": "education_completion_status_label",
+}

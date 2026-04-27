@@ -9,7 +9,11 @@ from dataclasses import dataclass
 from typing import Any, Literal, Optional, Protocol
 
 from ..constants import CandidateList
-from ..data.candidate_update_fields import APPLICATION_UPDATE_KEYS, PROFILE_UPDATE_KEYS
+from ..data.candidate_update_fields import (
+    APPLICATION_UPDATE_KEYS,
+    LOOKUP_ID_TO_LABEL_KEYS,
+    PROFILE_UPDATE_KEYS,
+)
 from ..dtos.candidate import CandidateListFilterParams
 from ..dtos.hr_stage_comments import HrStageCommentsRead
 from ..factories.candidate_fields import (
@@ -36,6 +40,7 @@ from ..repository.candidates_repository import (
 from ..repository.candidate_stage_comments_repository import (
     CandidateStageCommentsRepositoryProtocol,
 )
+from ..repository.lookups_repository import LookupsRepositoryProtocol
 from ..dtos.hr_stage_comments import (
     hr_stage_comments_latest_only,
     json_rows_to_hr_stage_comments_read,
@@ -139,9 +144,20 @@ class CandidateService:
         self,
         candidates_repo: CandidatesRepositoryProtocol,
         stage_comments_repo: CandidateStageCommentsRepositoryProtocol,
+        lookups_repo: LookupsRepositoryProtocol,
     ) -> None:
         self._candidates_repo = candidates_repo
         self._stage_comments_repo = stage_comments_repo
+        self._lookups_repo = lookups_repo
+
+    def _resolve_lookup_labels_for_application(
+        self, application: Any
+    ) -> dict[int, str]:
+        """Map ``LookupOption.id`` → label for every lookup id on an application."""
+        if application is None:
+            return {}
+        ids = [getattr(application, key, None) for key in LOOKUP_ID_TO_LABEL_KEYS.keys()]
+        return self._lookups_repo.fetch_labels_for_option_ids(ids)
 
     def _fetch_hr_stage_comments_for_candidate(
         self,
@@ -193,6 +209,7 @@ class CandidateService:
         updated_at = application.updated_at if application is not None else candidate.created_at
         payload: dict[str, Any] = {"updated_at": updated_at}
 
+        lookup_label_keys_to_resolve: list[tuple[str, Optional[int]]] = []
         for key in response_keys:
             if key in PROFILE_UPDATE_KEYS:
                 payload[key] = getattr(candidate, key)
@@ -207,6 +224,18 @@ class CandidateService:
                     payload[key] = list(application.tech_stack or [])
                 else:
                     payload[key] = getattr(application, key)
+
+                if key in LOOKUP_ID_TO_LABEL_KEYS:
+                    lookup_label_keys_to_resolve.append((key, payload[key]))
+
+        if lookup_label_keys_to_resolve:
+            label_map = self._lookups_repo.fetch_labels_for_option_ids(
+                [option_id for _, option_id in lookup_label_keys_to_resolve]
+            )
+            for id_key, option_id in lookup_label_keys_to_resolve:
+                payload[LOOKUP_ID_TO_LABEL_KEYS[id_key]] = (
+                    label_map.get(option_id) if option_id is not None else None
+                )
 
         return CandidateProfilePatchResponse(**payload)
 
@@ -428,4 +457,5 @@ class CandidateService:
             application_status_raw=application_status_raw,
             application_index=app_idx,
             application_total=app_total,
+            lookup_labels_by_option_id=self._resolve_lookup_labels_for_application(application),
         )
