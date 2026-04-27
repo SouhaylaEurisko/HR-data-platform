@@ -49,14 +49,11 @@ If the message is unrelated to HR data:
   use different wording than in your previous reply in this thread when possible
 
 --------------------------------------
-STRICT OUTPUT FORMAT
+OUTPUT FIELDS
 --------------------------------------
 
-Return ONLY JSON:
-
-{
-  "reply": "<short response>"
-}
+You must produce one field:
+- reply: short response text.
 
 Input format you receive:
 - USER_FIRST_NAME: <string, may be empty>

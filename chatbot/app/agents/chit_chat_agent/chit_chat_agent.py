@@ -3,13 +3,17 @@ from typing import Dict, List, Optional
 
 from .models import ChitChatResult
 from .prompts import CHITCHAT_PROMPT
-from ...utils.llm_client import LLMClient
+from ...utils.pydantic_ai_client import build_agent, run_typed
 from ...config.logger import ChatBotLogger
 
 
 class ChitChatAgent:
     def __init__(self):
-        self.llm = LLMClient()
+        self._agent = build_agent(
+            ChitChatResult,
+            CHITCHAT_PROMPT,
+            temperature=0.88,
+        )
 
     async def respond(
         self,
@@ -18,7 +22,6 @@ class ChitChatAgent:
         chatbot_logger: Optional[ChatBotLogger] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> ChitChatResult:
-        # Log input
         if chatbot_logger:
             chatbot_logger.log_section("CHIT CHAT", user_message=message)
 
@@ -28,16 +31,13 @@ class ChitChatAgent:
             f"USER_MESSAGE: {message}"
         )
 
-        data = await self.llm.call(
-            CHITCHAT_PROMPT,
+        result = await run_typed(
+            self._agent,
             llm_input,
             context="Chit-chat",
-            temperature=0.88,
             conversation_history=conversation_history,
         )
-        result = ChitChatResult.model_validate(data)
 
-        # Log output
         if chatbot_logger:
             chatbot_logger.log_section(
                 "CHIT CHAT",

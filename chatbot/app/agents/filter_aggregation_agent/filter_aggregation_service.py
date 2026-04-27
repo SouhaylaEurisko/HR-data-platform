@@ -4,20 +4,40 @@ Combined filter + aggregation service.
 import logging
 from typing import Any, Dict, List, Optional
 
-from ...utils.llm_client import LLMClient
 from .prompts import FILTER_AGG_SQL_PROMPT, FILTER_AGG_SUMMARY_PROMPT
 from .utils import rows_to_display, stats_to_display
+from ..dtos import FilterAggregationSQLResult, FilterAggSummaryResult
+from ...utils.pydantic_ai_client import (
+    attach_sql_output_validator,
+    build_agent,
+    run_typed,
+)
 
 logger = logging.getLogger(__name__)
 
+# Module-level typed agents — stateless, built once at import time.
+_sql_agent = attach_sql_output_validator(
+    build_agent(
+        FilterAggregationSQLResult,
+        FILTER_AGG_SQL_PROMPT,
+        temperature=0.2,
+    ),
+    fields=("filter_sql", "aggregation_sql"),
+)
+_summary_agent = build_agent(
+    FilterAggSummaryResult,
+    FILTER_AGG_SUMMARY_PROMPT,
+    temperature=0.4,
+)
+
 
 async def generate_filter_agg_sql(
-    llm: LLMClient,
     user_message: str,
     conversation_history: Optional[List[Dict[str, str]]] = None,
-) -> Dict[str, str]:
-    return await llm.call(
-        FILTER_AGG_SQL_PROMPT,
+) -> FilterAggregationSQLResult:
+    """Ask LLM to produce both filter and aggregation SQL in a single call."""
+    return await run_typed(
+        _sql_agent,
         user_message,
         context="Filter+Aggregation SQL generation",
         conversation_history=conversation_history,
@@ -25,14 +45,14 @@ async def generate_filter_agg_sql(
 
 
 async def summarise_filter_agg(
-    llm: LLMClient,
     user_message: str,
     rows: List[Dict[str, Any]],
     stats: List[Dict[str, Any]],
     total: int,
     *,
     stats_only: bool = False,
-) -> Dict[str, str]:
+) -> FilterAggSummaryResult:
+    """Ask LLM to summarise the combined filter + aggregation results."""
     stat_display = stats_to_display(stats)
     if stats_only:
         prompt_input = (
@@ -52,9 +72,8 @@ async def summarise_filter_agg(
             f"Sample candidates:\n{row_display}\n\n"
             f"Aggregation statistics:\n{stat_display}"
         )
-    return await llm.call(
-        FILTER_AGG_SUMMARY_PROMPT,
+    return await run_typed(
+        _summary_agent,
         prompt_input,
         context="Filter+Aggregation summary",
-        temperature=0.4,
     )

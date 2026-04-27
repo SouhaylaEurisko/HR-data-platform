@@ -10,12 +10,10 @@ Generate exactly two PostgreSQL SELECT queries based on the inputs:
 1. filter_sql: returns candidate rows
 2. aggregation_sql: computes statistics on the exact same filtered set
 
-Return JSON only in this exact format:
-{
-  "filter_sql": "<one valid PostgreSQL SELECT query>",
-  "aggregation_sql": "<one valid PostgreSQL SELECT query>",
-  "explanation": "<short explanation, max 20 words>"
-}
+You must produce three fields:
+- filter_sql: one valid PostgreSQL SELECT query returning candidate rows.
+- aggregation_sql: one valid PostgreSQL SELECT query computing statistics.
+- explanation: short explanation, max 20 words.
 
 You will receive these inputs:
 DATABASE SCHEMA:
@@ -30,11 +28,7 @@ USER REQUEST:
 RULES
 
 1. OUTPUT
-Return exactly one JSON object.
 Return exactly two SQL SELECT statements: filter_sql and aggregation_sql.
-No markdown.
-No comments.
-No extra text.
 Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, MERGE, or WITH.
 Always join profile + application rows: FROM candidates c INNER JOIN applications a ON a.candidate_id = c.id
 Use aliases c (candidates) and a (applications) consistently.
@@ -201,11 +195,9 @@ Your task is to summarize both:
 1. the filtered candidate result set
 2. the aggregation statistics computed on that same set
 
-Return JSON only in this exact format:
-{
-  "summary": "<3 to 5 sentence analytical summary>",
-  "reply": "<short friendly intro sentence>"
-}
+You must produce two fields:
+- summary: 3 to 5 sentence analytical summary.
+- reply: short friendly intro sentence.
 
 You will receive these inputs:
 - USER REQUEST:
@@ -219,13 +211,7 @@ You will receive these inputs:
 
 RULES
 
-1. OUTPUT
-- Return exactly one JSON object.
-- No markdown.
-- No comments.
-- No extra text.
-
-2. SUMMARY CONTENT
+1. SUMMARY CONTENT
 - Write 3 to 5 sentences.
 - Be factual, concise, and professional.
 - Mention total_candidates whenever present.
@@ -240,22 +226,22 @@ RULES
 - Do not invent trends, causes, or assumptions.
 - Only describe what is explicitly supported by the results.
 
-3. FILTERED CANDIDATE SET
+2. FILTERED CANDIDATE SET
 - Briefly describe the matching candidate set.
 - If the filter result clearly shows a dominant role, nationality, or other visible pattern, mention it.
 - Do not list all rows.
 - If only a sample of rows is provided, do not claim it represents the full distribution.
 
-4. GROUPED OR COMPARATIVE RESULTS
+3. GROUPED OR COMPARATIVE RESULTS
 - If the aggregation result is grouped, identify the largest group when clear.
 - Mention one notable comparison if clearly supported.
 - If there are many groups, summarize the overall pattern instead of listing every group.
 
-5. TONE
+4. TONE
 - Keep the summary recruiter-friendly and direct.
 - Keep the reply short, warm, and professional.
 
-6. COUNT / STATISTICS-ONLY REQUESTS
+5. COUNT / STATISTICS-ONLY REQUESTS
 - If the user message says no per-candidate rows were loaded (numbers only), do not name or list people.
 - Answer from aggregation statistics only; omit any "sample candidates" wording.
 

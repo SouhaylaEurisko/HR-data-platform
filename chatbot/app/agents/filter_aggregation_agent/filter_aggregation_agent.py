@@ -11,7 +11,6 @@ from .intent_helpers import is_count_only_query, total_candidates_from_stats
 from .utils import sanitize_rows, sanitize_stats
 from ..filter_agent.utils import filter_empty_rows, resort_by_salary
 from .filter_aggregation_service import generate_filter_agg_sql, summarise_filter_agg
-from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query, execute_salary_aware_query, fetch_salary_stats_for_query, fetch_experience_stats_for_query
 from ...config.logger import ChatBotLogger
 
@@ -22,9 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 class FilterAggregationAgent:
-    def __init__(self):
-        self.llm = LLMClient()
-
     async def process(
         self,
         message: str,
@@ -33,10 +29,12 @@ class FilterAggregationAgent:
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> FilterAggregationResult:
         # 1. LLM generates both queries
-        sql_result = await generate_filter_agg_sql(self.llm, message, conversation_history=conversation_history)
-        filter_sql = sql_result["filter_sql"]
-        agg_sql = sql_result["aggregation_sql"]
-        explanation = sql_result.get("explanation", "")
+        sql_result = await generate_filter_agg_sql(
+            message, conversation_history=conversation_history
+        )
+        filter_sql = sql_result.filter_sql
+        agg_sql = sql_result.aggregation_sql
+        explanation = sql_result.explanation
 
         count_only = is_count_only_query(message)
 
@@ -176,7 +174,6 @@ class FilterAggregationAgent:
 
         # 4. LLM summarises
         summary_data = await summarise_filter_agg(
-            self.llm,
             message,
             safe_rows,
             safe_stats,
@@ -191,8 +188,8 @@ class FilterAggregationAgent:
             rows=safe_rows,
             stats=safe_stats,
             total_found=total,
-            summary=summary_data.get("summary", ""),
-            reply=summary_data.get("reply", f"Found {total} candidate(s) with statistics."),
+            summary=summary_data.summary,
+            reply=summary_data.reply or f"Found {total} candidate(s) with statistics.",
         )
 
         # Log final result

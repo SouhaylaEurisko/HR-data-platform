@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from .models import AggregationAgentResult
 from .utils import sanitize_stats
 from .aggregation_service import generate_aggregation_sql, summarise_stats
-from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query, fetch_salary_stats_for_query, fetch_experience_stats_for_query
 from ...config.logger import ChatBotLogger
 
@@ -165,9 +164,6 @@ def _apply_experience_correction(
 
 
 class AggregationAgent:
-    def __init__(self):
-        self.llm = LLMClient()
-
     async def process(
         self,
         message: str,
@@ -176,9 +172,11 @@ class AggregationAgent:
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> AggregationAgentResult:
         # 1. LLM generates aggregation SQL
-        sql_result = await generate_aggregation_sql(self.llm, message, conversation_history=conversation_history)
-        sql = sql_result["sql"]
-        explanation = sql_result.get("explanation", "")
+        sql_result = await generate_aggregation_sql(
+            message, conversation_history=conversation_history
+        )
+        sql = sql_result.sql
+        explanation = sql_result.explanation
 
         # Log SQL generation
         if chatbot_logger:
@@ -282,14 +280,14 @@ class AggregationAgent:
                 )
             return result
 
-        summary_data = await summarise_stats(self.llm, message, safe_stats)
+        summary_data = await summarise_stats(message, safe_stats)
 
         result = AggregationAgentResult(
             sql=sql,
             explanation=explanation,
             stats=safe_stats,
-            summary=summary_data.get("summary", ""),
-            reply=summary_data.get("reply", "Here are the statistics."),
+            summary=summary_data.summary,
+            reply=summary_data.reply or "Here are the statistics.",
         )
 
         # Log final result

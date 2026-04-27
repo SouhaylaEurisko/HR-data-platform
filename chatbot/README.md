@@ -13,7 +13,7 @@ The chatbot service handles:
 
 1. Install dependencies:
 ```bash
-pip install fastapi uvicorn sqlalchemy psycopg2-binary python-dotenv httpx
+pip install -r requirements.txt
 ```
 
 2. Configure environment variables (create `.env` file):
@@ -25,6 +25,13 @@ OPENAI_API_KEY=your-api-key-here
 OPENAI_MODEL=gpt-4.1-mini
 CORS_ORIGINS=http://localhost:5173,http://localhost:5175
 ```
+
+> **Swapping the LLM model:** every agent resolves the underlying OpenAI
+> model from `OPENAI_MODEL` at process start via
+> `app/utils/pydantic_ai_client.py::_resolve_model_name`. Change the env var
+> (e.g. `OPENAI_MODEL=gpt-4o`) and restart the service — no code changes are
+> required. The resolved name is logged on first use so you can confirm it
+> in the service logs.
 
 **Note:** Make sure PostgreSQL is running and the database exists. You can create it with:
 ```bash

@@ -5,15 +5,9 @@ from ...constants import CANDIDATES_SCHEMA
 CV_INFO_EXTRACT_PROMPT = """
 You are an information extraction agent for HR candidate profile queries.
 
-Extract:
-1. candidate_name
-2. question_type
-
-Return JSON only in this exact format:
-{
-  "candidate_name": "<string>",
-  "question_type": "profile" | "specific"
-}
+Extract two fields:
+- candidate_name: string (possibly empty).
+- question_type: one of "profile" | "specific".
 
 INPUT
 - USER MESSAGE:
@@ -21,13 +15,7 @@ INPUT
 
 RULES
 
-1. OUTPUT
-- Return exactly one JSON object.
-- No markdown.
-- No comments.
-- No extra text.
-
-2. CANDIDATE NAME
+1. CANDIDATE NAME
 - Extract the exact candidate name substring when clearly present in the message.
 - The name may be full or partial, for example:
   - "Ahmad"
@@ -36,7 +24,7 @@ RULES
 - If no clear candidate name is present, return:
   "candidate_name": ""
 
-3. QUESTION TYPE
+2. QUESTION TYPE
 - Return "profile" when the user wants:
   - the full profile
   - resume details
@@ -54,7 +42,7 @@ RULES
   - education
   - availability
 
-4. TYPE DECISION RULES
+3. TYPE DECISION RULES
 - Examples of "profile":
   - "Tell me about X"
   - "What's on X's resume?"
@@ -72,7 +60,7 @@ RULES
 - If unsure, default to:
   "question_type": "profile"
 
-5. CONVERSATION CONTEXT (multi-turn)
+4. CONVERSATION CONTEXT (multi-turn)
 - Prior assistant turns may include tags like [focus_candidate: {"id": N, "name": "..."}] or
   [retrieved_candidates: [...]] in the conversation history.
 - If the current user message uses pronouns (he/she/they/him/her/them), "that candidate",
@@ -126,11 +114,9 @@ You are an expert PostgreSQL query generator for an HR analytics system.
 Generate exactly one PostgreSQL SELECT query to retrieve candidate details, application/profile
 fields (address, nationality, custom_fields, etc.), and optional resume/CV data.
 
-Return JSON only in this exact format:
-{
-  "sql": "<one valid PostgreSQL SELECT query>",
-  "explanation": "<short explanation, max 20 words>"
-}
+You must produce two fields:
+- sql: one valid PostgreSQL SELECT query.
+- explanation: short explanation, max 20 words.
 
 INPUTS
 DATABASE SCHEMA:
@@ -142,11 +128,7 @@ USER REQUEST:
 RULES
 
 1. OUTPUT
-Return exactly one JSON object.
 Return exactly one SQL SELECT statement.
-No markdown.
-No comments.
-No extra text.
 Never use INSERT, UPDATE, DELETE, DROP, ALTER, TRUNCATE, CREATE, MERGE, or WITH.
 
 2. TABLE RULES
@@ -270,11 +252,9 @@ You are an HR data analyst.
 
 Answer the user's question using only the provided candidate data.
 
-Return JSON only in this exact format:
-{
-  "summary": "<answer matched to the question scope>",
-  "reply": "<short friendly intro, max 1 sentence>"
-}
+You must produce two fields:
+- summary: answer matched to the question scope.
+- reply: short friendly intro, max 1 sentence.
 
 INPUTS
 USER REQUEST:
@@ -288,26 +268,20 @@ CANDIDATE DATA JSON:
 
 RULES
 
-1. OUTPUT
-Return exactly one JSON object.
-No markdown.
-No comments.
-No extra text.
-
-2. GENERAL RULES
+1. GENERAL RULES
 Be factual.
 Use only the provided data.
 Do not invent or assume missing values.
 Do not repeat unnecessary details.
 Keep the response concise, professional, and natural.
 
-3. IF QUESTION TYPE IS "specific"
+2. IF QUESTION TYPE IS "specific"
 Answer the exact question directly in 1 to 2 sentences.
 Mention only the information needed to answer that question.
 Do not dump the full candidate profile.
 Do not add unrelated skills, education, or work history.
 
-4. IF QUESTION TYPE IS "profile"
+3. IF QUESTION TYPE IS "profile"
 For one candidate:
   - Write a concise 2 to 4 sentence overview.
   - Focus on the most relevant details such as:
@@ -316,20 +290,20 @@ For one candidate:
     - years of experience
     - structured profile fields (nationality, address, applied role location, custom_fields)
     - key resume highlights when resume_info is present (never treat absence of resume as absence of all data)
-  - Location / origin / "where from": same sources as rule 5 — application/profile fields first, resume only if needed.
+  - Location / origin / "where from": same sources as rule 4 — application/profile fields first, resume only if needed.
 For multiple candidates:
   - Write 1 to 3 sentences.
   - Mention how many candidates matched.
   - Highlight common patterns or key differences when clearly supported.
 
-5. LOCATION / ORIGIN / "WHERE FROM" (any question type)
+4. LOCATION / ORIGIN / "WHERE FROM" (any question type)
 When the user asks where someone is from, where they live, or their country/region:
   - Use nationality, current_address, applied_position_location, and custom_fields (e.g. "location")
     from the provided row text. These come from the application/profile — not only resume_info.
   - If any of those fields contain the answer, state it clearly.
   - Only say information is missing if none of those sources contain it and resume_info adds nothing.
 
-6. MISSING DATA
+5. MISSING DATA
 If the requested information is not available, say that clearly.
 Do not fill gaps with assumptions.
 

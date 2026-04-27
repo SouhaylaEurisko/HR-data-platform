@@ -62,10 +62,9 @@ AMBIGUITY HANDLING
   "Candidate Overview"
 
 --------------------------------------
-OUTPUT FORMAT (STRICT JSON)
+OUTPUT FIELD
 --------------------------------------
 
-{
-  "title": "<2-4 word title>"
-}
+You must produce one field:
+- title: 2-4 word title following the rules above.
 """

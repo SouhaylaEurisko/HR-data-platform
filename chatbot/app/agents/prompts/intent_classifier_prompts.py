@@ -106,16 +106,13 @@ Use previous conversation if provided:
   reference to the list → **cv_info** or **filter** depending on whether they want detail vs list
 
 --------------------------------------
-OUTPUT FORMAT (STRICT)
+OUTPUT FIELDS
 --------------------------------------
 
-Return ONLY a valid JSON object. No extra text.
-
-{
-  "intent": "chitchat" | "filter" | "aggregation" | "filter_and_aggregation" | "hr_feedback" | "candidate_comparison" | "cv_info",
-  "confidence": "high" | "medium" | "low",
-  "reasoning": "short explanation (max 15 words)"
-}
+You must produce three fields:
+- intent: one of "chitchat" | "filter" | "aggregation" | "filter_and_aggregation" | "hr_feedback" | "candidate_comparison" | "cv_info".
+- confidence: one of "high" | "medium" | "low".
+- reasoning: short explanation (max 15 words).
 
 --------------------------------------
 FEW-SHOT EXAMPLES

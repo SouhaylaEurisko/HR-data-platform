@@ -8,16 +8,21 @@ Pipeline:
 4. LLM summarises structured profile + optional resume text
 """
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 from .models import CvInfoResult
 from .prompts import CV_INFO_EXTRACT_PROMPT, CV_INFO_SQL_PROMPT, CV_INFO_SUMMARY_PROMPT
 from .utils import cv_rows_to_display
+from ..dtos import CvInfoExtraction, CvInfoSummaryResult, SQLGenerationResult
 from ..filter_agent.utils import sanitize_rows
-from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query
+from ...utils.pydantic_ai_client import (
+    attach_sql_output_validator,
+    build_agent,
+    run_typed,
+)
 from ...config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
@@ -25,7 +30,24 @@ logger = logging.getLogger(__name__)
 
 class CvInfoAgent:
     def __init__(self) -> None:
-        self.llm = LLMClient()
+        # Three typed agents — one per LLM call (extract, SQL, summary).
+        self._extract_agent = build_agent(
+            CvInfoExtraction,
+            CV_INFO_EXTRACT_PROMPT,
+            temperature=0.2,
+        )
+        self._sql_agent = attach_sql_output_validator(
+            build_agent(
+                SQLGenerationResult,
+                CV_INFO_SQL_PROMPT,
+                temperature=0.2,
+            ),
+        )
+        self._summary_agent = build_agent(
+            CvInfoSummaryResult,
+            CV_INFO_SUMMARY_PROMPT,
+            temperature=0.4,
+        )
 
     async def process(
         self,
@@ -39,8 +61,8 @@ class CvInfoAgent:
 
         # 1. Extract candidate name
         try:
-            extraction = await self.llm.call(
-                CV_INFO_EXTRACT_PROMPT,
+            extraction = await run_typed(
+                self._extract_agent,
                 message,
                 context="CV info name extraction",
                 conversation_history=conversation_history,
@@ -56,8 +78,8 @@ class CvInfoAgent:
                 reply="I could not understand your request. Please mention a candidate name or what you want to know about them.",
             )
 
-        candidate_name = (extraction.get("candidate_name") or "").strip()
-        question_type = (extraction.get("question_type") or "profile").strip()
+        candidate_name = (extraction.candidate_name or "").strip()
+        question_type = (extraction.question_type or "profile").strip()
 
         if chatbot_logger:
             chatbot_logger.log_section(
@@ -68,8 +90,8 @@ class CvInfoAgent:
 
         # 2. Generate SQL
         try:
-            sql_result = await self.llm.call(
-                CV_INFO_SQL_PROMPT,
+            sql_result = await run_typed(
+                self._sql_agent,
                 message,
                 context="CV info SQL generation",
                 conversation_history=conversation_history,
@@ -85,8 +107,8 @@ class CvInfoAgent:
                 reply="I had trouble generating the query. Please try rephrasing your request.",
             )
 
-        sql = sql_result["sql"]
-        explanation = sql_result.get("explanation", "")
+        sql = sql_result.sql
+        explanation = sql_result.explanation
 
         if chatbot_logger:
             chatbot_logger.log_section(
@@ -159,18 +181,19 @@ class CvInfoAgent:
         )
 
         try:
-            summary_data = await self.llm.call(
-                CV_INFO_SUMMARY_PROMPT,
+            summary_data = await run_typed(
+                self._summary_agent,
                 prompt_input,
                 context="CV info summary",
-                temperature=0.4,
             )
         except RuntimeError as exc:
             logger.warning("CV info summary failed: %s", exc)
-            summary_data = {
-                "summary": f"Found {total} candidate(s) in the database.",
-                "reply": f"Found {total} candidate(s).",
-            }
+            # Preserve the original graceful fallback so the user still gets a
+            # sensible reply when structured summary generation fails.
+            summary_data = CvInfoSummaryResult(
+                summary=f"Found {total} candidate(s) in the database.",
+                reply=f"Found {total} candidate(s).",
+            )
 
         include_rows = question_type == "profile"
 
@@ -179,8 +202,8 @@ class CvInfoAgent:
             explanation=explanation,
             rows=safe_rows if include_rows else None,
             total_found=total,
-            summary=summary_data.get("summary", ""),
-            reply=summary_data.get("reply", f"Found {total} candidate(s)."),
+            summary=summary_data.summary,
+            reply=summary_data.reply or f"Found {total} candidate(s).",
         )
 
         if chatbot_logger:

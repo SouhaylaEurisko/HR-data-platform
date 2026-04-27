@@ -10,20 +10,13 @@ from typing import Any, Dict, List, Mapping, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ...utils.llm_client import LLMClient
+from ..dtos import ComparisonDecision, ComparisonExtraction
 from ..filter_agent.utils import sanitize_rows
 from .prompts import COMPARISON_DECIDE_PROMPT, COMPARISON_EXTRACT_PROMPT
 from ...config.logger import ChatBotLogger
+from ...utils.pydantic_ai_client import build_agent, run_typed
 
 logger = logging.getLogger(__name__)
-
-
-def _coerce_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip().lower() in ("true", "1", "yes")
-    return False
 
 
 _MAX_CANDIDATES = 18
@@ -73,7 +66,18 @@ def _applied_position_where(position: str, params: Dict[str, Any]) -> str:
 
 class CandidateComparisonAgent:
     def __init__(self) -> None:
-        self.llm = LLMClient()
+        self._extract_agent = build_agent(
+            ComparisonExtraction,
+            COMPARISON_EXTRACT_PROMPT,
+            temperature=0.2,
+        )
+        # Decision call must use a slightly higher temperature for nuance,
+        # and intentionally ignores conversation_history (see process()).
+        self._decide_agent = build_agent(
+            ComparisonDecision,
+            COMPARISON_DECIDE_PROMPT,
+            temperature=0.3,
+        )
 
     async def process(
         self,
@@ -86,8 +90,8 @@ class CandidateComparisonAgent:
             chatbot_logger.log_section("CANDIDATE COMPARISON", user_message=message)
 
         try:
-            ext = await self.llm.call(
-                COMPARISON_EXTRACT_PROMPT,
+            ext = await run_typed(
+                self._extract_agent,
                 message,
                 context="Comparison extract",
                 conversation_history=conversation_history,
@@ -103,17 +107,14 @@ class CandidateComparisonAgent:
                 "explanation": str(exc),
             }
 
-        names = ext.get("candidate_names") or []
-        if not isinstance(names, list):
-            names = []
-        names = [str(n).strip() for n in names if str(n).strip()]
-        position = str(ext.get("position_filter") or "").strip()
-        scope = str(ext.get("scope") or "named_only").strip()
+        names = [str(n).strip() for n in ext.candidate_names if str(n).strip()]
+        position = ext.position_filter.strip()
+        scope = ext.scope.strip()
         if scope not in ("named_only", "best_for_position"):
             scope = "named_only"
 
-        comparison_criteria = str(ext.get("comparison_criteria") or "").strip()
-        use_agent_default_criteria = _coerce_bool(ext.get("use_agent_default_criteria"))
+        comparison_criteria = ext.comparison_criteria.strip()
+        use_agent_default_criteria = ext.use_agent_default_criteria
 
         if scope == "named_only" and not names:
             return {
@@ -254,11 +255,13 @@ class CandidateComparisonAgent:
         )
 
         try:
-            decision = await self.llm.call(
-                COMPARISON_DECIDE_PROMPT,
+            # NOTE: conversation_history=None is intentional — the decision must
+            # be based solely on the candidate profiles in user_payload, not on
+            # prior chat turns.
+            decision = await run_typed(
+                self._decide_agent,
                 user_payload,
                 context="Comparison decision",
-                temperature=0.3,
                 conversation_history=None,
             )
         except RuntimeError as exc:
@@ -272,9 +275,9 @@ class CandidateComparisonAgent:
                 "explanation": str(exc),
             }
 
-        reply = str(decision.get("reply") or "I could not determine a single best candidate.")
-        summary = decision.get("summary")
-        rec_name = decision.get("recommended_full_name")
+        reply = decision.reply or "I could not determine a single best candidate."
+        summary = decision.summary
+        rec_name = decision.recommended_full_name
         chosen = _match_recommended_row(rows, rec_name)
 
         if chosen:

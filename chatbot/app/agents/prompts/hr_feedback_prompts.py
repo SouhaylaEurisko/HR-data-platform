@@ -4,14 +4,8 @@ HR_FEEDBACK_EXTRACT_PROMPT = """
 You are an information extraction agent for HR feedback queries.
 
 Extract two fields from the user message:
-1. candidate_name
-2. stage
-
-Return JSON only in this exact format:
-{
-  "candidate_name": "<string>",
-  "stage": "" | "pre_screening" | "technical_interview" | "hr_interview" | "offer_stage"
-}
+- candidate_name: string (may be empty).
+- stage: one of "" | "pre_screening" | "technical_interview" | "hr_interview" | "offer_stage".
 
 INPUT
 - USER MESSAGE:
@@ -19,20 +13,14 @@ INPUT
 
 RULES
 
-1. OUTPUT
-- Return exactly one JSON object.
-- No markdown.
-- No comments.
-- No extra text.
-
-2. CANDIDATE NAME
+1. CANDIDATE NAME
 - Extract the exact candidate name substring from the message when clearly present.
 - The name may be full or partial, for example: "Charbel Tarabay" or "Charbel".
 - If multiple candidate names are mentioned, return only the first one.
 - If no candidate name is clearly present, return:
   "candidate_name": ""
 
-3. STAGE
+2. STAGE
 - Return a stage only if the user explicitly names a **pipeline interview stage** or a clear synonym (e.g. "technical interview", "HR interview", "offer stage").
 - Colloquial **"HR comments"**, **"HR feedback"**, **"HR notes"**, or **"comments for X"** mean general human-resources / recruiter notes — they do **NOT** mean the `hr_interview` stage unless the user also says **interview**, **round**, or **stage** in a pipeline sense (e.g. "HR interview", "after the HR round").
 - Allowed values are exactly:
@@ -43,7 +31,7 @@ RULES
 - If the user does not explicitly mention a pipeline stage, return:
   "stage": ""
 
-4. STAGE NORMALIZATION
+3. STAGE NORMALIZATION
 Map these user phrases to the following values:
 
 - pre_screening
@@ -69,7 +57,7 @@ Map these user phrases to the following values:
   - final offer
   - contract stage
 
-5. AMBIGUITY
+4. AMBIGUITY
 - Do not guess the stage.
 - If stage is unclear, missing, or only implied, return:
   "stage": ""

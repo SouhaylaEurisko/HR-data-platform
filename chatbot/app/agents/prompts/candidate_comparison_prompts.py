@@ -3,21 +3,12 @@
 COMPARISON_EXTRACT_PROMPT = """
 You are an intent extraction agent for HR candidate comparison requests.
 
-Extract:
-1. candidate_names
-2. position_filter
-3. scope
-4. comparison_criteria
-5. use_agent_default_criteria
-
-Return JSON only in this exact format:
-{
-  "candidate_names": ["<string>", "..."],
-  "position_filter": "<string>",
-  "scope": "named_only" | "best_for_position",
-  "comparison_criteria": "<string>",
-  "use_agent_default_criteria": true
-}
+Extract five fields:
+- candidate_names: list of name strings (may be empty).
+- position_filter: string (may be empty).
+- scope: one of "named_only" | "best_for_position".
+- comparison_criteria: string (may be empty).
+- use_agent_default_criteria: boolean.
 
 INPUTS
 CONVERSATION HISTORY:
@@ -28,13 +19,7 @@ USER MESSAGE:
 
 RULES
 
-1. OUTPUT
-Return exactly one JSON object.
-No markdown.
-No comments.
-No extra text.
-
-2. CANDIDATE NAMES
+1. CANDIDATE NAMES
 Extract exact candidate name substrings from the user message when clearly present.
 Preserve original casing.
 If no names appear in this message, reuse names from conversation history only if the current message clearly refers to them, such as:
@@ -47,7 +32,7 @@ If multiple names are present, return all of them in mentioned order.
 If no names are available, return:
   "candidate_names": []
 
-3. POSITION FILTER
+2. POSITION FILTER
 Extract the role or position context if explicitly stated.
 Examples:
   - "backend"
@@ -57,11 +42,11 @@ Keep it short and meaningful.
 If no position is clearly stated, return:
   "position_filter": ""
 
-4. SCOPE
+3. SCOPE
 Return "named_only" if at least one candidate name is available from the current message or valid conversation carry-forward.
 Return "best_for_position" only when no candidate names are available and the user is asking who is best for a role or position.
 
-5. COMPARISON CRITERIA
+4. COMPARISON CRITERIA
 Extract the user's stated comparison criteria as a short natural-language phrase.
 Examples:
   - "experience and salary"
@@ -71,7 +56,7 @@ Examples:
 If the user does not specify criteria, return:
   "comparison_criteria": ""
 
-6. AGENT DEFAULT CRITERIA FLAG
+5. AGENT DEFAULT CRITERIA FLAG
 Set "use_agent_default_criteria": true only if the user explicitly delegates the choice of criteria.
 Explicit delegation examples:
   - "you decide"
@@ -89,7 +74,7 @@ Set it to false for normal comparison questions, including:
   - "who is the best"
 If the user specifies criteria, this flag must be false.
 
-7. AMBIGUITY
+6. AMBIGUITY
 Do not guess names that are not clearly present or recoverable from context.
 Do not guess a role from a skill.
 Do not treat a generic comparison request as delegation.
@@ -150,12 +135,11 @@ Your task is to recommend the best candidate from the provided candidate data.
 Use only the provided JSON data.
 Do not invent, infer, or assume missing values.
 
-Return JSON only in this exact format:
-{
-  "reply": "<concise markdown answer with bullets>",
-  "summary": "<short analytical paragraph>",
-  "recommended_full_name": "<exact full_name from input or empty string>"
-}
+You must produce three fields:
+- reply: concise markdown answer with bullets.
+- summary: short analytical paragraph.
+- recommended_full_name: exact full_name from the input, or empty string
+  if no reliable decision is possible.
 
 INPUT
 USER REQUEST:
@@ -169,12 +153,7 @@ CANDIDATE DATA JSON:
 
 RULES
 
-1. OUTPUT
-Return exactly one JSON object.
-No text outside the JSON object.
-recommended_full_name must exactly match a full_name from the input, or be "" if no reliable decision is possible.
-
-2. DECISION MODES
+1. DECISION MODES
 There are two modes:
 
 A) USER-SPECIFIED CRITERIA
@@ -210,18 +189,18 @@ Use the following order of importance:
   6. Other fields
      - Use only if relevant to the role or comparison request
 
-3. DECISION RULES
+2. DECISION RULES
 Recommend exactly one candidate when the available data supports a decision.
 If candidates are close, still pick one and mention the runner-up.
-If the available data is insufficient for a reliable decision, say you cannot determine and return:
-  "recommended_full_name": ""
+If the available data is insufficient for a reliable decision, say you cannot determine and set
+recommended_full_name to an empty string.
 
-4. MISSING DATA
+3. MISSING DATA
 Never invent missing values.
 Never assume missing values are good or bad.
 If an important criterion is missing for one or more candidates, mention that explicitly.
 
-5. RESPONSE STYLE
+4. RESPONSE STYLE
 reply must be concise and recruiter-friendly.
 Use 3 to 6 bullet points.
 Start by naming the recommended candidate in bold when a recommendation is possible.

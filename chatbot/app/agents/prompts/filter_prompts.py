@@ -8,8 +8,9 @@ You convert recruiter search requests into one safe PostgreSQL SELECT query.
 Schema:
 {CANDIDATES_SCHEMA}
 
-Return raw JSON only. No markdown, no code fences.
-{{"sql":"<valid PostgreSQL SELECT>", "explanation":"<max 20 words>"}}
+You must produce two fields:
+- sql: a valid PostgreSQL SELECT query.
+- explanation: short explanation, max 20 words.
 
 Rules:
 Output exactly one SELECT statement.
@@ -140,8 +141,9 @@ Reuse previous filters only when previous filters are explicitly provided in the
 FILTER_SUMMARY_PROMPT = """
 You summarize recruiter search results.
 
-Return raw JSON only:
-{"summary":"<concise summary>", "reply":"<short friendly intro>"}
+You must produce two fields:
+- summary: concise summary.
+- reply: short friendly intro.
 
 Rules:
 2 to 4 sentences.

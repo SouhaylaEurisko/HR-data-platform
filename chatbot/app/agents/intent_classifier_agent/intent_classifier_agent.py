@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from .models import IntentClassificationResult
 from .prompts import INTENT_CLASSIFICATION_PROMPT
-from ...utils.llm_client import LLMClient
+from ...utils.pydantic_ai_client import build_agent, run_typed
 from ...config.logger import ChatBotLogger
 
 
@@ -11,7 +11,11 @@ class IntentClassifierAgent:
     """Classifies user messages into one of the supported intents."""
 
     def __init__(self):
-        self.llm = LLMClient()
+        self._agent = build_agent(
+            IntentClassificationResult,
+            INTENT_CLASSIFICATION_PROMPT,
+            temperature=0.2,
+        )
 
     async def classify(
         self,
@@ -19,19 +23,16 @@ class IntentClassifierAgent:
         chatbot_logger: Optional[ChatBotLogger] = None,
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> IntentClassificationResult:
-        # Log input
         if chatbot_logger:
             chatbot_logger.log_section("INTENT CLASSIFIER", user_message=message)
 
-        data = await self.llm.call(
-            INTENT_CLASSIFICATION_PROMPT,
+        result = await run_typed(
+            self._agent,
             message,
             context="Intent classification",
             conversation_history=conversation_history,
         )
-        result = IntentClassificationResult.model_validate(data)
 
-        # Log classification result
         if chatbot_logger:
             chatbot_logger.log_section(
                 "INTENT CLASSIFIER",

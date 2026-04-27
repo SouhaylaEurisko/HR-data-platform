@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 from .models import FilterAgentResult
 from .utils import sanitize_rows, filter_empty_rows, resort_by_salary
 from .filter_service import generate_filter_sql, summarise_results
-from ...utils.llm_client import LLMClient
 from ...utils.db_utils import execute_safe_query, execute_salary_aware_query
 from ...config.logger import ChatBotLogger
 
@@ -18,9 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class FilterAgent:
-    def __init__(self):
-        self.llm = LLMClient()
-
     async def process(
         self,
         message: str,
@@ -29,9 +25,11 @@ class FilterAgent:
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> FilterAgentResult:
         # 1. LLM generates SQL
-        sql_result = await generate_filter_sql(self.llm, message, conversation_history=conversation_history)
-        sql = sql_result["sql"]
-        explanation = sql_result.get("explanation", "")
+        sql_result = await generate_filter_sql(
+            message, conversation_history=conversation_history
+        )
+        sql = sql_result.sql
+        explanation = sql_result.explanation
 
         # Log SQL generation
         if chatbot_logger:
@@ -110,15 +108,15 @@ class FilterAgent:
                 )
             return result
 
-        summary_data = await summarise_results(self.llm, message, safe_rows, total)
+        summary_data = await summarise_results(message, safe_rows, total)
 
         result = FilterAgentResult(
             sql=sql,
             explanation=explanation,
             rows=safe_rows,
             total_found=total,
-            summary=summary_data.get("summary", ""),
-            reply=summary_data.get("reply", f"Found {total} candidate(s)."),
+            summary=summary_data.summary,
+            reply=summary_data.reply or f"Found {total} candidate(s).",
         )
 
         # Log final result

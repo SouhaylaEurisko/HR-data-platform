@@ -11,10 +11,11 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ...utils.llm_client import LLMClient
+from ..dtos import HrFeedbackExtraction
 from ..filter_agent.utils import sanitize_rows
 from .prompts import HR_FEEDBACK_EXTRACT_PROMPT
 from ...config.logger import ChatBotLogger
+from ...utils.pydantic_ai_client import build_agent, run_typed
 
 logger = logging.getLogger(__name__)
 
@@ -116,7 +117,11 @@ def _pick_row_latest_comment_stage(rows: List[Any]) -> Optional[Any]:
 
 class HrFeedbackAgent:
     def __init__(self) -> None:
-        self.llm = LLMClient()
+        self._agent = build_agent(
+            HrFeedbackExtraction,
+            HR_FEEDBACK_EXTRACT_PROMPT,
+            temperature=0.2,
+        )
 
     async def process(
         self,
@@ -132,8 +137,8 @@ class HrFeedbackAgent:
             chatbot_logger.log_section("HR FEEDBACK", user_message=message)
 
         try:
-            data = await self.llm.call(
-                HR_FEEDBACK_EXTRACT_PROMPT,
+            data = await run_typed(
+                self._agent,
                 message,
                 context="HR feedback extract",
                 conversation_history=conversation_history,
@@ -149,8 +154,8 @@ class HrFeedbackAgent:
                 "explanation": str(exc),
             }
 
-        name = (data.get("candidate_name") or "").strip()
-        raw_stage = data.get("stage")
+        name = (data.candidate_name or "").strip()
+        raw_stage = data.stage
         stage_explicit: Optional[str] = None
         if raw_stage is not None:
             s = str(raw_stage).strip()

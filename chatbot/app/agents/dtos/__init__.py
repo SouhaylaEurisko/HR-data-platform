@@ -1,6 +1,11 @@
 """Shared result DTOs — import from here or from .results directly."""
 from .results import (
     SQLGenerationResult,
+    FilterSummaryResult,
+    AggregationSummaryResult,
+    FilterAggregationSQLResult,
+    FilterAggSummaryResult,
+    CvInfoSummaryResult,
     FilterAgentResult,
     AggregationAgentResult,
     FilterAggregationResult,
@@ -10,10 +15,18 @@ from .results import (
     TitleResult,
     CvInfoExtraction,
     CvInfoResult,
+    HrFeedbackExtraction,
+    ComparisonExtraction,
+    ComparisonDecision,
 )
 
 __all__ = [
     "SQLGenerationResult",
+    "FilterSummaryResult",
+    "AggregationSummaryResult",
+    "FilterAggregationSQLResult",
+    "FilterAggSummaryResult",
+    "CvInfoSummaryResult",
     "FilterAgentResult",
     "AggregationAgentResult",
     "FilterAggregationResult",
@@ -23,4 +36,7 @@ __all__ = [
     "TitleResult",
     "CvInfoExtraction",
     "CvInfoResult",
+    "HrFeedbackExtraction",
+    "ComparisonExtraction",
+    "ComparisonDecision",
 ]
