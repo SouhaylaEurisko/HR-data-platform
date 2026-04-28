@@ -1,37 +1,53 @@
-"""
-Configuration for chatbot service.
-"""
-import os
+"""Configuration for chatbot service."""
+
+from __future__ import annotations
+
+import json
 from pathlib import Path
-from dotenv import load_dotenv
+from typing import Annotated, Any, List
 
-# Load .env file
-env_path = Path(__file__).parent.parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
-class Config:
-    """Application configuration loaded from environment variables."""
-    
-    # Server configuration
-    server_host: str = os.getenv("SERVER_HOST")
-    server_port: int = int(os.getenv("SERVER_PORT"))
-    
-    # Database configuration
-    # PostgreSQL connection string format: postgresql://user:password@host:port/database
-    database_url: str = os.getenv(
-        "DATABASE_URL"
+class Config(BaseSettings):
+    """Application settings loaded from environment variables."""
+
+    server_host: str = Field(default="0.0.0.0")
+    server_port: int = Field(default=8000)
+
+    database_url: str
+
+    openai_api_key: str
+    openai_model: str = Field(default="gpt-4o-mini")
+
+    cors_origins: Annotated[List[str], NoDecode] = Field(default_factory=lambda: ["*"])
+
+    model_config = SettingsConfigDict(
+        env_file=str(Path(__file__).resolve().parents[2] / ".env"),
+        case_sensitive=False,
+        extra="ignore",
     )
-    
-    # OpenAI configuration
-    openai_api_key: str = os.getenv("OPENAI_API_KEY")
-    openai_model: str = os.getenv("OPENAI_MODEL")
-    
-    # CORS configuration
-    cors_origins: list[str] = os.getenv(
-        "CORS_ORIGINS"
-    ).split(",")
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _parse_cors_origins(cls, value: Any) -> List[str]:
+        if value is None:
+            return ["*"]
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("["):
+                try:
+                    decoded = json.loads(stripped)
+                except json.JSONDecodeError:
+                    decoded = None
+                if isinstance(decoded, list):
+                    return [str(item).strip() for item in decoded if str(item).strip()] or ["*"]
+            parsed = [item.strip() for item in value.split(",") if item.strip()]
+            return parsed or ["*"]
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()] or ["*"]
+        return ["*"]
 
 
-# Global config instance
 config = Config()

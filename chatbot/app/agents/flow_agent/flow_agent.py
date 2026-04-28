@@ -26,15 +26,25 @@ logger = logging.getLogger(__name__)
 class FlowAgent:
     """Coordinates the full message-processing pipeline."""
 
-    def __init__(self):
-        self.classifier = IntentClassifierAgent()
-        self.chitchat = ChitChatAgent()
-        self.filter = FilterAgent()
-        self.aggregation = AggregationAgent()
-        self.filter_agg = FilterAggregationAgent()
-        self.hr_feedback = HrFeedbackAgent()
-        self.candidate_comparison = CandidateComparisonAgent()
-        self.cv_info = CvInfoAgent()
+    def __init__(
+        self,
+        classifier: IntentClassifierAgent,
+        chitchat: ChitChatAgent,
+        filter_agent: FilterAgent,
+        aggregation: AggregationAgent,
+        filter_agg: FilterAggregationAgent,
+        hr_feedback: HrFeedbackAgent,
+        candidate_comparison: CandidateComparisonAgent,
+        cv_info: CvInfoAgent,
+    ):
+        self.classifier = classifier
+        self.chitchat = chitchat
+        self.filter = filter_agent
+        self.aggregation = aggregation
+        self.filter_agg = filter_agg
+        self.hr_feedback = hr_feedback
+        self.candidate_comparison = candidate_comparison
+        self.cv_info = cv_info
 
     async def process(
         self,

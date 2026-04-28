@@ -8,46 +8,34 @@ Pipeline:
 4. LLM summarises structured profile + optional resume text
 """
 import logging
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
+from pydantic_ai import Agent
 from sqlalchemy.orm import Session
 
 from .models import CvInfoResult
-from .prompts import CV_INFO_EXTRACT_PROMPT, CV_INFO_SQL_PROMPT, CV_INFO_SUMMARY_PROMPT
 from .utils import cv_rows_to_display
 from ..dtos import CvInfoExtraction, CvInfoSummaryResult, SQLGenerationResult
 from ..filter_agent.utils import sanitize_rows
 from ...utils.db_utils import execute_safe_query
-from ...utils.pydantic_ai_client import (
-    attach_sql_output_validator,
-    build_agent,
-    run_typed,
-)
+from ...utils.pydantic_ai_client import PydanticAIClient
 from ...config.logger import ChatBotLogger
 
 logger = logging.getLogger(__name__)
 
 
 class CvInfoAgent:
-    def __init__(self) -> None:
-        # Three typed agents — one per LLM call (extract, SQL, summary).
-        self._extract_agent = build_agent(
-            CvInfoExtraction,
-            CV_INFO_EXTRACT_PROMPT,
-            temperature=0.2,
-        )
-        self._sql_agent = attach_sql_output_validator(
-            build_agent(
-                SQLGenerationResult,
-                CV_INFO_SQL_PROMPT,
-                temperature=0.2,
-            ),
-        )
-        self._summary_agent = build_agent(
-            CvInfoSummaryResult,
-            CV_INFO_SUMMARY_PROMPT,
-            temperature=0.4,
-        )
+    def __init__(
+        self,
+        extract_agent: Agent[Any, CvInfoExtraction],
+        sql_agent: Agent[Any, SQLGenerationResult],
+        summary_agent: Agent[Any, CvInfoSummaryResult],
+        ai_client: PydanticAIClient,
+    ) -> None:
+        self._extract_agent = extract_agent
+        self._sql_agent = sql_agent
+        self._summary_agent = summary_agent
+        self._ai_client = ai_client
 
     async def process(
         self,
@@ -61,7 +49,7 @@ class CvInfoAgent:
 
         # 1. Extract candidate name
         try:
-            extraction = await run_typed(
+            extraction = await self._ai_client.run_typed(
                 self._extract_agent,
                 message,
                 context="CV info name extraction",
@@ -90,7 +78,7 @@ class CvInfoAgent:
 
         # 2. Generate SQL
         try:
-            sql_result = await run_typed(
+            sql_result = await self._ai_client.run_typed(
                 self._sql_agent,
                 message,
                 context="CV info SQL generation",
@@ -181,7 +169,7 @@ class CvInfoAgent:
         )
 
         try:
-            summary_data = await run_typed(
+            summary_data = await self._ai_client.run_typed(
                 self._summary_agent,
                 prompt_input,
                 context="CV info summary",

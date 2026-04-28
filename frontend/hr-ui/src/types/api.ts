@@ -389,7 +389,11 @@ export type CandidateUpdatePayload = Partial<{
   education_completion_status_id: number | null;
 }>;
 
-/** PATCH /api/candidates/{id} — merge into local `Candidate` (only defined keys are sent). */
+/** PATCH /api/candidates/{id} — merge into local `Candidate` (only defined keys are sent).
+ *
+ * Whenever a `*_id` lookup field is included, the matching `*_label` is also
+ * included so the read-only display can refresh without a follow-up GET.
+ */
 export interface CandidateProfilePatchResponse {
   updated_at: string;
   full_name?: string | null;
@@ -398,10 +402,13 @@ export interface CandidateProfilePatchResponse {
   nationality?: string | null;
   current_address?: string | null;
   residency_type_id?: number | null;
+  residency_type_label?: string | null;
   marital_status_id?: number | null;
+  marital_status_label?: string | null;
   number_of_dependents?: number | null;
   religion_sect?: string | null;
   passport_validity_status_id?: number | null;
+  passport_validity_status_label?: string | null;
   has_transportation?: TransportationAvailability | null;
   applied_position?: string | null;
   applied_position_location?: string | null;
@@ -415,10 +422,14 @@ export interface CandidateProfilePatchResponse {
   is_overtime_flexible?: boolean | null;
   is_contract_flexible?: boolean | null;
   workplace_type_id?: number | null;
+  workplace_type_label?: string | null;
   employment_type_id?: number | null;
+  employment_type_label?: string | null;
   tech_stack?: string[] | null;
   education_level_id?: number | null;
+  education_level_label?: string | null;
   education_completion_status_id?: number | null;
+  education_completion_status_label?: string | null;
 }
 
 // Chat types

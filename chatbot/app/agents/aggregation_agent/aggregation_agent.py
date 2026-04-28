@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from .models import AggregationAgentResult
+from .aggregation_service import AggregationService
 from .utils import sanitize_stats
-from .aggregation_service import generate_aggregation_sql, summarise_stats
 from ...utils.db_utils import execute_safe_query, fetch_salary_stats_for_query, fetch_experience_stats_for_query
 from ...config.logger import ChatBotLogger
 
@@ -164,6 +164,9 @@ def _apply_experience_correction(
 
 
 class AggregationAgent:
+    def __init__(self, service: AggregationService) -> None:
+        self._service = service
+
     async def process(
         self,
         message: str,
@@ -172,7 +175,7 @@ class AggregationAgent:
         conversation_history: Optional[List[Dict[str, str]]] = None,
     ) -> AggregationAgentResult:
         # 1. LLM generates aggregation SQL
-        sql_result = await generate_aggregation_sql(
+        sql_result = await self._service.generate_aggregation_sql(
             message, conversation_history=conversation_history
         )
         sql = sql_result.sql
@@ -280,7 +283,7 @@ class AggregationAgent:
                 )
             return result
 
-        summary_data = await summarise_stats(message, safe_stats)
+        summary_data = await self._service.summarise_stats(message, safe_stats)
 
         result = AggregationAgentResult(
             sql=sql,

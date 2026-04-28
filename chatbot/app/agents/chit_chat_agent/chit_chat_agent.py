@@ -1,19 +1,22 @@
-"""Chit Chat Agent — handles greetings, thanks, off-topic."""
-from typing import Dict, List, Optional
+"""Chit Chat Agent — handles greetings, thanks, and off-topic replies."""
+
+from typing import Any, Dict, List, Optional
+
+from pydantic_ai import Agent
 
 from .models import ChitChatResult
-from .prompts import CHITCHAT_PROMPT
-from ...utils.pydantic_ai_client import build_agent, run_typed
 from ...config.logger import ChatBotLogger
+from ...utils.pydantic_ai_client import PydanticAIClient
 
 
 class ChitChatAgent:
-    def __init__(self):
-        self._agent = build_agent(
-            ChitChatResult,
-            CHITCHAT_PROMPT,
-            temperature=0.88,
-        )
+    def __init__(
+        self,
+        agent: Agent[Any, ChitChatResult],
+        ai_client: PydanticAIClient,
+    ):
+        self._agent = agent
+        self._ai_client = ai_client
 
     async def respond(
         self,
@@ -25,13 +28,12 @@ class ChitChatAgent:
         if chatbot_logger:
             chatbot_logger.log_section("CHIT CHAT", user_message=message)
 
-        # Pass first-name context so greetings can be personalized.
         llm_input = (
             f"USER_FIRST_NAME: {user_first_name or ''}\n"
             f"USER_MESSAGE: {message}"
         )
 
-        result = await run_typed(
+        result = await self._ai_client.run_typed(
             self._agent,
             llm_input,
             context="Chit-chat",

@@ -33,13 +33,13 @@ class MessageService:
         self,
         conversation_repo: ConversationRepositoryProtocol,
         user_repo: UserRepositoryProtocol,
-        flow_agent: Optional[FlowAgent] = None,
-        title_agent: Optional[TitleAgent] = None,
+        flow_agent: FlowAgent,
+        title_agent: TitleAgent,
     ) -> None:
         self._conversation_repo = conversation_repo
         self._user_repo = user_repo
-        self._flow_agent = flow_agent or FlowAgent()
-        self._title_agent = title_agent or TitleAgent()
+        self._flow_agent = flow_agent
+        self._title_agent = title_agent
 
     def _get_user_first_name(self, user_id: Optional[Union[int, str]]) -> Optional[str]:
         """Fetch first_name from user_account for greeting personalization."""

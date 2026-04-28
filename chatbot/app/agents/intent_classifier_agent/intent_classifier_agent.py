@@ -1,21 +1,24 @@
 """Intent Classifier Agent — pure-LLM intent routing."""
-from typing import Dict, List, Optional
+
+from typing import Any, Dict, List, Optional
+
+from pydantic_ai import Agent
 
 from .models import IntentClassificationResult
-from .prompts import INTENT_CLASSIFICATION_PROMPT
-from ...utils.pydantic_ai_client import build_agent, run_typed
 from ...config.logger import ChatBotLogger
+from ...utils.pydantic_ai_client import PydanticAIClient
 
 
 class IntentClassifierAgent:
     """Classifies user messages into one of the supported intents."""
 
-    def __init__(self):
-        self._agent = build_agent(
-            IntentClassificationResult,
-            INTENT_CLASSIFICATION_PROMPT,
-            temperature=0.2,
-        )
+    def __init__(
+        self,
+        agent: Agent[Any, IntentClassificationResult],
+        ai_client: PydanticAIClient,
+    ):
+        self._agent = agent
+        self._ai_client = ai_client
 
     async def classify(
         self,
@@ -26,7 +29,7 @@ class IntentClassifierAgent:
         if chatbot_logger:
             chatbot_logger.log_section("INTENT CLASSIFIER", user_message=message)
 
-        result = await run_typed(
+        result = await self._ai_client.run_typed(
             self._agent,
             message,
             context="Intent classification",

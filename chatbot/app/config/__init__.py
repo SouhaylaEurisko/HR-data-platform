@@ -3,6 +3,7 @@ Configuration package for chatbot service.
 """
 
 from .config import config, Config
+from .agent_config import AgentConfig
 from .database import (
     Base,
     engine,
@@ -15,6 +16,7 @@ from .logger import ChatBotLogger
 __all__ = [
     "config",
     "Config",
+    "AgentConfig",
     "Base",
     "engine",
     "SessionLocal",

@@ -7,14 +7,14 @@ import json
 import logging
 from typing import Any, Dict, List, Mapping, Optional
 
+from pydantic_ai import Agent
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..dtos import ComparisonDecision, ComparisonExtraction
 from ..filter_agent.utils import sanitize_rows
-from .prompts import COMPARISON_DECIDE_PROMPT, COMPARISON_EXTRACT_PROMPT
 from ...config.logger import ChatBotLogger
-from ...utils.pydantic_ai_client import build_agent, run_typed
+from ...utils.pydantic_ai_client import PydanticAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -65,19 +65,15 @@ def _applied_position_where(position: str, params: Dict[str, Any]) -> str:
 
 
 class CandidateComparisonAgent:
-    def __init__(self) -> None:
-        self._extract_agent = build_agent(
-            ComparisonExtraction,
-            COMPARISON_EXTRACT_PROMPT,
-            temperature=0.2,
-        )
-        # Decision call must use a slightly higher temperature for nuance,
-        # and intentionally ignores conversation_history (see process()).
-        self._decide_agent = build_agent(
-            ComparisonDecision,
-            COMPARISON_DECIDE_PROMPT,
-            temperature=0.3,
-        )
+    def __init__(
+        self,
+        extract_agent: Agent[Any, ComparisonExtraction],
+        decide_agent: Agent[Any, ComparisonDecision],
+        ai_client: PydanticAIClient,
+    ) -> None:
+        self._extract_agent = extract_agent
+        self._decide_agent = decide_agent
+        self._ai_client = ai_client
 
     async def process(
         self,
@@ -90,7 +86,7 @@ class CandidateComparisonAgent:
             chatbot_logger.log_section("CANDIDATE COMPARISON", user_message=message)
 
         try:
-            ext = await run_typed(
+            ext = await self._ai_client.run_typed(
                 self._extract_agent,
                 message,
                 context="Comparison extract",
@@ -258,7 +254,7 @@ class CandidateComparisonAgent:
             # NOTE: conversation_history=None is intentional — the decision must
             # be based solely on the candidate profiles in user_payload, not on
             # prior chat turns.
-            decision = await run_typed(
+            decision = await self._ai_client.run_typed(
                 self._decide_agent,
                 user_payload,
                 context="Comparison decision",

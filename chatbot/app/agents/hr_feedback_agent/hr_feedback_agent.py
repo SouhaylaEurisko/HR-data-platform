@@ -8,14 +8,14 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from pydantic_ai import Agent
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..dtos import HrFeedbackExtraction
 from ..filter_agent.utils import sanitize_rows
-from .prompts import HR_FEEDBACK_EXTRACT_PROMPT
 from ...config.logger import ChatBotLogger
-from ...utils.pydantic_ai_client import build_agent, run_typed
+from ...utils.pydantic_ai_client import PydanticAIClient
 
 logger = logging.getLogger(__name__)
 
@@ -116,12 +116,13 @@ def _pick_row_latest_comment_stage(rows: List[Any]) -> Optional[Any]:
 
 
 class HrFeedbackAgent:
-    def __init__(self) -> None:
-        self._agent = build_agent(
-            HrFeedbackExtraction,
-            HR_FEEDBACK_EXTRACT_PROMPT,
-            temperature=0.2,
-        )
+    def __init__(
+        self,
+        agent: Agent[Any, HrFeedbackExtraction],
+        ai_client: PydanticAIClient,
+    ) -> None:
+        self._agent = agent
+        self._ai_client = ai_client
 
     async def process(
         self,
@@ -137,7 +138,7 @@ class HrFeedbackAgent:
             chatbot_logger.log_section("HR FEEDBACK", user_message=message)
 
         try:
-            data = await run_typed(
+            data = await self._ai_client.run_typed(
                 self._agent,
                 message,
                 context="HR feedback extract",
