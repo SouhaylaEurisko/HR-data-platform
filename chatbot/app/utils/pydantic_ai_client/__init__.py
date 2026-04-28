@@ -14,6 +14,7 @@ from pydantic_ai import (
 )
 from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
 from ...config import config
 from ...config.agent_config import AgentConfig
@@ -27,7 +28,15 @@ class PydanticAIClient:
 
     def __init__(self, default_config: Optional[AgentConfig] = None):
         self.default_config = default_config or AgentConfig(model_name=config.openai_model)
-        self.model = OpenAIChatModel(self.default_config.model_name or _DEFAULT_MODEL)
+        api_key = (config.openai_api_key or "").strip()
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY is not configured for chatbot service."
+            )
+        self.model = OpenAIChatModel(
+            self.default_config.model_name or _DEFAULT_MODEL,
+            provider=OpenAIProvider(api_key=api_key),
+        )
 
     @staticmethod
     def _make_system_prompt_reinjector(

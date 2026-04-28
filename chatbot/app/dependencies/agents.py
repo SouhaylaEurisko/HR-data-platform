@@ -6,7 +6,7 @@ from dataclasses import replace
 from functools import lru_cache
 from typing import Any
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from pydantic_ai import Agent
 
 from ..agents.aggregation_agent import AggregationAgent
@@ -78,7 +78,13 @@ def _with_client_model(base: AgentConfig, client: PydanticAIClient) -> AgentConf
 @lru_cache(maxsize=1)
 def get_pydantic_ai_client() -> PydanticAIClient:
     """Singleton Pydantic AI client reused across all provider functions."""
-    return PydanticAIClient(default_config=AgentConfig(model_name=config.openai_model))
+    try:
+        return PydanticAIClient(default_config=AgentConfig(model_name=config.openai_model))
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
 
 
 def get_filter_sql_agent(
