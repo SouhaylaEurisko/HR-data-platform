@@ -4,6 +4,7 @@ Message service — processes chat messages through the agent pipeline.
 import json
 import logging
 from typing import Optional, Dict, Any, List, Union, Protocol
+from opentelemetry import trace
 
 from ..agents.flow_agent import FlowAgent
 from ..agents.flow_agent.models import FlowResult
@@ -11,8 +12,10 @@ from ..agents.title_agent import TitleAgent
 from ..repository.conversation_repository import ConversationRepositoryProtocol
 from ..repository.user_repository import UserRepositoryProtocol
 from ..config.logger import ChatBotLogger
+from ..telemetry import get_current_request_id, set_current_request_id
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # Maximum number of previous messages to include as context
 _MAX_HISTORY_MESSAGES = 10
@@ -151,39 +154,54 @@ class MessageService:
         """
         Process a user message through the full agent pipeline.
         """
-        conversation_history = self._build_conversation_history(conversation_id)
-        user_first_name = self._get_user_first_name(user_id)
+        with tracer.start_as_current_span("chatbot.message_service.process_chat_message") as span:
+            conversation_history = self._build_conversation_history(conversation_id)
+            user_first_name = self._get_user_first_name(user_id)
 
-        chatbot_logger = ChatBotLogger(
-            user_id=user_id,
-            conversation_id=conversation_id,
-        )
-        chatbot_logger.start_request()
-
-        if conversation_history:
-            chatbot_logger.log_section(
-                "CONVERSATION CONTEXT",
-                history_messages=len(conversation_history),
+            request_id = get_current_request_id()
+            chatbot_logger = ChatBotLogger(
+                request_id=request_id if request_id != "-" else None,
+                user_id=user_id,
+                conversation_id=conversation_id,
             )
+            set_current_request_id(chatbot_logger.request_id)
+            chatbot_logger.start_request()
 
-        try:
-            result = await self._flow_agent.process(
-                message,
-                self._conversation_repo.db,
-                user_first_name=user_first_name,
-                chatbot_logger=chatbot_logger,
-                conversation_history=conversation_history,
-            )
-            chatbot_logger.end_request()
-            return {
-                "reply": result.reply,
-                "response": self._to_response_data(result),
-            }
-        except Exception as exc:
-            logger.error(f"Agent pipeline error: {exc}", exc_info=True)
-            chatbot_logger.log_section("ERROR", error=str(exc))
-            chatbot_logger.end_request()
-            return {
-                "reply": "I apologize, but I encountered an error processing your message. Please try again.",
-                "response": None,
-            }
+            span.set_attribute("chatbot.request_id", chatbot_logger.request_id)
+            span.set_attribute("chatbot.user_id", chatbot_logger.user_id)
+            span.set_attribute("chatbot.conversation_id", chatbot_logger.conversation_id)
+            span.set_attribute("chatbot.message.length", len(message or ""))
+            span.set_attribute("chatbot.history.count", len(conversation_history))
+            span.set_attribute("chatbot.user_has_first_name", bool(user_first_name))
+
+            if conversation_history:
+                chatbot_logger.log_section(
+                    "CONVERSATION CONTEXT",
+                    history_messages=len(conversation_history),
+                )
+
+            try:
+                result = await self._flow_agent.process(
+                    message,
+                    self._conversation_repo.db,
+                    user_first_name=user_first_name,
+                    chatbot_logger=chatbot_logger,
+                    conversation_history=conversation_history,
+                )
+                span.set_attribute("chatbot.intent", result.intent)
+                span.set_attribute("chatbot.total_found", int(result.total_found or 0))
+                chatbot_logger.end_request()
+                return {
+                    "reply": result.reply,
+                    "response": self._to_response_data(result),
+                }
+            except Exception as exc:
+                span.record_exception(exc)
+                span.set_attribute("chatbot.pipeline_error", True)
+                logger.error(f"Agent pipeline error: {exc}", exc_info=True)
+                chatbot_logger.log_section("ERROR", error=str(exc))
+                chatbot_logger.end_request()
+                return {
+                    "reply": "I apologize, but I encountered an error processing your message. Please try again.",
+                    "response": None,
+                }

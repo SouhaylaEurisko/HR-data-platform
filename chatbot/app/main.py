@@ -1,17 +1,14 @@
 """
 Chatbot service main application.
 """
-import os
-
-if not os.environ.get("PYDANTIC_DISABLE_PLUGINS"):
-    os.environ["PYDANTIC_DISABLE_PLUGINS"] = "logfire-plugin"
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import config, init_db
 from .routers import register_routers
+from .telemetry import setup_telemetry
+from .prometheus_setup import mount_prometheus_metrics
 
 
 @asynccontextmanager
@@ -33,6 +30,9 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+setup_telemetry(app)
+mount_prometheus_metrics(app)
 
 # CORS middleware
 app.add_middleware(

@@ -21,6 +21,11 @@ class Config(BaseSettings):
     openai_api_key: str
     openai_model: str = Field(default="gpt-4o-mini")
 
+    logfire_token: str | None = Field(
+        default=None,
+        description="Pydantic Logfire project write token; loaded from LOGFIRE_TOKEN in env or chatbot/.env",
+    )
+
     cors_origins: Annotated[List[str], NoDecode] = Field(default_factory=lambda: ["*"])
 
     model_config = SettingsConfigDict(

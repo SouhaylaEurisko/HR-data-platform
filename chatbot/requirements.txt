@@ -6,3 +6,16 @@ pydantic>=2.0.0
 pydantic-settings>=2.0.0
 pydantic-ai-slim[openai]>=1.77.0
 python-dotenv>=1.0.0
+# Align with logfire (needs OTel SDK 1.39+ for logs API / pydantic logfire-plugin).
+opentelemetry-api>=1.39.0,<1.40.0
+opentelemetry-sdk>=1.39.0,<1.40.0
+opentelemetry-exporter-otlp-proto-grpc>=1.39.0,<1.40.0
+opentelemetry-exporter-otlp-proto-http>=1.39.0,<1.40.0
+# Instrumentation minor tracks SDK 1.39.x (pip typically resolves to 0.60b*).
+opentelemetry-instrumentation-fastapi>=0.55b0
+opentelemetry-instrumentation-httpx>=0.55b0
+opentelemetry-instrumentation-sqlalchemy>=0.55b0
+opentelemetry-instrumentation-logging>=0.55b0
+logfire>=3.0.0
+prometheus-client>=0.21.0
+prometheus-fastapi-instrumentator>=7.0.0

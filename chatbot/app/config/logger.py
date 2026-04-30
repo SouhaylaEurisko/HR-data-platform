@@ -37,7 +37,12 @@ _SEPARATOR = "=" * 100
 
 
 def _get_file_logger() -> logging.Logger:
-    """Return (or create) the shared file-backed logger."""
+    """Return (or create) the shared file-backed logger.
+
+    ``propagate`` is disabled so verbose section output stays in the rotating
+    file under ``app/logs/chat_bot_logs/`` only — it does not duplicate to
+    stdout or the root OTel handler. Use structured logs elsewhere for Loki.
+    """
     name = "chatbot.request_logger"
     logger = logging.getLogger(name)
 

@@ -1,0 +1,49 @@
+// Grafana Alloy (systemd on HOST): scrape backend + chatbot /metrics → Grafana Cloud Mimir.
+//
+// Prerequisites:
+//   - Backend and chatbot run in Docker Compose on this host with ports published:
+//       4533 (backend), 4535 (chatbot) — see project docker-compose.yml.
+//   - Install this file as /etc/alloy/config.alloy (or merge into your existing config).
+//   - Set GRAFANA_CLOUD_PROMETHEUS_* (see infra/alloy/env.example), for example with:
+//       EnvironmentFile=-/etc/alloy/grafana-cloud.env
+//   - sudo systemctl restart alloy.service
+//
+// If you run Alloy inside Docker on the Compose network, use
+// infra/alloy/config.alloy.docker.example instead.
+// If your deployment publishes different ports, update __address__ values below.
+
+prometheus.remote_write "metrics_hosted_prometheus" {
+	endpoint {
+		name = "hosted-prometheus"
+		url  = sys.env("GRAFANA_CLOUD_PROMETHEUS_REMOTE_WRITE_URL")
+
+		basic_auth {
+			username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+			password = sys.env("GRAFANA_CLOUD_PROMETHEUS_API_KEY")
+		}
+	}
+
+	external_labels = {
+		deployment = "hr_platform",
+	}
+}
+
+prometheus.scrape "hr_platform_fastapi" {
+	targets = [
+		{
+			"__address__" = "198.244.167.152:4633",
+			"job"         = "hr-platform-backend",
+			"service"     = "backend",
+		},
+		{
+			"__address__" = "198.244.167.152:4536",
+			"job"         = "hr-platform-chatbot",
+			"service"     = "chatbot",
+		},
+	]
+
+	forward_to      = [prometheus.remote_write.metrics_hosted_prometheus.receiver]
+	scrape_interval = "15s"
+	scrape_timeout  = "10s"
+	metrics_path    = "/metrics"
+}

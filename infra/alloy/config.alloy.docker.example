@@ -1,0 +1,38 @@
+// Optional: Grafana Alloy running *inside* Docker on the same Compose network as the apps.
+// Targets use Compose DNS (backend, chatbot). Not used when Alloy is systemd on the host.
+
+prometheus.remote_write "metrics_hosted_prometheus" {
+	endpoint {
+		name = "hosted-prometheus"
+		url  = sys.env("GRAFANA_CLOUD_PROMETHEUS_REMOTE_WRITE_URL")
+
+		basic_auth {
+			username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+			password = sys.env("GRAFANA_CLOUD_PROMETHEUS_API_KEY")
+		}
+	}
+
+	external_labels = {
+		deployment = "hr_platform_docker_alloy",
+	}
+}
+
+prometheus.scrape "hr_platform_fastapi" {
+	targets = [
+		{
+			"__address__" = "backend:4533",
+			"job"         = "hr-platform-backend",
+			"service"     = "backend",
+		},
+		{
+			"__address__" = "chatbot:4535",
+			"job"         = "hr-platform-chatbot",
+			"service"     = "chatbot",
+		},
+	]
+
+	forward_to      = [prometheus.remote_write.metrics_hosted_prometheus.receiver]
+	scrape_interval = "15s"
+	scrape_timeout  = "10s"
+	metrics_path    = "/metrics"
+}
