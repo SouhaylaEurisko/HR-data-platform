@@ -27,7 +27,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # Custom nginx config for SPA routing
 RUN echo 'server { \
-    listen 5176; \
+    listen 80; \
     root /usr/share/nginx/html; \
     index index.html; \
     location / { \
@@ -35,7 +35,6 @@ RUN echo 'server { \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
-# Expose frontend port
-EXPOSE 5176
+EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

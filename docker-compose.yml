@@ -1,0 +1,133 @@
+services:
+  # ───────────────────────────────────────────────
+  # PostgreSQL Database
+  # ───────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: hr_platform_postgres
+    # restart: unless-stopped
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - hr_platform_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+
+  # ───────────────────────────────────────────────
+  # Chatbot Service
+  # ───────────────────────────────────────────────
+  chatbot:
+    build:
+      context: ./chatbot
+      dockerfile: Dockerfile
+    image: hr_platform_chatbot
+    container_name: hr_platform_chatbot
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "4535"
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+      CORS_ORIGINS: "*"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS}
+      OTEL_SERVICE_NAME: ${CHATBOT_OTEL_SERVICE_NAME:-hr-platform-chatbot}
+    ports:
+      - "4535:4535"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hr_platform_network
+
+  # ───────────────────────────────────────────────
+  # Backend API
+  # ───────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: hr_platform_backend
+    container_name: hr_platform_backend
+    restart: unless-stopped
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "4533"
+      DATABASE_URL: ${DATABASE_URL}
+      CHATBOT_SERVICE_URL: "http://chatbot:4535"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5176}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS}
+      OTEL_SERVICE_NAME: ${BACKEND_OTEL_SERVICE_NAME:-hr-platform-backend}
+    ports:
+      - "4533:4533"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chatbot:
+        condition: service_started
+    networks:
+      - hr_platform_network
+
+  # Metrics: install Grafana Alloy on the host (systemd) and use infra/alloy/config.alloy
+  # → /etc/alloy/config.alloy (scrapes 127.0.0.1:4533 and :4535 published below).
+
+  # ───────────────────────────────────────────────
+  # Frontend (React + Nginx)
+  # ───────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend/hr-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    image: hr_platform_frontend
+    container_name: hr_platform_frontend
+    restart: unless-stopped
+    # Host nginx on the same machine can proxy here; not exposed on public interfaces.
+    ports:
+      - "127.0.0.1:5176:80"
+    depends_on:
+      - backend
+    networks:
+      - hr_platform_network
+
+# ───────────────────────────────────────────────
+# Shared Network
+# ───────────────────────────────────────────────
+networks:
+  hr_platform_network:
+    driver: bridge
+
+# ───────────────────────────────────────────────
+# Persistent Volume for PostgreSQL
+#
+# `name:` is pinned so the volume is reused regardless of which directory
+# (i.e. compose project name) you run `docker compose` from. Without this,
+# Compose derives the volume name as `<project>_postgres_data`, so renaming
+# or moving the project folder silently creates a brand-new empty volume.
+# ───────────────────────────────────────────────
+volumes:
+  postgres_data:
+    external: true
+    name: hr_platform_postgres_data
