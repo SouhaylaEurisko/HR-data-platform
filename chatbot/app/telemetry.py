@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 import uuid
 from contextvars import ContextVar
 from fastapi import FastAPI
@@ -37,12 +38,14 @@ from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .config import config, engine
 
 _INSTRUMENTED = False
+
+_ROOT_OTLP_HANDLER: LoggingHandler | None = None
+_ROOT_STREAM_HANDLER: logging.StreamHandler | None = None
 
 _REQUEST_ID_CTX: ContextVar[str] = ContextVar("request_id", default="-")
 
@@ -73,19 +76,81 @@ class _RequestIdLogFilter(logging.Filter):
         return True
 
 
-class _RequestIdMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        rid = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+_ACCESS_LOG_SKIP_PATHS = frozenset({"/health", "/metrics"})
+
+
+def _asgi_header(scope: Scope, name: bytes) -> str | None:
+    for key, value in scope.get("headers") or []:
+        if key.lower() == name.lower():
+            return value.decode("latin-1")
+    return None
+
+
+class _InboundRequestLogMiddleware:
+    """Pure ASGI middleware: wraps every HTTP request (no BaseHTTPMiddleware gaps).
+
+    Logs with the ``httpx`` logger using the same ``HTTP Request:`` line shape as outbound
+    httpx calls so Grafana/Loki OTLP pipelines attribute them identically to working logs.
+    """
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path") or ""
+        if path in _ACCESS_LOG_SKIP_PATHS:
+            await self.app(scope, receive, send)
+            return
+
+        raw_rid = _asgi_header(scope, b"x-request-id")
+        rid = raw_rid if raw_rid else str(uuid.uuid4())
         token = _REQUEST_ID_CTX.set(rid)
-        span = trace.get_current_span()
-        if span is not None and span.is_recording():
-            span.set_attribute("request_id", rid)
+        start = time.perf_counter()
+        status_holder: dict[str, int | None] = {"code": None}
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                status_holder["code"] = message["status"]
+                new_msg = dict(message)
+                headers = list(new_msg.get("headers") or [])
+                if not any(hk.lower() == b"x-request-id" for hk, _ in headers):
+                    headers.append((b"x-request-id", rid.encode("latin-1")))
+                new_msg["headers"] = headers
+                await send(new_msg)
+                return
+            await send(message)
+
         try:
-            response = await call_next(request)
+            await self.app(scope, receive, send_wrapper)
         finally:
-            _REQUEST_ID_CTX.reset(token)
-        response.headers["X-Request-ID"] = rid
-        return response
+            try:
+                duration_ms = (time.perf_counter() - start) * 1000
+                method = scope.get("method", "?")
+                qs = scope.get("query_string", b"").decode("latin-1")
+                path_display = f"{path}?{qs}" if qs else path
+                code = status_holder["code"] if status_holder["code"] is not None else 0
+
+                span = trace.get_current_span()
+                if span is not None and span.is_recording():
+                    span.set_attribute("request_id", rid)
+                    span.set_attribute("http.response.status_code", code)
+                    span.set_attribute("http.server.request.duration_ms", round(duration_ms, 3))
+
+                if _ROOT_OTLP_HANDLER is not None and _ROOT_OTLP_HANDLER not in logging.getLogger().handlers:
+                    reattach_root_log_handlers()
+
+                logging.getLogger("httpx").info(
+                    'HTTP Request: %s %s "%s"',
+                    method,
+                    path_display,
+                    f"HTTP/1.1 {code}",
+                )
+            finally:
+                _REQUEST_ID_CTX.reset(token)
 
 
 def _build_resource(default_service_name: str) -> Resource:
@@ -119,13 +184,19 @@ def _build_log_exporter():
 
 
 def _configure_root_logger(otlp_handler: LoggingHandler) -> None:
+    global _ROOT_OTLP_HANDLER, _ROOT_STREAM_HANDLER
+    _ROOT_OTLP_HANDLER = otlp_handler
+
     root = logging.getLogger()
     if root.level == logging.NOTSET or root.level > logging.INFO:
         root.setLevel(logging.INFO)
 
-    root.addFilter(_OtelLogDefaultsFilter())
-    root.addFilter(_RequestIdLogFilter())
-    root.addHandler(otlp_handler)
+    if not any(isinstance(f, _OtelLogDefaultsFilter) for f in root.filters):
+        root.addFilter(_OtelLogDefaultsFilter())
+    if not any(isinstance(f, _RequestIdLogFilter) for f in root.filters):
+        root.addFilter(_RequestIdLogFilter())
+    if otlp_handler not in root.handlers:
+        root.addHandler(otlp_handler)
 
     if not any(isinstance(h, logging.StreamHandler) and h is not otlp_handler for h in root.handlers):
         stream_handler = logging.StreamHandler()
@@ -139,6 +210,29 @@ def _configure_root_logger(otlp_handler: LoggingHandler) -> None:
         stream_handler.addFilter(_OtelLogDefaultsFilter())
         stream_handler.addFilter(_RequestIdLogFilter())
         root.addHandler(stream_handler)
+        _ROOT_STREAM_HANDLER = stream_handler
+    elif _ROOT_STREAM_HANDLER is None:
+        for h in root.handlers:
+            if isinstance(h, logging.StreamHandler) and h is not otlp_handler:
+                _ROOT_STREAM_HANDLER = h
+                break
+
+
+def reattach_root_log_handlers() -> None:
+    """Call from FastAPI startup: uvicorn replaces logging config after import and drops OTLP handlers."""
+    global _ROOT_OTLP_HANDLER, _ROOT_STREAM_HANDLER
+    if _ROOT_OTLP_HANDLER is None:
+        return
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    if _ROOT_OTLP_HANDLER not in root.handlers:
+        root.addHandler(_ROOT_OTLP_HANDLER)
+    if _ROOT_STREAM_HANDLER is not None and _ROOT_STREAM_HANDLER not in root.handlers:
+        root.addHandler(_ROOT_STREAM_HANDLER)
+    if not any(isinstance(f, _OtelLogDefaultsFilter) for f in root.filters):
+        root.addFilter(_OtelLogDefaultsFilter())
+    if not any(isinstance(f, _RequestIdLogFilter) for f in root.filters):
+        root.addFilter(_RequestIdLogFilter())
 
 
 def _configure_logfire_globals(
@@ -228,6 +322,6 @@ def setup_telemetry(app: FastAPI) -> None:
     HTTPXClientInstrumentor().instrument()
     SQLAlchemyInstrumentor().instrument(engine=engine)
 
-    app.add_middleware(_RequestIdMiddleware)
+    app.add_middleware(_InboundRequestLogMiddleware)
 
     _INSTRUMENTED = True

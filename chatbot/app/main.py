@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import config, init_db
 from .routers import register_routers
-from .telemetry import setup_telemetry
+from .telemetry import reattach_root_log_handlers, setup_telemetry
 from .prometheus_setup import mount_prometheus_metrics
 
 
@@ -17,7 +17,8 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for startup and shutdown events.
     Replaces deprecated @app.on_event("startup") and @app.on_event("shutdown").
     """
-    # Startup: Initialize database
+    # Uvicorn applies logging.config after import; restore OTLP handlers for Loki export.
+    reattach_root_log_handlers()
     init_db()
     yield
     # Shutdown: Add any cleanup code here if needed
